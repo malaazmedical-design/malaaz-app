@@ -186,6 +186,91 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
 .suboption{display:inline-flex;align-items:center;gap:6px;background:var(--white);color:var(--text);border:1.5px solid var(--border);border-radius:12px;font-size:13px;padding:10px 14px;font-weight:600;cursor:pointer;transition:all .15s;width:calc(50% - 4px);justify-content:center;margin-bottom:0;}
 .suboption.sel{background:var(--g1);color:#fff;border-color:var(--g1);box-shadow:0 2px 8px rgba(45,59,62,.2);}
 .suboption:active{transform:scale(.96);}
+
+/* ==============================
+   DESKTOP LAYOUT (768px+)
+   ============================== */
+@media (min-width: 768px) {
+  html,body{background:#e8e4dc;overflow:auto;}
+  
+  body{
+    max-width:100%;
+    flex-direction:row;
+    align-items:stretch;
+    height:100vh;
+    overflow:hidden;
+  }
+
+  /* Sidebar */
+  .mode-bar{
+    flex-direction:column;
+    width:220px;
+    min-height:100vh;
+    padding:24px 16px;
+    gap:10px;
+    position:fixed;
+    top:0;right:0;
+    border-bottom:none;
+    border-left:1px solid rgba(255,255,255,0.06);
+    z-index:100;
+  }
+  .mode-bar::before{
+    content:'ملاذ';
+    display:block;
+    color:#fff;
+    font-size:28px;
+    font-weight:900;
+    text-align:center;
+    margin-bottom:8px;
+    letter-spacing:2px;
+  }
+  .mode-bar::after{
+    content:'رعاية طبية منزلية';
+    display:block;
+    color:rgba(255,255,255,.4);
+    font-size:11px;
+    text-align:center;
+    margin-bottom:16px;
+  }
+  .mode-btn{
+    padding:12px 16px;
+    border-radius:12px;
+    font-size:13px;
+    text-align:right;
+  }
+
+  /* Main content area */
+  .screen{
+    margin-right:220px;
+    max-width:520px;
+    width:520px;
+    height:100vh;
+    border-radius:0;
+    border-right:1px solid var(--border);
+    border-left:1px solid var(--border);
+    box-shadow:0 0 40px rgba(0,0,0,.08);
+    background:var(--bg);
+  }
+
+  /* Right panel - info/stats */
+  body::after{
+    content:'';
+    flex:1;
+    background:transparent;
+  }
+}
+
+@media (min-width:1100px){
+  .screen{
+    margin-right:220px;
+    margin-left:auto;
+    position:relative;
+  }
+  
+  /* Show right info panel */
+  #desktop-panel{display:flex !important;}
+}
+
 </style>
 </head>
 <body>
@@ -517,7 +602,9 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
     </div>
     <div style="height:10px"></div>
   </div>
-  <button class="btnmain" onclick="saveBooking()" style="background:var(--gold);color:var(--g1);box-shadow:0 4px 20px rgba(201,168,76,0.35);">تأكيد الحجز وإرسال واتساب 💬</button>
+  <div style="padding:12px 14px 16px;background:var(--white);border-top:0.5px solid var(--border);flex-shrink:0;">
+  <button class="btnmain" onclick="saveBooking()" style="background:var(--gold);color:var(--g1);box-shadow:0 4px 20px rgba(201,168,76,0.35);margin:0;width:100%;">تأكيد الحجز وإرسال واتساب 💬</button>
+</div>
 </div>
 
 <!-- CONFIRM -->
