@@ -205,12 +205,23 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
       <span style="font-size:22px" id="slogan-icon">💚</span>
       <span id="slogan-text" style="font-size:13px;font-weight:600;line-height:1.6;flex:1;opacity:0;transition:opacity .5s"></span>
     </div>
-    <div class="srow">
-      <div class="schip" onclick="aGo('a-list','كشف منزلي')"><div class="sico">🩺</div><div class="slbl">كشف منزلي</div></div>
-      <div class="schip" onclick="aGo('a-list','أشعة منزلية')"><div class="sico">☢️</div><div class="slbl">أشعة منزلية</div></div>
-      <div class="schip" onclick="aGo('a-list','تمريض منزلي')"><div class="sico">💉</div><div class="slbl">تمريض منزلي</div></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;">
+      <div onclick="goBook('كشف منزلي','كشف')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+        <div style="width:52px;height:52px;border-radius:16px;background:#E8F5E9;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:28px;">🩺</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text)">كشف منزلي</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">طبيب في بيتك</div>
+      </div>
+      <div onclick="goBook('أشعة منزلية','أشعة')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+        <div style="width:52px;height:52px;border-radius:16px;background:#E3F2FD;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:28px;">🔬</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text)">أشعة منزلية</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">تصوير في موقعك</div>
+      </div>
+      <div onclick="goBook('تمريض منزلي','تمريض')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+        <div style="width:52px;height:52px;border-radius:16px;background:#FCE4EC;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:28px;">💊</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text)">تمريض منزلي</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">رعاية متخصصة</div>
+      </div>
     </div>
-    <!-- removed تحاليل منزلية as requested -->
     <div class="sec">الأعلى تقييماً ⭐</div>
     <div class="dc" onclick="aShow('a-detail')">
       <div class="dc-top">
@@ -344,12 +355,38 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
 
 <!-- BOOKING -->
 <div class="screen" id="a-booking">
-  <div class="tb"><span class="tb-back" onclick="aShow('a-detail')">‹</span><span class="tb-title">حجز موعد</span></div>
-  <div class="scrollable">
-    <div style="background:var(--g-light);border-radius:13px;margin:13px 12px 0;padding:13px;display:flex;align-items:center;gap:10px;">
-      <span style="font-size:26px" id="book-service-icon">🩺</span>
-      <div><div style="font-size:14px;font-weight:700;color:var(--g1)" id="book-service-name">كشف منزلي</div><div style="font-size:12px;color:var(--g2)">احجز موعد الآن</div></div>
+  <div style="flex-shrink:0;position:relative;overflow:hidden;background:#0D3320;min-height:160px;">
+    <!-- CSS Art Background -->
+    <div style="position:absolute;inset:0;overflow:hidden;">
+      <div style="position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(46,125,50,.4);top:-60px;left:-40px;"></div>
+      <div style="position:absolute;width:150px;height:150px;border-radius:50%;background:rgba(56,142,60,.3);top:20px;right:-30px;"></div>
+      <div style="position:absolute;width:100px;height:100px;border-radius:50%;background:rgba(27,94,32,.5);bottom:-30px;left:40px;"></div>
+      <div style="position:absolute;width:80px;height:80px;border-radius:50%;background:rgba(76,175,80,.2);bottom:10px;right:60px;"></div>
+      <!-- Cross/medical symbol -->
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);opacity:.06;">
+        <div style="background:#fff;width:8px;height:60px;border-radius:4px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+        <div style="background:#fff;width:60px;height:8px;border-radius:4px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+      </div>
     </div>
+    <!-- Back button -->
+    <div style="position:relative;padding:12px 14px 0;display:flex;align-items:center;gap:8px;">
+      <span style="color:#fff;font-size:24px;cursor:pointer" onclick="aShow('a-home')">‹</span>
+      <span style="color:rgba(255,255,255,.7);font-size:13px">حجز موعد</span>
+    </div>
+    <!-- Content -->
+    <div style="position:relative;padding:12px 16px 20px;display:flex;align-items:center;gap:14px;">
+      <div style="width:64px;height:64px;border-radius:20px;background:rgba(255,255,255,.15);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;font-size:34px;border:1.5px solid rgba(255,255,255,.25);flex-shrink:0" id="book-service-icon">🩺</div>
+      <div>
+        <div style="font-size:20px;font-weight:900;color:#fff" id="book-service-name">كشف منزلي</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:4px">احجز موعدك الآن بسهولة</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;font-size:11px;color:#fff;">⏱ 30 دقيقة</span>
+          <span style="background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;font-size:11px;color:#fff;">✅ مرخص</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="scrollable">
     <input type="hidden" id="book-hidden-service" value="كشف منزلي"/>
     <div class="fcard">
       <label class="fl">الاسم الكامل</label>
@@ -360,8 +397,13 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
       <select class="fi" id="b-area"><option>اختر منطقتك</option><option>مدينة نصر</option><option>هليوبوليس</option><option>الزيتون</option><option>شبرا</option><option>المعادي</option></select>
       <label class="fl">العنوان التفصيلي</label>
       <input class="fi" id="b-address" type="text" placeholder="الشارع، العمارة، الشقة"/>
-      <label class="fl">الموعد المفضل</label>
-      <input class="fi" id="b-appoint" type="text" placeholder="مثال: السبت 10 صباحاً"/>
+      <label class="fl">الفترة المفضلة</label>
+      <select class="fi" id="b-appoint">
+        <option value="">اختر الفترة</option>
+        <option value="صباحاً (8 - 12)">🌅 صباحاً (8 - 12)</option>
+        <option value="ظهراً (12 - 4)">☀️ ظهراً (12 - 4)</option>
+        <option value="مساءً (4 - 9)">🌙 مساءً (4 - 9)</option>
+      </select>
     </div>
     <div class="sec">طريقة الدفع 💳</div>
     <div class="pay-opt sel" id="py-cash" onclick="selPay('cash')">
