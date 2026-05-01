@@ -350,15 +350,15 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
     </div>
     <div class="fcard">
       <label class="fl">الاسم الكامل</label>
-      <input class="fi" type="text" placeholder="اسمك الكامل"/>
+      <input class="fi" id="b-name" type="text" placeholder="اسمك الكامل"/>
       <label class="fl">رقم الموبايل</label>
-      <input class="fi" type="tel" placeholder="01xxxxxxxxx"/>
+      <input class="fi" id="b-phone" type="tel" placeholder="01xxxxxxxxx"/>
       <label class="fl">المنطقة</label>
-      <select class="fi"><option>اختر منطقتك</option><option>مدينة نصر</option><option>هليوبوليس</option><option>الزيتون</option><option>شبرا</option><option>المعادي</option></select>
+      <select class="fi" id="b-area"><option>اختر منطقتك</option><option>مدينة نصر</option><option>هليوبوليس</option><option>الزيتون</option><option>شبرا</option><option>المعادي</option></select>
       <label class="fl">العنوان التفصيلي</label>
-      <input class="fi" type="text" placeholder="الشارع، العمارة، الشقة"/>
+      <input class="fi" id="b-address" type="text" placeholder="الشارع، العمارة، الشقة"/>
       <label class="fl">الموعد المفضل</label>
-      <input class="fi" type="text" placeholder="مثال: السبت 10 صباحاً"/>
+      <input class="fi" id="b-appoint" type="text" placeholder="مثال: السبت 10 صباحاً"/>
     </div>
     <div class="sec">طريقة الدفع 💳</div>
     <div class="pay-opt sel" id="py-cash" onclick="selPay('cash')">
@@ -388,7 +388,7 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
     </div>
     <div style="height:10px"></div>
   </div>
-  <button class="btnmain" onclick="aShow('a-confirm')">تأكيد الحجز والدفع</button>
+  <button class="btnmain" onclick="saveBooking()">تأكيد الحجز والدفع</button>
 </div>
 
 <!-- CONFIRM -->
@@ -526,22 +526,22 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
     <div class="psec">البيانات الشخصية</div>
     <div class="fcard">
       <label class="fl">الاسم الكامل / اسم المركز</label>
-      <input class="fi" type="text" placeholder="د. أحمد حسن"/>
+      <input class="fi" id="p-name" type="text" placeholder="د. أحمد حسن"/>
       <label class="fl">رقم الموبايل</label>
-      <input class="fi" type="tel" placeholder="01xxxxxxxxx"/>
+      <input class="fi" id="b-phone" type="tel" placeholder="01xxxxxxxxx"/>
       <label class="fl">البريد الإلكتروني</label>
-      <input class="fi" type="email" placeholder="example@email.com"/>
+      <input class="fi" id="p-email" type="email" placeholder="example@email.com"/>
     </div>
     <div class="psec">التخصص والخدمة</div>
     <div class="fcard">
       <label class="fl">نوع الخدمة</label>
-      <select class="fi"><option>اختر نوع الخدمة</option><option>كشف منزلي</option><option>أشعة منزلية</option><option>تمريض منزلي</option><option>تحاليل منزلية</option></select>
+      <select class="fi" id="p-stype"><option>اختر نوع الخدمة</option><option>كشف منزلي</option><option>أشعة منزلية</option><option>تمريض منزلي</option><option>تحاليل منزلية</option></select>
       <label class="fl">التخصص التفصيلي</label>
-      <input class="fi" type="text" placeholder="مثال: طب عام وأسرة"/>
+      <input class="fi" id="p-spec" type="text" placeholder="مثال: طب عام وأسرة"/>
       <label class="fl">سنوات الخبرة</label>
-      <input class="fi" type="number" placeholder="مثال: 10"/>
+      <input class="fi" id="p-exp" type="number" placeholder="مثال: 10"/>
       <label class="fl">رقم الترخيص / النقابة</label>
-      <input class="fi" type="text" placeholder="رقم ترخيص مزاولة المهنة"/>
+      <input class="fi" id="p-lic" type="text" placeholder="رقم ترخيص مزاولة المهنة"/>
     </div>
     <div class="psec">الأسعار</div>
     <div class="fcard">
@@ -574,7 +574,7 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
     </div>
     <div style="height:10px"></div>
   </div>
-  <button class="btnmain" onclick="pShow('p-sent')">إرسال الطلب للمراجعة</button>
+  <button class="btnmain" onclick="saveProvider()">إرسال الطلب للمراجعة</button>
 </div>
 
 <!-- SENT -->
@@ -634,10 +634,10 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
   <div class="scrollable">
     <div class="sec">إحصائيات الشهر</div>
     <div class="ag">
-      <div class="astat"><div class="asl">إجمالي الحجوزات</div><div class="asv">47</div></div>
+      <div class="astat"><div class="asl">إجمالي الحجوزات</div><div class="asv" id="admin-bookings-count">47</div></div>
       <div class="astat"><div class="asl">إيرادات الشهر</div><div class="asv" style="font-size:15px">16,450 ج</div></div>
       <div class="astat"><div class="asl">مقدمو الخدمة</div><div class="asv">25</div></div>
-      <div class="astat"><div class="asl" style="color:var(--orange)">طلبات معلقة</div><div class="asv" style="color:var(--orange)">3</div></div>
+      <div class="astat"><div class="asl" style="color:var(--orange)">طلبات معلقة</div><div class="asv" style="color:var(--orange)" id="admin-pending-count">3</div></div>
     </div>
     <div class="sec">طلبات مقدمي خدمة جدد ⚡</div>
     <div class="pcard">
@@ -668,7 +668,7 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
         <button class="abtn ab-no">❌ رفض</button>
       </div>
     </div>
-    <div class="sec">إدارة سريعة</div>
+    <div class="sec">آخر الحجوزات</div><div id="admin-bookings-list"></div><div class="sec">إدارة سريعة</div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:9px;padding:0 12px;margin-bottom:16px">
       <button class="qbtn" style="background:var(--g-light);color:var(--g1)">📋 الحجوزات الجديدة</button>
       <button class="qbtn" style="background:#E3F2FD;color:#0D47A1">📊 التقارير الشهرية</button>
@@ -678,7 +678,12 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+const SUPABASE_URL="https://oobzgibvjrpkichtitgy.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYnpnaWJ2anJwa2ljaHRpdGd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0OTY1NjEsImV4cCI6MjA5MzA3MjU2MX0.SiBYYbdLtIxPHPv5gn9dUhA1enMqfv9VKsGc2zGfkAQ";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let curProvider=null;
 let curMode='app';
 let curPay='cash';
 let curStar=0;
@@ -692,7 +697,7 @@ function setMode(m){
   // show right screen
   if(m==='app') document.getElementById('a-home').classList.add('active');
   else if(m==='portal') document.getElementById('p-home').classList.add('active');
-  else document.getElementById('ad-home').classList.add('active');
+  else{document.getElementById('ad-home').classList.add('active');loadAdminData();}
   // update buttons
   document.querySelectorAll('.mode-btn').forEach((b,i)=>{
     const modes=['app','portal','admin'];
@@ -743,6 +748,64 @@ function approve(btn){
   c.style.opacity='.55';
   btn.textContent='✅ تم القبول';btn.disabled=true;
 }
+
+async function saveBooking(){
+  const name=document.getElementById('b-name').value;
+  const phone=document.getElementById('b-phone').value;
+  const area=document.getElementById('b-area').value;
+  const address=document.getElementById('b-address').value;
+  const appointment=document.getElementById('b-appoint').value;
+  if(!name||!phone||!area||area==='اختر منطقتك'){
+    alert('من فضلك اكمل اسمك ورقمك ومنطقتك');return;
+  }
+  const {error}=await sb.from('bookings').insert([{
+    name,phone,area,address,appointment,
+    service:'كشف منزلي',provider:'د. أحمد حسن',
+    price:'350',status:'pending',payment_method:curPay
+  }]);
+  if(error){alert('حصل خطأ، حاول تاني');console.error(error);return;}
+  aShow('a-confirm');
+}
+
+async function saveProvider(){
+  const name=document.getElementById('p-name').value;
+  const phone=document.getElementById('p-phone').value;
+  const email=document.getElementById('p-email').value;
+  const service_type=document.getElementById('p-stype').value;
+  const specialty=document.getElementById('p-spec').value;
+  const experience=document.getElementById('p-exp').value;
+  const license=document.getElementById('p-lic').value;
+  if(!name||!phone||!service_type||service_type==='اختر نوع الخدمة'){
+    alert('من فضلك اكمل اسمك ورقمك ونوع خدمتك');return;
+  }
+  const {error}=await sb.from('providers').insert([{
+    name,phone,email,service_type,specialty,experience,license,status:'pending'
+  }]);
+  if(error){alert('حصل خطأ، حاول تاني');console.error(error);return;}
+  pShow('p-sent');
+}
+
+async function loadAdminData(){
+  const {data:bookings}=await sb.from('bookings').select('*').order('created_at',{ascending:false});
+  const {data:providers}=await sb.from('providers').select('*').eq('status','pending');
+  const bEl=document.getElementById('admin-bookings-count');
+  const pEl=document.getElementById('admin-pending-count');
+  if(bEl&&bookings) bEl.textContent=bookings.length;
+  if(pEl&&providers) pEl.textContent=providers.length;
+  const list=document.getElementById('admin-bookings-list');
+  if(list&&bookings){
+    list.innerHTML=bookings.slice(0,5).map(b=>`
+      <div class="bcard">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div style="font-size:15px;font-weight:700">${b.name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${b.service||''} · ${b.area||''} · ${b.appointment||''}</div></div>
+          <span class="bs ${b.status==='pending'?'bs-pend':'bs-done'}">${b.status==='pending'?'جديد':'مكتمل'}</span>
+        </div>
+        <div style="font-size:13px;color:var(--g2);font-weight:700;margin-top:8px">${b.price||''} ج.م · ${b.payment_method||''}</div>
+      </div>`).join('');
+  }
+}
+
 const slogans=[
   {icon:'🏥',text:'صحتك أغلى ما عندك — ملاذ يجيب الطبيب لبيتك في أي وقت'},
   {icon:'💚',text:'مع ملاذ، الرعاية الصحية مش محتاج تخرج ليها'},
