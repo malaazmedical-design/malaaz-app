@@ -183,8 +183,8 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
 .ab-no{background:#FFEBEE;color:var(--red);}
 .ab-view{background:var(--g-mid);color:var(--g1);}
 .qbtn{border:none;border-radius:11px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;text-align:right;}
-.suboption{display:inline-block;background:var(--g-light);color:var(--g1);border:1px solid var(--g-mid);border-radius:20px;font-size:12px;padding:6px 14px;font-weight:600;cursor:pointer;transition:all .15s;}
-.suboption.sel{background:var(--g1);color:#fff;border-color:var(--g1);}
+.suboption{display:inline-flex;align-items:center;gap:6px;background:var(--white);color:var(--text);border:1.5px solid var(--border);border-radius:12px;font-size:13px;padding:10px 14px;font-weight:600;cursor:pointer;transition:all .15s;width:calc(50% - 4px);justify-content:center;margin-bottom:0;}
+.suboption.sel{background:var(--g1);color:#fff;border-color:var(--g1);box-shadow:0 2px 8px rgba(45,59,62,.2);}
 .suboption:active{transform:scale(.96);}
 </style>
 </head>
@@ -251,18 +251,18 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;">
       <!-- كشف منزلي — الأكثر طلباً -->
-      <div onclick="goBook('كشف منزلي','كشف')" style="background:#fff;border:1.5px solid var(--gold);border-radius:16px;padding:16px 8px 12px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 3px 14px rgba(201,168,76,.18);position:relative;" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+      <div onclick="goBook('كشف منزلي')" style="background:#fff;border:1.5px solid var(--gold);border-radius:16px;padding:16px 8px 12px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 3px 14px rgba(201,168,76,.18);position:relative;" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
         <div style="position:absolute;top:-1px;right:50%;transform:translateX(50%);background:var(--gold);color:var(--g1);font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;white-space:nowrap;">الأكثر طلباً</div>
         <div style="width:52px;height:52px;border-radius:16px;background:#faf4e6;display:flex;align-items:center;justify-content:center;margin:8px auto 8px;font-size:28px;">🩺</div>
         <div style="font-size:12px;font-weight:700;color:var(--text)">كشف منزلي</div>
         <div style="font-size:10px;color:var(--muted);margin-top:2px">طبيب في بيتك</div>
       </div>
-      <div onclick="goBook('أشعة منزلية','أشعة')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 2px 10px rgba(58,74,78,.06);" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+      <div onclick="goBook('أشعة منزلية')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 2px 10px rgba(58,74,78,.06);" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
         <div style="width:52px;height:52px;border-radius:16px;background:#e8f0f4;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:28px;">🔬</div>
         <div style="font-size:12px;font-weight:700;color:var(--text)">أشعة منزلية</div>
         <div style="font-size:10px;color:var(--muted);margin-top:2px">تصوير في موقعك</div>
       </div>
-      <div onclick="goBook('تمريض منزلي','تمريض')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 2px 10px rgba(58,74,78,.06);" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+      <div onclick="goBook('تمريض منزلي')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 2px 10px rgba(58,74,78,.06);" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
         <div style="width:52px;height:52px;border-radius:16px;background:#f4ece8;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:28px;">🧑‍⚕️</div>
         <div style="font-size:12px;font-weight:700;color:var(--text)">تمريض منزلي</div>
         <div style="font-size:10px;color:var(--muted);margin-top:2px">رعاية متخصصة</div>
@@ -436,17 +436,16 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
     <input type="hidden" id="book-hidden-service" value="كشف منزلي"/>
 
     <!-- التخصصات الديناميكية -->
-    <div>
-      <div class="sec" id="sub-label" style="padding-bottom:8px;">اختر التخصص</div>
-      <div id="sub-options-container" style="display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 14px;"></div>
+    <div style="padding:0 14px 4px;">
+      <label class="fl" id="sub-label">اختر التخصص</label>
+      <select class="fi" id="sub-options-container" style="font-size:14px;font-weight:600;color:var(--text);border:1.5px solid var(--g1);background:var(--white);padding:13px 14px;">
+        <option value="">اختر...</option>
+      </select>
     </div>
 
     <div class="fcard">
       <!-- بيانات العميل — تتملا تلقائي لو مسجل دخول -->
-      <div id="user-prefill-banner" style="display:none;background:var(--g-light);border-radius:9px;padding:10px 12px;margin-bottom:14px;align-items:center;gap:8px;">
-        <span style="font-size:16px;">✅</span>
-        <span style="font-size:12px;font-weight:700;color:var(--g1);">بياناتك اتملت تلقائياً</span>
-      </div>
+<div id="user-prefill-banner" style="display:none;"></div>
       <label class="fl">الاسم الكامل</label>
       <input class="fi" id="b-name" type="text" placeholder="اسمك الكامل"/>
       <label class="fl">رقم الموبايل</label>
@@ -1189,13 +1188,13 @@ function goBook(service, preSelectedSub){
   if(preSelectedSub){
     // لو في تخصص محدد مسبقاً — اخفي الاختيارات وحدده تلقائي
     document.getElementById('sub-label').textContent='التخصص';
-    container.innerHTML=`<span class="suboption sel">${preSelectedSub}</span>`;
+    container.innerHTML=`<option value="${preSelectedSub}">${preSelectedSub}</option>`;
     container.style.pointerEvents='none';
   } else {
     const list=SPECIALTIES[service]||[];
     const labelMap={'كشف منزلي':'اختر التخصص','تمريض منزلي':'اختر نوع الخدمة','أشعة منزلية':'اختر نوع الأشعة'};
     document.getElementById('sub-label').textContent=labelMap[service]||'اختر الخدمة';
-    container.innerHTML=list.map(s=>`<span class="suboption" onclick="selSub(this)">${s}</span>`).join('');
+    container.innerHTML='<option value="">اختر...</option>'+list.map(s=>`<option value="${s}">${s}</option>`).join('');
     container.style.pointerEvents='';
   }
 
@@ -1275,8 +1274,8 @@ async function saveBooking(){
   const address=document.getElementById('b-address').value.trim();
   const appointment=document.getElementById('b-appoint').value;
   const service=document.getElementById('book-hidden-service').value;
-  const selSubEl=document.querySelector('#sub-options-container .suboption.sel');
-  const subOption=selSubEl?selSubEl.textContent.trim():'';
+  const subSelect=document.getElementById('sub-options-container');
+  const subOption=subSelect?subSelect.value.trim():'';
 
   if(!name||!phone){alert('من فضلك ادخل الاسم ورقم الموبايل');return;}
   if(!area){alert('من فضلك اختر المنطقة');return;}
