@@ -334,7 +334,7 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
       <span style="font-size:22px" id="slogan-icon">💚</span>
       <span id="slogan-text" style="font-size:13px;font-weight:600;line-height:1.6;flex:1;opacity:0;transition:opacity .5s"></span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;" id="home-services-grid">
       <!-- كشف منزلي — الأكثر طلباً -->
       <div onclick="goBook('كشف منزلي')" style="background:#fff;border:1.5px solid var(--gold);border-radius:16px;padding:16px 8px 12px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 3px 14px rgba(201,168,76,.18);position:relative;" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
         <div style="position:absolute;top:-1px;right:50%;transform:translateX(50%);background:var(--gold);color:var(--g1);font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;white-space:nowrap;">الأكثر طلباً</div>
@@ -363,35 +363,8 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
       <span>الأعلى تقييماً ⭐</span>
       <span style="font-size:12px;color:var(--g2);font-weight:700;cursor:pointer;" onclick="aGo('a-list','كل الأطباء')">عرض الكل ›</span>
     </div>
-    <div class="dc" onclick="showDoctor('ahmed')">
-      <div class="dc-top">
-        <div>
-          <div class="dc-name">د. أحمد حسن</div>
-          <div class="dc-spec">طب عام وأسرة</div>
-          <div class="dc-rat"><span class="stars">★★★★★</span><span style="color:var(--muted)">4.9 · 312 تقييم</span><span class="avdot" style="margin-right:6px"></span><span style="font-size:11px;color:#43A047;font-weight:600">متاح الآن</span></div>
-          <div><span class="badge">⏱ 30 دقيقة</span><span class="badge">📍 مدينة نصر</span></div>
-        </div>
-        <div class="dc-ava" style="background:var(--g-light)">👨‍⚕️</div>
-      </div>
-      <div class="dc-bot">
-        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">350</span> <span class="pcur">ج.م</span></div></div>
-        <button class="bsm">عرض الملف ›</button>
-      </div>
-    </div>
-    <div class="dc" onclick="showDoctor('mona')">
-      <div class="dc-top">
-        <div>
-          <div class="dc-name">أ. منى إبراهيم</div>
-          <div class="dc-spec">ممرضة معتمدة</div>
-          <div class="dc-rat"><span class="stars">★★★★★</span><span style="color:var(--muted)">5.0 · 210 تقييم</span></div>
-          <div><span class="badge">⏱ ساعة</span><span class="badge">📍 المعادي</span></div>
-        </div>
-        <div class="dc-ava" style="background:#FCE4EC">👩‍⚕️</div>
-      </div>
-      <div class="dc-bot">
-        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">200</span> <span class="pcur">ج.م</span></div></div>
-        <button class="bsm">عرض الملف ›</button>
-      </div>
+    <div id="home-providers-list">
+      <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">جاري التحميل...</div>
     </div>
     <div style="height:12px"></div>
   </div>
@@ -404,38 +377,11 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
 
 <!-- LIST -->
 <div class="screen" id="a-list">
-  <div class="tb"><span class="tb-back" onclick="aShow('a-home')">‹</span><span class="tb-title" id="list-t">كشف منزلي</span></div>
+  <div class="tb"><span class="tb-back" onclick="aShow('a-home')">‹</span><span class="tb-title" id="list-t">كل الأطباء</span></div>
   <div class="scrollable">
     <div style="height:10px"></div>
-    <div class="dc" onclick="showDoctor('ahmed')">
-      <div class="dc-top">
-        <div>
-          <div class="dc-name">د. أحمد حسن</div>
-          <div class="dc-spec">طب عام وأسرة</div>
-          <div class="dc-rat"><span class="stars">★★★★★</span> <span style="color:var(--muted)">4.9</span></div>
-          <div><span class="badge">📍 مدينة نصر</span><span class="badge">⏱ 30 دقيقة</span></div>
-        </div>
-        <div class="dc-ava" style="background:var(--g-light)">👨‍⚕️</div>
-      </div>
-      <div class="dc-bot">
-        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">350</span> <span class="pcur">ج.م</span></div></div>
-        <button class="bsm">عرض الملف ›</button>
-      </div>
-    </div>
-    <div class="dc" onclick="showDoctor('alaa')">
-      <div class="dc-top">
-        <div>
-          <div class="dc-name">د. علاء منصور</div>
-          <div class="dc-spec">طب داخلي</div>
-          <div class="dc-rat"><span class="stars">★★★★☆</span> <span style="color:var(--muted)">4.7</span></div>
-          <div><span class="badge">📍 الدقي</span></div>
-        </div>
-        <div class="dc-ava" style="background:#E8F5E9">👨‍⚕️</div>
-      </div>
-      <div class="dc-bot">
-        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">300</span> <span class="pcur">ج.م</span></div></div>
-        <button class="bsm">عرض الملف ›</button>
-      </div>
+    <div id="all-providers-list">
+      <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">جاري التحميل...</div>
     </div>
   </div>
   <div class="tabbar">
@@ -619,7 +565,7 @@ body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height
       <div class="irow"><span class="ikey">التخصص</span><span class="ival" id="conf-sub">—</span></div>
       <div class="irow"><span class="ikey">المنطقة</span><span class="ival" id="conf-area">—</span></div>
       <div class="irow"><span class="ikey">الفترة</span><span class="ival" id="conf-appoint">—</span></div>
-      <div class="irow"><span class="ikey">المبلغ</span><span class="ival-g">350 ج.م</span></div>
+      <div class="irow"><span class="ikey">المبلغ</span><span class="ival-g" id="conf-price">—</span></div>
       <div class="irow"><span class="ikey">الدفع</span><span class="ival" id="pay-conf">كاش عند الزيارة</span></div>
       <div class="irow"><span class="ikey">الحالة</span><span style="color:var(--orange);font-weight:700">⏳ قيد التأكيد</span></div>
     </div>
@@ -1059,33 +1005,137 @@ let curMapLink='';
 let lastBooking={};
 
 // ============================================================
-// بيانات الأطباء — عدّلها هنا لما تضيف مقدم جديد
+// بيانات ديناميكية من Supabase
 // ============================================================
-const DOCTORS = {
-  'ahmed': { name:'د. أحمد حسن',    service:'كشف منزلي',   spec:'طب عام وأسرة',       icon:'👨‍⚕️', rating:'4.9', reviews:'312', price:'350', time:'30 دقيقة', area:'مدينة نصر' },
-  'mona':  { name:'أ. منى إبراهيم', service:'تمريض منزلي', spec:'⚡ خدمة سريعة',      icon:'👩‍⚕️', rating:'5.0', reviews:'210', price:'200', time:'ساعة',    area:'المعادي' },
-  'alaa':  { name:'د. علاء منصور',  service:'كشف منزلي',   spec:'طب داخلي',           icon:'👨‍⚕️', rating:'4.7', reviews:'180', price:'300', time:'ساعة',    area:'الدقي' },
+let DOCTORS = {};
+let SPECIALTIES = {
+  'كشف منزلي': ['الباطنة','صدر وجهاز تنفسي','قلب وأوعية دموية','أطفال وحديثي الولادة','جراحة عامة','مسالك بولية','أمراض نفسية وعصبية','أنف وأذن وحنجرة','السكري والغدد الصماء','أمراض الكلى','العظام','المخ والأعصاب','طب المسنين'],
+  'تمريض منزلي': ['⚡ خدمة سريعة','🕛 إقامة 12 ساعة','🌙 إقامة 24 ساعة'],
+  'أشعة منزلية': ['أشعة عادية X-Ray','رسم قلب ECG','سونار على البطن','إيكو على القلب','دوبلر / دوبلكس']
 };
+let ALL_PROVIDERS = [];
+let ALL_SERVICES = [];
 
-// ============================================================
-// التخصصات الديناميكية — عدّلها هنا بسهولة
-// ============================================================
-const SPECIALTIES = {
-  'كشف منزلي': [
-    'الباطنة','صدر وجهاز تنفسي','قلب وأوعية دموية',
-    'أطفال وحديثي الولادة','جراحة عامة','جراحة أوعية دموية',
-    'مسالك بولية','أمراض نفسية وعصبية','أنف وأذن وحنجرة',
-    'السكري والغدد الصماء','أمراض الكلى','العظام',
-    'المخ والأعصاب','طب المسنين'
-  ],
-  'تمريض منزلي': [
-    '⚡ خدمة سريعة','🕛 إقامة 12 ساعة','🌙 إقامة 24 ساعة'
-  ],
-  'أشعة منزلية': [
-    'أشعة عادية X-Ray','رسم قلب ECG','سونار على البطن',
-    'إيكو على القلب','دوبلر / دوبلكس أوردة وشرايين'
-  ]
-};
+async function loadAppData() {
+  try {
+    // جيب المقدمين النشطين
+    const { data: providers } = await sb.from('providers').select('*').eq('status','active').order('created_at');
+    if (providers && providers.length) {
+      ALL_PROVIDERS = providers;
+      DOCTORS = {};
+      providers.forEach(p => {
+        DOCTORS[p.id] = {
+          id: p.id,
+          name: p.name || '—',
+          service: p.service_type || 'كشف منزلي',
+          spec: p.specialty || '—',
+          icon: p.service_type === 'تمريض منزلي' ? '👩‍⚕️' : '👨‍⚕️',
+          rating: p.rating ? String(p.rating) : '5.0',
+          reviews: p.reviews ? String(p.reviews) : '0',
+          price: p.price ? String(p.price) : '—',
+          time: p.arrival_time || '30 دقيقة',
+          area: p.area || '—',
+        };
+      });
+      renderHomeProviders();
+      renderListProviders();
+    }
+
+    // جيب الخدمات
+    const { data: services } = await sb.from('services').select('*').eq('is_active', true).order('created_at');
+    if (services && services.length) {
+      ALL_SERVICES = services;
+      // حدّث SPECIALTIES من DB لو فيه subspecialties
+      services.forEach(s => {
+        if (s.subspecialties && s.subspecialties.length) {
+          SPECIALTIES[s.name] = s.subspecialties;
+        }
+      });
+      renderHomeServices(services);
+    }
+
+    // جيب مناطق التغطية
+    const { data: areas } = await sb.from('coverage_areas').select('*').eq('is_active', true).order('name');
+    if (areas && areas.length) {
+      const sel = document.getElementById('b-area');
+      const cairo = areas.filter(a => a.city === 'القاهرة');
+      const giza  = areas.filter(a => a.city === 'الجيزة');
+      sel.innerHTML = '<option value="">اختر منطقتك</option>';
+      if (cairo.length) sel.innerHTML += `<optgroup label="── القاهرة ──">${cairo.map(a=>`<option>${a.name}</option>`).join('')}</optgroup>`;
+      if (giza.length)  sel.innerHTML += `<optgroup label="── الجيزة ──">${giza.map(a=>`<option>${a.name}</option>`).join('')}</optgroup>`;
+    }
+  } catch(e) { console.warn('loadAppData error:', e); }
+}
+
+function renderHomeProviders() {
+  const el = document.getElementById('home-providers-list');
+  if (!el) return;
+  if (!ALL_PROVIDERS.length) {
+    el.innerHTML = '<div style="text-align:center;padding:32px 14px;color:var(--muted);font-size:13px;">لا يوجد مقدمو خدمة متاحون حالياً</div>';
+    return;
+  }
+  el.innerHTML = ALL_PROVIDERS.slice(0,5).map(p => {
+    const d = DOCTORS[p.id];
+    const bg = p.service_type==='تمريض منزلي' ? '#FCE4EC' : 'var(--g-light)';
+    return `<div class="dc" onclick="showDoctor('${p.id}')">
+      <div class="dc-top">
+        <div>
+          <div class="dc-name">${d.name}</div>
+          <div class="dc-spec">${d.spec}</div>
+          <div class="dc-rat"><span class="stars">★★★★★</span><span style="color:var(--muted)">${d.rating} · ${d.reviews} تقييم</span><span class="avdot" style="margin-right:6px"></span><span style="font-size:11px;color:#43A047;font-weight:600">متاح الآن</span></div>
+          <div><span class="badge">⏱ ${d.time}</span><span class="badge">📍 ${d.area}</span></div>
+        </div>
+        <div class="dc-ava" style="background:${bg}">${d.icon}</div>
+      </div>
+      <div class="dc-bot">
+        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">${d.price}</span> <span class="pcur">ج.م</span></div></div>
+        <button class="bsm">عرض الملف ›</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderListProviders() {
+  const el = document.getElementById('all-providers-list');
+  if (!el) return;
+  if (!ALL_PROVIDERS.length) {
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">لا يوجد مقدمو خدمة حالياً</div>';
+    return;
+  }
+  el.innerHTML = ALL_PROVIDERS.map(p => {
+    const d = DOCTORS[p.id];
+    const bg = p.service_type==='تمريض منزلي' ? '#FCE4EC' : 'var(--g-light)';
+    return `<div class="dc" onclick="showDoctor('${p.id}')">
+      <div class="dc-top">
+        <div>
+          <div class="dc-name">${d.name}</div>
+          <div class="dc-spec">${d.spec}</div>
+          <div class="dc-rat"><span class="stars">★★★★★</span><span style="color:var(--muted)">${d.rating}</span><span class="avdot" style="margin-right:6px"></span><span style="font-size:11px;color:#43A047;font-weight:600">متاح الآن</span></div>
+          <div><span class="badge">📍 ${d.area}</span><span class="badge">⏱ ${d.time}</span><span class="badge">${d.service}</span></div>
+        </div>
+        <div class="dc-ava" style="background:${bg}">${d.icon}</div>
+      </div>
+      <div class="dc-bot">
+        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">${d.price}</span> <span class="pcur">ج.م</span></div></div>
+        <button class="bsm">عرض الملف ›</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderHomeServices(services) {
+  const el = document.getElementById('home-services-grid');
+  if (!el || !services.length) return;
+  const colors = ['#faf4e6','#e8f0f4','#f4ece8'];
+  const icons   = ['🩺','🔬','🧑‍⚕️'];
+  el.innerHTML = services.map((s, i) => `
+    <div onclick="goBook('${s.name}')" style="background:#fff;border:${i===0?'1.5px solid var(--gold)':'.5px solid var(--border)'};border-radius:16px;padding:16px 8px 12px;text-align:center;cursor:pointer;position:relative;${i===0?'box-shadow:0 3px 14px rgba(201,168,76,.18);':''}" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+      ${i===0?'<div style="position:absolute;top:-1px;right:50%;transform:translateX(50%);background:var(--gold);color:var(--g1);font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;white-space:nowrap;">الأكثر طلباً</div>':''}
+      <div style="width:52px;height:52px;border-radius:16px;background:${colors[i%colors.length]};display:flex;align-items:center;justify-content:center;margin:${i===0?'8px':'0'} auto 8px;font-size:28px;">${s.icon||icons[i]||'🏥'}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text)">${s.name}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px">${s.description||''}</div>
+    </div>`).join('');
+}
 
 // ============================================================
 // LOGIN
@@ -1373,15 +1423,24 @@ async function saveBooking(){
 
   lastBooking={name,phone,area,address,appointment,service,subOption,pay:curPay,mapLink:curMapLink};
 
+  // احسب السعر من المقدم المختار أو من الخدمة
+  let bookingPrice = '—';
+  if (curProvider && curProvider.price) {
+    bookingPrice = curProvider.price;
+  } else {
+    const svc = ALL_SERVICES.find(s => s.name === service);
+    if (svc) bookingPrice = `${svc.price_min} - ${svc.price_max}`;
+  }
+  lastBooking.price = bookingPrice;
+
   // حفظ في Supabase
   let saveError=null;
   try{
     const res=await sb.from('bookings').insert([{
       name,phone,area,address,appointment,
       service,sub_option:subOption,provider:'',
-      price:'350',status:'pending',payment_method:curPay
+      price: String(bookingPrice), status:'pending', payment_method:curPay
     }]);
-    // استخرج الـ error كـ plain string فوراً عشان نتفادى DataCloneError
     if(res && res.error){
       saveError = res.error.message || res.error.details || res.error.hint || 'خطأ غير معروف';
     }
@@ -1389,12 +1448,9 @@ async function saveBooking(){
     saveError = e && e.message ? e.message : 'خطأ في الاتصال';
   }
 
-  if(saveError){
-    console.warn('Supabase warning (غير حارق):', saveError);
-    // نكمل عادي — الواتساب هو الـ fallback الأساسي
-  }
+  if(saveError){ console.warn('Supabase warning:', saveError); }
 
-  // ملء شاشة التأكيد ببيانات الحجز الفعلية
+  // ملء شاشة التأكيد
   const payLabels={cash:'كاش عند الزيارة',card:'فيزا / ماستركارد',wallet:'فودافون كاش'};
   document.getElementById('conf-name').textContent=name;
   document.getElementById('conf-service').textContent=service;
@@ -1402,10 +1458,11 @@ async function saveBooking(){
   document.getElementById('conf-area').textContent=area;
   document.getElementById('conf-appoint').textContent=appointment||'—';
   document.getElementById('pay-conf').textContent=payLabels[curPay]||curPay;
+  const priceEl = document.getElementById('conf-price');
+  if(priceEl) priceEl.textContent = bookingPrice + ' ج.م';
 
   aShow('a-confirm');
-  // افتح واتساب بعد شوية عشان الشاشة تتغير الأول
-  setTimeout(()=>sendWhatsApp(), 600);
+  // واتساب بيتفتح لما المستخدم يضغط الزرار بنفسه
 }
 
 function sendWhatsApp(){
@@ -1536,6 +1593,8 @@ function showSlogan(){
 }
 showSlogan();
 setInterval(showSlogan,5000);
+// تحميل البيانات من Supabase
+loadAppData();
 </script>
 </body>
 </html>

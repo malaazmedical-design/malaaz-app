@@ -387,7 +387,7 @@ footer{
     <a onclick="document.getElementById('coverage').scrollIntoView({behavior:'smooth'})">مناطق التغطية</a>
     <a onclick="document.getElementById('faq').scrollIntoView({behavior:'smooth'})">الأسئلة الشائعة</a>
   </div>
-  <button class="nav-cta" onclick="window.open('https://malaazmedical-design.github.io/malaaz-app/','_blank')">احجز الآن 🩺</button>
+  <button class="nav-cta" onclick="openBooking('')">احجز الآن 🩺</button>
 </nav>
 
 <!-- HERO -->
@@ -403,7 +403,7 @@ footer{
     <h1>رعاية طبية<br><span>في بيتك</span><br>في أي وقت</h1>
     <p class="hero-sub">ملاذ يجيب لك أفضل الأطباء والمتخصصين لباب بيتك — كشف، تمريض، أشعة، وأكثر. بدون انتظار، بدون إجهاد.</p>
     <div class="hero-actions">
-      <button class="btn-primary" onclick="window.open('https://malaazmedical-design.github.io/malaaz-app/','_blank')">ابدأ الحجز دلوقتي</button>
+      <button class="btn-primary" onclick="openBooking('')">ابدأ الحجز دلوقتي</button>
       <button class="btn-secondary" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">كيف يعمل ملاذ؟</button>
     </div>
     <div class="hero-stats">
@@ -574,7 +574,7 @@ footer{
         </div>
         <div class="doc-price-row">
           <div><div class="doc-from">ابتداء من</div><div class="doc-price">350 <span style="font-size:13px;font-weight:400;color:var(--muted)">ج.م</span></div></div>
-          <button class="doc-btn" onclick="window.open('https://malaazmedical-design.github.io/malaaz-app/','_blank')">احجز ›</button>
+          <button class="doc-btn" onclick="openBooking('')">احجز ›</button>
         </div>
       </div>
     </div>
@@ -594,7 +594,7 @@ footer{
         </div>
         <div class="doc-price-row">
           <div><div class="doc-from">ابتداء من</div><div class="doc-price">200 <span style="font-size:13px;font-weight:400;color:var(--muted)">ج.م</span></div></div>
-          <button class="doc-btn" onclick="window.open('https://malaazmedical-design.github.io/malaaz-app/','_blank')">احجز ›</button>
+          <button class="doc-btn" onclick="openBooking('')">احجز ›</button>
         </div>
       </div>
     </div>
@@ -613,7 +613,7 @@ footer{
         </div>
         <div class="doc-price-row">
           <div><div class="doc-from">ابتداء من</div><div class="doc-price">300 <span style="font-size:13px;font-weight:400;color:var(--muted)">ج.م</span></div></div>
-          <button class="doc-btn" onclick="window.open('https://malaazmedical-design.github.io/malaaz-app/','_blank')">احجز ›</button>
+          <button class="doc-btn" onclick="openBooking('')">احجز ›</button>
         </div>
       </div>
     </div>
@@ -829,7 +829,7 @@ footer{
     <h2 class="section-title" style="color:#fff;margin:0 auto 16px;">صحتك تستاهل<br>أفضل رعاية</h2>
     <p class="section-sub" style="text-align:center;">انضم لآلاف العائلات المصرية اللي بتثق في ملاذ — احجز طبيبك دلوقتي في ثواني</p>
     <div class="cta-btns">
-      <button class="btn-primary" style="font-size:17px;padding:18px 40px;" onclick="window.open('https://malaazmedical-design.github.io/malaaz-app/','_blank')">احجز الآن 🩺</button>
+      <button class="btn-primary" style="font-size:17px;padding:18px 40px;" onclick="openBooking('')">احجز الآن 🩺</button>
       <div class="app-btn">
         <div class="app-btn-ico">📱</div>
         <div class="app-btn-txt">
@@ -920,6 +920,7 @@ const SVC_COLORS = ['#faf4e6','#f4ece8','#e8f0f4','#e8f4ea','#f0e8f4'];
 async function loadLPServices() {
   const { data: services } = await sb.from('services').select('*').eq('is_active', true).order('created_at');
   if (!services || !services.length) return;
+  window.lpServices = services;
 
   // --- Services section (كارت مختصر) ---
   const grid = document.getElementById('services-grid');
@@ -960,7 +961,7 @@ async function loadLPServices() {
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.7;">كل مقدم خدمة بيحدد سعره جوا الـ range ده<br>اختار اللي يناسبك</div>
         </div>
-        <button onclick="window.open('${APP_URL}','_blank')" style="width:100%;background:${isFeature ? 'var(--accent);color:var(--dark)' : 'var(--dark);color:#fff'};border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:${isFeature?'900':'700'};cursor:pointer;font-family:'Cairo',sans-serif;">احجز ${s.name} ←</button>
+        <button onclick="openBooking('${s.name}')" style="width:100%;background:${isFeature ? 'var(--accent);color:var(--dark)' : 'var(--dark);color:#fff'};border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:${isFeature?'900':'700'};cursor:pointer;font-family:'Cairo',sans-serif;">احجز ${s.name} ←</button>
       </div>
     </div>`;
   }).join('');
@@ -973,6 +974,7 @@ async function loadLPServices() {
 async function loadLPAreas() {
   const { data: areas } = await sb.from('coverage_areas').select('*').eq('is_active', true).order('name');
   if (!areas) return;
+  window.lpAreas = areas;
 
   const cairo = areas.filter(a => a.city === 'القاهرة');
   const giza  = areas.filter(a => a.city === 'الجيزة');
@@ -993,5 +995,207 @@ async function loadLPAreas() {
 loadLPServices();
 loadLPAreas();
 </script>
+<!-- BOOKING MODAL -->
+<div id="booking-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:24px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;position:relative;">
+    <!-- Header -->
+    <div style="background:var(--dark);padding:22px 24px 18px;border-radius:24px 24px 0 0;position:relative;">
+      <button onclick="closeBooking()" style="position:absolute;top:16px;left:20px;background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Cairo',sans-serif;">×</button>
+      <div style="font-size:22px;font-weight:900;color:#fff;" id="bm-service-name">احجز خدمة</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:4px;">فريق ملاذ يصلك في 30 دقيقة</div>
+    </div>
+    <!-- Form -->
+    <div style="padding:20px 24px;" id="bm-form-wrap">
+      <!-- الخدمة -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;">نوع الخدمة</label>
+        <select id="bm-service" onchange="updateBmService()" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:'Cairo',sans-serif;color:var(--text);background:#fff;">
+          <option value="">اختر الخدمة</option>
+        </select>
+      </div>
+      <!-- التخصص -->
+      <div style="margin-bottom:14px;" id="bm-spec-wrap">
+        <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;" id="bm-spec-label">التخصص</label>
+        <select id="bm-spec" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:'Cairo',sans-serif;color:var(--text);background:#fff;">
+          <option value="">اختر...</option>
+        </select>
+      </div>
+      <!-- الاسم -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;">الاسم الكامل</label>
+        <input type="text" id="bm-name" placeholder="اسمك الكامل" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:'Cairo',sans-serif;color:var(--text);" onfocus="this.style.borderColor='var(--dark)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <!-- الموبايل -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;">رقم الموبايل</label>
+        <input type="tel" id="bm-phone" placeholder="01xxxxxxxxx" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:'Cairo',sans-serif;color:var(--text);" onfocus="this.style.borderColor='var(--dark)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <!-- المنطقة -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;">المنطقة</label>
+        <select id="bm-area" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:'Cairo',sans-serif;color:var(--text);background:#fff;">
+          <option value="">اختر منطقتك</option>
+        </select>
+      </div>
+      <!-- الفترة -->
+      <div style="margin-bottom:20px;">
+        <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;">الفترة المفضلة</label>
+        <select id="bm-time" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:'Cairo',sans-serif;color:var(--text);background:#fff;">
+          <option value="">اختر الفترة</option>
+          <option value="صباحاً (8 - 12)">🌅 صباحاً (8 - 12)</option>
+          <option value="ظهراً (12 - 4)">☀️ ظهراً (12 - 4)</option>
+          <option value="مساءً (4 - 9)">🌙 مساءً (4 - 9)</option>
+        </select>
+      </div>
+      <!-- Error -->
+      <div id="bm-error" style="display:none;background:#fff0f0;border:1px solid #ffcccc;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#c0392b;font-weight:600;"></div>
+      <!-- Submit -->
+      <button onclick="submitBooking()" id="bm-submit-btn" style="width:100%;background:var(--accent);color:var(--dark);border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:900;cursor:pointer;font-family:'Cairo',sans-serif;transition:opacity .2s;">احجز دلوقتي 🩺</button>
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px;">الدفع بعد الخدمة · كاش أو فيزا أو فودافون كاش</div>
+    </div>
+    <!-- Success -->
+    <div id="bm-success" style="display:none;padding:32px 24px;text-align:center;">
+      <div style="font-size:64px;margin-bottom:12px;">✅</div>
+      <div style="font-size:22px;font-weight:900;color:var(--dark);margin-bottom:8px;">تم الحجز بنجاح!</div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.8;margin-bottom:24px;">سيتواصل معك فريق ملاذ حالاً لتأكيد الموعد.<br>ابعت تفاصيل الحجز على واتساب عشان نبدأ.</div>
+      <button id="bm-wa-btn" onclick="sendLandingWhatsApp()" style="width:100%;background:#25D366;color:#fff;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;margin-bottom:10px;">💬 تأكيد الحجز على واتساب</button>
+      <button onclick="closeBooking()" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Cairo',sans-serif;">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Booking Modal =====
+const LP_SPECIALTIES = {
+  'كشف منزلي': ['الباطنة','صدر وجهاز تنفسي','قلب وأوعية دموية','أطفال وحديثي الولادة','جراحة عامة','مسالك بولية','السكري والغدد الصماء','أمراض الكلى','العظام','المخ والأعصاب','طب المسنين'],
+  'تمريض منزلي': ['⚡ خدمة سريعة','🕛 إقامة 12 ساعة','🌙 إقامة 24 ساعة'],
+  'أشعة منزلية': ['أشعة عادية X-Ray','رسم قلب ECG','سونار على البطن','إيكو على القلب','دوبلر / دوبلكس']
+};
+let bmLastBooking = {};
+
+function openBooking(serviceName) {
+  const overlay = document.getElementById('booking-overlay');
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  // reset
+  document.getElementById('bm-form-wrap').style.display = 'block';
+  document.getElementById('bm-success').style.display = 'none';
+  document.getElementById('bm-error').style.display = 'none';
+  document.getElementById('bm-name').value = '';
+  document.getElementById('bm-phone').value = '';
+  // fill services from DB
+  const svcSel = document.getElementById('bm-service');
+  if (svcSel.options.length <= 1 && window.lpServices && lpServices.length) {
+    lpServices.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.name; o.textContent = s.name;
+      svcSel.appendChild(o);
+    });
+  }
+  if (serviceName) {
+    svcSel.value = serviceName;
+    document.getElementById('bm-service-name').textContent = 'احجز: ' + serviceName;
+    updateBmService();
+  }
+  // fill areas from DB
+  const areaSel = document.getElementById('bm-area');
+  if (areaSel.options.length <= 1 && window.lpAreas && lpAreas.length) {
+    const cairo = lpAreas.filter(a => a.city === 'القاهرة');
+    const giza  = lpAreas.filter(a => a.city === 'الجيزة');
+    if (cairo.length) {
+      const og = document.createElement('optgroup'); og.label = 'القاهرة';
+      cairo.forEach(a => { const o = document.createElement('option'); o.value = a.name; o.textContent = a.name; og.appendChild(o); });
+      areaSel.appendChild(og);
+    }
+    if (giza.length) {
+      const og = document.createElement('optgroup'); og.label = 'الجيزة';
+      giza.forEach(a => { const o = document.createElement('option'); o.value = a.name; o.textContent = a.name; og.appendChild(o); });
+      areaSel.appendChild(og);
+    }
+  }
+}
+
+function closeBooking() {
+  document.getElementById('booking-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.getElementById('booking-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('booking-overlay')) closeBooking();
+});
+
+function updateBmService() {
+  const svc = document.getElementById('bm-service').value;
+  const specSel = document.getElementById('bm-spec');
+  const specWrap = document.getElementById('bm-spec-wrap');
+  const label = document.getElementById('bm-spec-label');
+  const labels = {'كشف منزلي':'التخصص','تمريض منزلي':'نوع الخدمة','أشعة منزلية':'نوع الأشعة'};
+  if (svc && LP_SPECIALTIES[svc]) {
+    label.textContent = labels[svc] || 'التخصص';
+    specSel.innerHTML = '<option value="">اختر...</option>' + LP_SPECIALTIES[svc].map(s=>`<option value="${s}">${s}</option>`).join('');
+    specWrap.style.display = 'block';
+  } else {
+    specWrap.style.display = 'none';
+  }
+  if (svc) document.getElementById('bm-service-name').textContent = 'احجز: ' + svc;
+}
+
+async function submitBooking() {
+  const name    = document.getElementById('bm-name').value.trim();
+  const phone   = document.getElementById('bm-phone').value.trim();
+  const service = document.getElementById('bm-service').value;
+  const spec    = document.getElementById('bm-spec').value;
+  const area    = document.getElementById('bm-area').value;
+  const time    = document.getElementById('bm-time').value;
+  const errEl   = document.getElementById('bm-error');
+
+  if (!name)    { showBmError('من فضلك ادخل اسمك الكامل'); return; }
+  if (!phone || !/^01[0125]\d{8}$/.test(phone)) { showBmError('رقم الموبايل مش صح — تأكد منه'); return; }
+  if (!service) { showBmError('من فضلك اختر الخدمة'); return; }
+  if (!spec)    { showBmError('من فضلك اختر التخصص أو نوع الخدمة'); return; }
+  if (!area)    { showBmError('من فضلك اختر منطقتك'); return; }
+
+  errEl.style.display = 'none';
+  const btn = document.getElementById('bm-submit-btn');
+  btn.textContent = 'جاري الحجز...'; btn.disabled = true; btn.style.opacity = '.7';
+
+  // السعر من الخدمة
+  let price = '—';
+  if (window.lpServices) {
+    const svc = lpServices.find(s => s.name === service);
+    if (svc) price = `${svc.price_min} - ${svc.price_max} ج.م`;
+  }
+
+  bmLastBooking = {name, phone, service, spec, area, time, price};
+
+  try {
+    await sb.from('bookings').insert([{
+      name, phone, area, service,
+      sub_option: spec, appointment: time,
+      price: price, status: 'pending', payment_method: 'cash',
+      source: 'landing'
+    }]);
+  } catch(e) { console.warn('booking insert:', e); }
+
+  btn.textContent = 'احجز دلوقتي 🩺'; btn.disabled = false; btn.style.opacity = '1';
+  document.getElementById('bm-form-wrap').style.display = 'none';
+  document.getElementById('bm-success').style.display = 'block';
+}
+
+function showBmError(msg) {
+  const el = document.getElementById('bm-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function sendLandingWhatsApp() {
+  const b = bmLastBooking;
+  const msg = `🏥 *حجز جديد — ملاذ (ويب سايت)*\n\n👤 الاسم: ${b.name}\n📱 الموبايل: ${b.phone}\n📋 الخدمة: ${b.service}\n🔹 ${b.spec}\n📍 المنطقة: ${b.area}\n⏰ الفترة: ${b.time||'—'}\n💰 السعر: ${b.price}\n\n⏳ الحالة: قيد التأكيد`;
+  window.open(`https://wa.me/201006484908?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// expose lpServices + lpAreas للـ modal
+window.lpServices = [];
+window.lpAreas = [];
+</script>
+
 </body>
 </html>
