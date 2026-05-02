@@ -505,7 +505,7 @@ const SUPABASE_URL = "https://oobzgibvjrpkichtitgy.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYnpnaWJ2anJwa2ljaHRpdGd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0OTY1NjEsImV4cCI6MjA5MzA3MjU2MX0.SiBYYbdLtIxPHPv5gn9dUhA1enMqfv9VKsGc2zGfkAQ";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let allBookings = [], allProviders = [], allServices = [], allAreas = [];
+let allBookings = [], allProviders = [], allServices = [], allAreas = [], allSubServices = [];
 
 // ===== NAVIGATION =====
 const pageTitles = {
@@ -528,7 +528,7 @@ async function loadAll() {
   const dbg = document.getElementById('debug-status');
   if(dbg) dbg.textContent = 'جاري التحميل...';
   try {
-    await Promise.all([loadBookings(), loadServices(), loadProviders(), loadAreas()]);
+    await Promise.all([loadBookings(), loadServices(), loadSubServices(), loadProviders(), loadAreas()]);
     renderOverview();
     if(dbg) dbg.style.color = 'var(--green)';
     if(dbg) dbg.textContent = `✓ خدمات: ${allServices.length} | مقدمين: ${allProviders.length} | حجوزات: ${allBookings.length} | مناطق: ${allAreas.length}`;
@@ -835,36 +835,73 @@ function renderProvServicesForm(existingServices) {
   container.innerHTML = allServices.map(svc => {
     const existing = existingServices.find(s => s.service_name === svc.name);
     const checked = !!existing;
-    const price = existing ? existing.price : svc.price_min;
+    // Get sub-services for this service
+    const subs = allSubServices.filter(s => s.parent_service === svc.name);
+    const hasSubs = subs.length > 0;
+    
+    // For services with sub-services, show sub-service checkboxes with prices
+    const subsHtml = hasSubs ? `
+      <div id="svc-subs-${svc.id}" style="display:${checked?'block':'none'};margin-top:10px;padding-top:10px;border-top:1px dashed #ddd;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:700;">اختر الخدمات الفرعية:</div>
+        ${subs.map(sub => {
+          const subExisting = existingServices.find(s => s.service_name === sub.name);
+          const subChecked = !!subExisting;
+          const subPrice = subExisting ? subExisting.price : sub.price_min;
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;background:#fff;border-radius:8px;padding:8px 12px;border:1px solid #eee;">
+            <input type="checkbox" id="sub-chk-${sub.id}" value="${sub.name}"
+              onchange="toggleSubPrice(${sub.id})"
+              ${subChecked?'checked':''}
+              style="width:14px;height:14px;cursor:pointer;accent-color:var(--dark)">
+            <label for="sub-chk-${sub.id}" style="font-size:13px;cursor:pointer;flex:1;">${sub.name}</label>
+            <div id="sub-price-row-${sub.id}" style="display:${subChecked?'flex':'none'};align-items:center;gap:6px;">
+              <input type="number" id="sub-price-${sub.id}"
+                value="${subPrice}" min="${sub.price_min}" max="${sub.price_max}"
+                style="width:90px;padding:5px 8px;border:1.5px solid #ddd;border-radius:6px;font-size:12px;font-family:'Cairo',sans-serif;">
+              <span style="font-size:11px;color:var(--muted)">ج.م</span>
+            </div>
+            <span style="font-size:10px;color:var(--muted)">${sub.price_min}–${sub.price_max}</span>
+          </div>`;
+        }).join('')}
+      </div>` : `
+      <div id="svc-price-row-${svc.id}" style="display:${checked?'flex':'none'};align-items:center;gap:8px;margin-top:8px;">
+        <label style="font-size:12px;color:var(--muted);white-space:nowrap;">السعر:</label>
+        <input type="number" id="svc-price-${svc.id}"
+          value="${existing?.price||svc.price_min}" min="${svc.price_min}" max="${svc.price_max}"
+          style="width:100px;padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:'Cairo',sans-serif;">
+        <span style="font-size:12px;color:var(--muted)">ج.م (${svc.price_min}–${svc.price_max})</span>
+      </div>`;
+
     return `
-      <div style="background:#f8f6f2;border-radius:10px;padding:12px 14px;border:1px solid #e8e4dc;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:${checked?'10px':'0'}">
+      <div style="background:#f8f6f2;border-radius:10px;padding:12px 14px;border:1px solid #e8e4dc;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
           <input type="checkbox" id="svc-chk-${svc.id}" value="${svc.name}"
-            onchange="toggleSvcPrice(${svc.id})"
+            onchange="toggleSvcPrice(${svc.id}, ${hasSubs})"
             ${checked ? 'checked' : ''}
             style="width:16px;height:16px;cursor:pointer;accent-color:var(--dark)">
           <label for="svc-chk-${svc.id}" style="font-weight:700;font-size:14px;cursor:pointer;">
             ${svc.icon||''} ${svc.name}
           </label>
-          <span style="font-size:11px;color:var(--muted);margin-right:auto;">
-            رينج السعر: ${svc.price_min}–${svc.price_max} ج.م
-          </span>
         </div>
-        <div id="svc-price-row-${svc.id}" style="display:${checked?'flex':'none'};align-items:center;gap:8px;margin-top:4px;">
-          <label style="font-size:12px;color:var(--muted);white-space:nowrap;">سعره:</label>
-          <input type="number" id="svc-price-${svc.id}"
-            value="${price}" min="${svc.price_min}" max="${svc.price_max}"
-            placeholder="${svc.price_min}"
-            style="width:100px;padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:'Cairo',sans-serif;">
-          <span style="font-size:12px;color:var(--muted)">ج.م (${svc.price_min}–${svc.price_max})</span>
-        </div>
+        ${subsHtml}
       </div>`;
   }).join('');
 }
 
-function toggleSvcPrice(svcId) {
+function toggleSvcPrice(svcId, hasSubs) {
   const checked = document.getElementById('svc-chk-'+svcId).checked;
-  document.getElementById('svc-price-row-'+svcId).style.display = checked ? 'flex' : 'none';
+  if (hasSubs) {
+    const el = document.getElementById('svc-subs-'+svcId);
+    if (el) el.style.display = checked ? 'block' : 'none';
+  } else {
+    const el = document.getElementById('svc-price-row-'+svcId);
+    if (el) el.style.display = checked ? 'flex' : 'none';
+  }
+}
+
+function toggleSubPrice(subId) {
+  const checked = document.getElementById('sub-chk-'+subId).checked;
+  const el = document.getElementById('sub-price-row-'+subId);
+  if (el) el.style.display = checked ? 'flex' : 'none';
 }
 
 function renderProvAreasForm(selectedAreas) {
@@ -911,11 +948,25 @@ async function saveProvider() {
   allServices.forEach(svc => {
     const chk = document.getElementById('svc-chk-'+svc.id);
     if (chk && chk.checked) {
-      const priceEl = document.getElementById('svc-price-'+svc.id);
-      const price = parseInt(priceEl?.value) || svc.price_min;
-      // تأكد السعر في الرينج
-      const finalPrice = Math.min(Math.max(price, svc.price_min), svc.price_max);
-      selectedServices.push({ service_name: svc.name, price: finalPrice });
+      const subs = allSubServices.filter(s => s.parent_service === svc.name);
+      if (subs.length > 0) {
+        // خدمة فيها sub-services
+        subs.forEach(sub => {
+          const subChk = document.getElementById('sub-chk-'+sub.id);
+          if (subChk && subChk.checked) {
+            const priceEl = document.getElementById('sub-price-'+sub.id);
+            const price = parseInt(priceEl?.value) || sub.price_min;
+            const finalPrice = Math.min(Math.max(price, sub.price_min), sub.price_max);
+            selectedServices.push({ service_name: sub.name, price: finalPrice, parent_service: svc.name });
+          }
+        });
+      } else {
+        // خدمة عادية بدون sub-services
+        const priceEl = document.getElementById('svc-price-'+svc.id);
+        const price = parseInt(priceEl?.value) || svc.price_min;
+        const finalPrice = Math.min(Math.max(price, svc.price_min), svc.price_max);
+        selectedServices.push({ service_name: svc.name, price: finalPrice });
+      }
     }
   });
 
@@ -966,6 +1017,15 @@ async function saveProvider() {
 }
 
 // ===== COVERAGE AREAS =====
+async function loadSubServices() {
+  try {
+    const { data, error } = await sb.from('sub_services').select('*').eq('is_active', true).order('parent_service');
+    if (error) { console.error('sub_services error:', error); return; }
+    allSubServices = data || [];
+    console.log('sub_services loaded:', allSubServices.length);
+  } catch(e) { console.error('loadSubServices catch:', e); }
+}
+
 async function loadAreas() {
   try {
     const { data, error } = await sb.from('coverage_areas').select('*').order('name');
