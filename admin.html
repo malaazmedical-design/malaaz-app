@@ -412,40 +412,30 @@ textarea{resize:vertical;min-height:80px;}
 
 <!-- Provider Modal -->
 <div class="modal-overlay" id="provider-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto;">
     <div class="modal-header">
       <div class="modal-title" id="prov-modal-title">إضافة مقدم خدمة</div>
       <button class="modal-close" onclick="closeModal('provider-modal')">×</button>
     </div>
     <div class="form-grid">
       <input type="hidden" id="prov-id">
+
+      <!-- البيانات الأساسية -->
       <div class="form-group">
-        <label>الاسم الكامل</label>
+        <label>الاسم الكامل *</label>
         <input type="text" id="prov-name" placeholder="د. أحمد حسن">
       </div>
       <div class="form-group">
-        <label>التخصص</label>
+        <label>التخصص *</label>
         <input type="text" id="prov-spec" placeholder="طب عام وأسرة">
       </div>
       <div class="form-group">
-        <label>نوع الخدمة</label>
-        <select id="prov-type">
-          <option value="كشف منزلي">كشف منزلي</option>
-          <option value="تمريض منزلي">تمريض منزلي</option>
-          <option value="أشعة منزلية">أشعة منزلية</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>سعر الجلسة (ج.م)</label>
-        <input type="number" id="prov-price" placeholder="350" min="0">
-      </div>
-      <div class="form-group">
-        <label>رقم الموبايل</label>
+        <label>رقم الموبايل *</label>
         <input type="text" id="prov-phone" placeholder="01xxxxxxxxx">
       </div>
       <div class="form-group">
-        <label>المنطقة</label>
-        <input type="text" id="prov-area" placeholder="مدينة نصر">
+        <label>سنوات الخبرة</label>
+        <input type="number" id="prov-exp" placeholder="5" min="0">
       </div>
       <div class="form-group">
         <label>الحالة</label>
@@ -455,11 +445,18 @@ textarea{resize:vertical;min-height:80px;}
           <option value="inactive">غير نشط ❌</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>سنوات الخبرة</label>
-        <input type="number" id="prov-exp" placeholder="5" min="0">
-      </div>
     </div>
+
+    <!-- الخدمات والأسعار -->
+    <div style="margin:16px 0 8px;font-weight:700;font-size:14px;color:var(--dark);">الخدمات والأسعار</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">اختر الخدمات اللي بيقدمها وحدد سعره في الرينج المحدد</div>
+    <div id="prov-services-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
+
+    <!-- المناطق -->
+    <div style="margin:16px 0 8px;font-weight:700;font-size:14px;color:var(--dark);">مناطق التغطية</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">اختر المناطق اللي بيغطيها</div>
+    <div id="prov-areas-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
+
     <div class="modal-footer">
       <button class="tb-btn" onclick="closeModal('provider-modal')">إلغاء</button>
       <button class="tb-btn primary" onclick="saveProvider()">حفظ</button>
@@ -803,11 +800,11 @@ async function updateProvStatus(id, status) {
 }
 
 function openProviderModal() {
-  ['prov-id','prov-name','prov-spec','prov-phone','prov-area','prov-exp'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('prov-price').value = '';
-  document.getElementById('prov-type').value = 'كشف منزلي';
+  ['prov-id','prov-name','prov-spec','prov-phone','prov-exp'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('prov-status').value = 'active';
   document.getElementById('prov-modal-title').textContent = 'إضافة مقدم خدمة';
+  renderProvServicesForm([]);
+  renderProvAreasForm([]);
   openModal('provider-modal');
 }
 
@@ -816,49 +813,154 @@ function editProvider(id) {
   if (!p) return;
   document.getElementById('prov-id').value = p.id;
   document.getElementById('prov-name').value = p.name || '';
-  document.getElementById('prov-spec').value = p.specialty || p.specialization || '';
-  document.getElementById('prov-type').value = p.service_type || p.type || 'كشف منزلي';
-  document.getElementById('prov-price').value = p.price || '';
+  document.getElementById('prov-spec').value = p.specialty || '';
   document.getElementById('prov-phone').value = p.phone || '';
-  document.getElementById('prov-area').value = p.area || '';
   document.getElementById('prov-status').value = p.status || 'active';
   document.getElementById('prov-exp').value = p.experience || '';
   document.getElementById('prov-modal-title').textContent = 'تعديل مقدم الخدمة';
+
+  // جيب الخدمات والمناطق الحالية
+  Promise.all([
+    sb.from('provider_services').select('*').eq('provider_id', id),
+    sb.from('provider_areas').select('*').eq('provider_id', id)
+  ]).then(([svcRes, areaRes]) => {
+    renderProvServicesForm(svcRes.data || []);
+    renderProvAreasForm((areaRes.data || []).map(a => a.area_name));
+  });
   openModal('provider-modal');
+}
+
+function renderProvServicesForm(existingServices) {
+  const container = document.getElementById('prov-services-list');
+  container.innerHTML = allServices.map(svc => {
+    const existing = existingServices.find(s => s.service_name === svc.name);
+    const checked = !!existing;
+    const price = existing ? existing.price : svc.price_min;
+    return `
+      <div style="background:#f8f6f2;border-radius:10px;padding:12px 14px;border:1px solid #e8e4dc;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:${checked?'10px':'0'}">
+          <input type="checkbox" id="svc-chk-${svc.id}" value="${svc.name}"
+            onchange="toggleSvcPrice(${svc.id})"
+            ${checked ? 'checked' : ''}
+            style="width:16px;height:16px;cursor:pointer;accent-color:var(--dark)">
+          <label for="svc-chk-${svc.id}" style="font-weight:700;font-size:14px;cursor:pointer;">
+            ${svc.icon||''} ${svc.name}
+          </label>
+          <span style="font-size:11px;color:var(--muted);margin-right:auto;">
+            رينج السعر: ${svc.price_min}–${svc.price_max} ج.م
+          </span>
+        </div>
+        <div id="svc-price-row-${svc.id}" style="display:${checked?'flex':'none'};align-items:center;gap:8px;margin-top:4px;">
+          <label style="font-size:12px;color:var(--muted);white-space:nowrap;">سعره:</label>
+          <input type="number" id="svc-price-${svc.id}"
+            value="${price}" min="${svc.price_min}" max="${svc.price_max}"
+            placeholder="${svc.price_min}"
+            style="width:100px;padding:7px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-family:'Cairo',sans-serif;">
+          <span style="font-size:12px;color:var(--muted)">ج.م (${svc.price_min}–${svc.price_max})</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleSvcPrice(svcId) {
+  const checked = document.getElementById('svc-chk-'+svcId).checked;
+  document.getElementById('svc-price-row-'+svcId).style.display = checked ? 'flex' : 'none';
+}
+
+function renderProvAreasForm(selectedAreas) {
+  const container = document.getElementById('prov-areas-list');
+  const areas = allAreas.length ? allAreas : [
+    {name:'مدينة نصر'},{name:'النزهة'},{name:'مصر الجديدة'},{name:'المعادي'},
+    {name:'الزمالك'},{name:'المهندسين'},{name:'الدقي'},{name:'الهرم'},
+    {name:'6 أكتوبر'},{name:'الشيخ زايد'},{name:'التجمع الخامس'},{name:'القاهرة الجديدة'}
+  ];
+  container.innerHTML = areas.map(a => {
+    const checked = selectedAreas.includes(a.name);
+    return `
+      <label style="display:flex;align-items:center;gap:6px;background:${checked?'var(--dark)':'#f8f6f2'};color:${checked?'#fff':'var(--dark)'};border:1px solid ${checked?'var(--dark)':'#ddd'};border-radius:20px;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s;">
+        <input type="checkbox" value="${a.name}" ${checked?'checked':''} onchange="toggleAreaStyle(this)"
+          style="display:none;">
+        ${a.name}
+      </label>`;
+  }).join('');
+}
+
+function toggleAreaStyle(el) {
+  const lbl = el.closest('label');
+  if (el.checked) {
+    lbl.style.background = 'var(--dark)';
+    lbl.style.color = '#fff';
+    lbl.style.borderColor = 'var(--dark)';
+  } else {
+    lbl.style.background = '#f8f6f2';
+    lbl.style.color = 'var(--dark)';
+    lbl.style.borderColor = '#ddd';
+  }
 }
 
 async function saveProvider() {
   const id = document.getElementById('prov-id').value;
-  const price = parseInt(document.getElementById('prov-price').value);
+  const name = document.getElementById('prov-name').value.trim();
+  const specialty = document.getElementById('prov-spec').value.trim();
+  const phone = document.getElementById('prov-phone').value.trim();
 
-  // Validate price against service range
-  const svcType = document.getElementById('prov-type').value;
-  const svc = allServices.find(s => s.name === svcType);
-  if (svc && price) {
-    if (price < svc.price_min || price > svc.price_max) {
-      showToast(`⚠️ السعر لازم يكون بين ${svc.price_min} و ${svc.price_max} ج.م`);
-      return;
+  if (!name) { showToast('⚠️ أدخل اسم المقدم'); return; }
+
+  // جمع الخدمات المختارة مع أسعارها
+  const selectedServices = [];
+  allServices.forEach(svc => {
+    const chk = document.getElementById('svc-chk-'+svc.id);
+    if (chk && chk.checked) {
+      const priceEl = document.getElementById('svc-price-'+svc.id);
+      const price = parseInt(priceEl?.value) || svc.price_min;
+      // تأكد السعر في الرينج
+      const finalPrice = Math.min(Math.max(price, svc.price_min), svc.price_max);
+      selectedServices.push({ service_name: svc.name, price: finalPrice });
     }
-  }
+  });
+
+  if (!selectedServices.length) { showToast('⚠️ اختر خدمة واحدة على الأقل'); return; }
+
+  // جمع المناطق المختارة
+  const selectedAreas = Array.from(
+    document.querySelectorAll('#prov-areas-list input[type=checkbox]:checked')
+  ).map(el => el.value);
+
+  if (!selectedAreas.length) { showToast('⚠️ اختر منطقة واحدة على الأقل'); return; }
 
   const data = {
-    name: document.getElementById('prov-name').value.trim(),
-    specialty: document.getElementById('prov-spec').value.trim(),
-    service_type: document.getElementById('prov-type').value,
-    price,
-    phone: document.getElementById('prov-phone').value.trim(),
-    area: document.getElementById('prov-area').value.trim(),
+    name,
+    specialty,
+    phone,
+    service_type: selectedServices.map(s => s.service_name).join(' / '),
+    price: selectedServices[0].price,
+    area: selectedAreas.join(' / '),
     status: document.getElementById('prov-status').value,
     experience: parseInt(document.getElementById('prov-exp').value) || null,
   };
-  if (!data.name) { showToast('⚠️ أدخل اسم المقدم'); return; }
+
+  let providerId = id;
+
   if (id) {
     await sb.from('providers').update(data).eq('id', id);
-    showToast('تم تحديث المقدم ✓');
+    // امسح القديم وأضف الجديد
+    await sb.from('provider_services').delete().eq('provider_id', id);
+    await sb.from('provider_areas').delete().eq('provider_id', id);
   } else {
-    await sb.from('providers').insert([data]);
-    showToast('تمت إضافة المقدم ✓');
+    const { data: newProv } = await sb.from('providers').insert([data]).select().single();
+    providerId = newProv?.id;
   }
+
+  if (providerId) {
+    await sb.from('provider_services').insert(
+      selectedServices.map(s => ({ provider_id: providerId, ...s }))
+    );
+    await sb.from('provider_areas').insert(
+      selectedAreas.map(a => ({ provider_id: providerId, area_name: a }))
+    );
+  }
+
+  showToast(id ? 'تم تحديث المقدم ✓' : 'تمت إضافة المقدم ✓');
   closeModal('provider-modal');
   loadProviders();
 }
