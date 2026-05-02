@@ -253,6 +253,7 @@ textarea{resize:vertical;min-height:80px;}
   <div class="topbar">
     <div class="topbar-title" id="page-title">نظرة عامة</div>
     <div class="topbar-right">
+      <div id="debug-status" style="font-size:11px;color:var(--muted);padding:4px 8px;background:var(--bg);border-radius:6px;border:1px solid var(--border);">جاري التحميل...</div>
       <button class="tb-btn" onclick="loadAll()">🔄 تحديث</button>
     </div>
   </div>
@@ -527,21 +528,36 @@ function goPage(id) {
 
 // ===== LOAD ALL =====
 async function loadAll() {
-  await Promise.all([loadBookings(), loadServices(), loadProviders(), loadAreas()]);
-  renderOverview();
+  const dbg = document.getElementById('debug-status');
+  if(dbg) dbg.textContent = 'جاري التحميل...';
+  try {
+    await Promise.all([loadBookings(), loadServices(), loadProviders(), loadAreas()]);
+    renderOverview();
+    if(dbg) dbg.style.color = 'var(--green)';
+    if(dbg) dbg.textContent = `✓ خدمات: ${allServices.length} | مقدمين: ${allProviders.length} | حجوزات: ${allBookings.length} | مناطق: ${allAreas.length}`;
+  } catch(e) {
+    console.error('loadAll error:', e);
+    if(dbg) dbg.style.color = 'var(--red)';
+    if(dbg) dbg.textContent = '⚠️ خطأ: ' + e.message;
+    showToast('⚠️ خطأ في تحميل البيانات');
+  }
 }
 
 // ===== BOOKINGS =====
 async function loadBookings() {
-  const { data } = await sb.from('bookings').select('*').order('created_at', { ascending: false });
-  allBookings = data || [];
-  renderBookings(allBookings);
-  const pending = allBookings.filter(b => b.status === 'pending' || !b.status).length;
-  const el = document.getElementById('pending-count');
-  el.textContent = pending;
-  el.style.display = pending > 0 ? 'inline' : 'none';
-  document.getElementById('ov-pending').textContent = pending;
-  document.getElementById('ov-bookings').textContent = allBookings.length;
+  try {
+    const { data, error } = await sb.from('bookings').select('*').order('created_at', { ascending: false });
+    if (error) { console.error('bookings error:', error); return; }
+    allBookings = data || [];
+    console.log('bookings loaded:', allBookings.length);
+    renderBookings(allBookings);
+    const pending = allBookings.filter(b => b.status === 'pending' || !b.status).length;
+    const el = document.getElementById('pending-count');
+    el.textContent = pending;
+    el.style.display = pending > 0 ? 'inline' : 'none';
+    document.getElementById('ov-pending').textContent = pending;
+    document.getElementById('ov-bookings').textContent = allBookings.length;
+  } catch(e) { console.error('loadBookings catch:', e); }
 }
 
 function filterBookings() {
@@ -608,10 +624,23 @@ function viewBooking(id) {
 
 // ===== SERVICES =====
 async function loadServices() {
-  const { data } = await sb.from('services').select('*').order('created_at');
-  allServices = data || [];
-  renderServices();
-  renderOvServices();
+  const el = document.getElementById('services-table');
+  try {
+    el.innerHTML = '<div class="loading">جاري التحميل...</div>';
+    const { data, error } = await sb.from('services').select('*').order('created_at');
+    if (error) {
+      console.error('services error:', error);
+      el.innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-txt">خطأ: ${error.message}</div></div>`;
+      return;
+    }
+    allServices = data || [];
+    console.log('services loaded:', allServices.length, allServices);
+    renderServices();
+    renderOvServices();
+  } catch(e) {
+    console.error('loadServices catch:', e);
+    el.innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-txt">خطأ في الاتصال</div></div>`;
+  }
 }
 
 function renderServices() {
@@ -717,11 +746,22 @@ async function toggleService(id, isActive) {
 
 // ===== PROVIDERS =====
 async function loadProviders() {
-  const { data } = await sb.from('providers').select('*').order('created_at', { ascending: false });
-  allProviders = data || [];
-  renderProviders(allProviders);
-  document.getElementById('ov-providers').textContent = allProviders.filter(p => p.status === 'active').length;
-  document.getElementById('ov-newprov').textContent = allProviders.filter(p => p.status === 'pending').length;
+  const el = document.getElementById('providers-table');
+  try {
+    const { data, error } = await sb.from('providers').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('providers error:', error);
+      if(el) el.innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-txt">خطأ: ${error.message}</div></div>`;
+      return;
+    }
+    allProviders = data || [];
+    console.log('providers loaded:', allProviders.length);
+    renderProviders(allProviders);
+    document.getElementById('ov-providers').textContent = allProviders.filter(p => p.status === 'active').length;
+    document.getElementById('ov-newprov').textContent = allProviders.filter(p => p.status === 'pending').length;
+  } catch(e) {
+    console.error('loadProviders catch:', e);
+  }
 }
 
 function filterProviders() {
@@ -825,9 +865,13 @@ async function saveProvider() {
 
 // ===== COVERAGE AREAS =====
 async function loadAreas() {
-  const { data } = await sb.from('coverage_areas').select('*').order('name');
-  allAreas = data || [];
-  renderAreas();
+  try {
+    const { data, error } = await sb.from('coverage_areas').select('*').order('name');
+    if (error) { console.error('areas error:', error); return; }
+    allAreas = data || [];
+    console.log('areas loaded:', allAreas.length);
+    renderAreas();
+  } catch(e) { console.error('loadAreas catch:', e); }
 }
 
 function renderAreas() {
