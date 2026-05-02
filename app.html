@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ملاذ — رعاية منزلية</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --g1:#2d3b3e;--g2:#3a4a4e;--g3:#4a6b6f;
+  --g-light:#f0ede8;--g-mid:#e0dbd4;
+  --bg:#f5f2ec;--white:#fff;
+  --text:#2d3b3e;--muted:#6b7c80;--border:rgba(58,74,78,0.15);
+  --gold:#c9a84c;--orange:#c9a84c;--orange-light:#faf4e6;
+  --red:#c0392b;
+}
+html,body{height:100%;background:var(--bg);font-family:'Cairo',sans-serif;color:var(--text);}
+body{display:flex;flex-direction:column;max-width:480px;margin:0 auto;min-height:100vh;position:relative;overflow:hidden;}
+
+/* SCREENS */
+.screen{display:none;flex-direction:column;height:100vh;overflow:hidden;}.screen .btnmain{flex-shrink:0;}
+.screen.active{display:flex;}
+.scrollable{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+
+/* MODE SWITCHER */
+.mode-bar{
+  display:flex;background:#1e2c2f;padding:8px 12px 7px;gap:6px;
+  position:sticky;top:0;z-index:99;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.mode-btn{
+  flex:1;padding:7px 6px;border:none;border-radius:8px;
+  font-family:'Cairo',sans-serif;font-size:11px;font-weight:700;cursor:pointer;
+  transition:all .2s;
+}
+.mode-btn.on{background:var(--gold);color:#1e2c2f;}
+.mode-btn.off{background:rgba(255,255,255,.07);color:rgba(255,255,255,.45);}
+
+/* TOPBAR */
+.tb{
+  background:var(--g1);padding:14px 16px 12px;
+  display:flex;align-items:center;gap:10px;color:#fff;
+  flex-shrink:0;border-bottom:0.5px solid rgba(255,255,255,.08);
+}
+.tb-title{font-size:16px;font-weight:700;flex:1;}
+.tb-back{font-size:24px;cursor:pointer;line-height:1;padding:0 4px;opacity:.7;}
+
+/* HOME HEADER */
+.hh{background:var(--g1);padding:0 16px 18px;flex-shrink:0;position:relative;overflow:hidden;}
+.hh::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(201,168,76,0.07);pointer-events:none;}
+.hh::after{content:'';position:absolute;bottom:-40px;left:20px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,0.03);pointer-events:none;}
+.hh-greet{font-size:11px;color:rgba(255,255,255,.55);letter-spacing:1px;font-weight:600;}
+.hh-name{font-size:18px;font-weight:900;color:#fff;margin-top:1px;}
+.search{
+  background:rgba(255,255,255,.09);border:0.5px solid rgba(255,255,255,.15);
+  border-radius:12px;padding:11px 14px;
+  margin-top:13px;display:flex;align-items:center;gap:9px;
+  color:rgba(255,255,255,.4);font-size:13px;
+}
+
+/* SECTION */
+.sec{padding:14px 14px 6px;font-size:15px;font-weight:700;color:var(--text);}
+
+/* SERVICE CHIPS */
+.srow{display:flex;gap:9px;padding:0 14px 14px;overflow-x:auto;scrollbar-width:none;}
+.srow::-webkit-scrollbar{display:none;}
+.schip{
+  background:var(--white);border:.5px solid var(--border);
+  border-radius:14px;padding:13px 11px;text-align:center;
+  min-width:84px;cursor:pointer;flex-shrink:0;
+  transition:border-color .15s,transform .1s;
+  active:transform:scale(.97);
+}
+.schip:active{transform:scale(.96);}
+.sico{font-size:26px;margin-bottom:5px;}
+.slbl{font-size:11px;font-weight:700;color:var(--text);}
+
+/* DOCTOR CARD */
+.dc{
+  background:var(--white);border:.5px solid var(--border);
+  border-radius:16px;margin:0 12px 12px;overflow:hidden;cursor:pointer;
+}
+.dc:active{opacity:.9;}
+.dc-top{display:flex;gap:12px;padding:14px 14px 10px;align-items:flex-start;}
+.dc-ava{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.dc-name{font-size:15px;font-weight:700;}
+.dc-spec{font-size:12px;color:var(--muted);margin-top:2px;}
+.dc-rat{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:12px;flex-wrap:wrap;}
+.stars{color:var(--gold);}
+.badge{display:inline-flex;align-items:center;font-size:10px;padding:3px 8px;border-radius:20px;background:var(--g-light);color:var(--g1);margin-top:6px;margin-left:4px;font-weight:600;}
+.avdot{width:8px;height:8px;border-radius:50%;background:#5a9e6f;display:inline-block;}
+.dc-bot{display:flex;justify-content:space-between;align-items:center;padding:10px 14px 13px;border-top:.5px solid var(--border);}
+.pfrom{font-size:10px;color:var(--muted);}
+.pnum{font-size:18px;font-weight:900;}
+.pcur{font-size:12px;color:var(--muted);}
+.bsm{background:var(--g1);color:#fff;border:none;border-radius:10px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;}
+
+/* TABBAR */
+.tabbar{display:flex;border-top:.5px solid var(--border);background:var(--white);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);}
+.tab{flex:1;padding:9px 0 5px;text-align:center;cursor:pointer;font-size:11px;color:var(--muted);font-family:'Cairo',sans-serif;transition:color .2s;}
+.tab.on{color:var(--g1);font-weight:700;}
+.tabi{font-size:22px;display:block;}
+
+/* DETAIL HEADER */
+.deth{background:var(--g1);padding:16px 16px 22px;flex-shrink:0;}
+.det-top{display:flex;gap:14px;align-items:center;}
+.det-ava{width:70px;height:70px;border-radius:18px;border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:34px;background:rgba(255,255,255,.15);flex-shrink:0;}
+.det-name{font-size:19px;font-weight:900;color:#fff;}
+.det-spec{font-size:13px;color:rgba(255,255,255,.8);margin-top:3px;}
+.det-rat{display:flex;align-items:center;gap:5px;margin-top:6px;font-size:13px;color:rgba(255,255,255,.9);}
+
+/* INFO BLOCK */
+.iblock{background:var(--white);border:.5px solid var(--border);border-radius:14px;margin:12px 12px 0;padding:0 14px;}
+.irow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:.5px solid var(--border);font-size:14px;}
+.irow:last-child{border-bottom:none;}
+.ikey{color:var(--muted);}
+.ival{font-weight:700;}
+.ival-g{font-weight:900;color:var(--g2);font-size:15px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:12px 0;}
+.chip{background:var(--g-light);color:var(--g1);border-radius:20px;font-size:12px;padding:5px 13px;font-weight:600;}
+
+/* BUTTONS */
+.btnmain{display:block;width:calc(100% - 24px);margin:12px 12px;background:var(--g1);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;}
+.btnmain:active{opacity:.9;}
+
+/* REVIEWS */
+.rcard{background:var(--white);border:.5px solid var(--border);border-radius:14px;margin:0 12px 10px;padding:14px;}
+.r-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.r-name{font-size:14px;font-weight:700;}
+.r-date{font-size:11px;color:var(--muted);}
+.r-stars{color:var(--gold);font-size:14px;margin-bottom:5px;}
+.r-text{font-size:13px;color:var(--muted);line-height:1.7;}
+
+/* PAYMENT */
+.pay-opt{background:var(--white);border:.5px solid var(--border);border-radius:14px;margin:0 12px 10px;padding:14px;display:flex;align-items:center;gap:13px;cursor:pointer;}
+.pay-opt.sel{border-color:var(--g2);border-width:1.5px;}
+.pay-opt:active{opacity:.9;}
+.pay-ico{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.pay-label{font-size:14px;font-weight:700;}
+.pay-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);margin-right:auto;flex-shrink:0;}
+.radio.on{border-color:var(--g2);background:var(--g2);}
+
+/* FORMS */
+.fcard{background:var(--white);border:.5px solid var(--border);border-radius:14px;margin:10px 12px 0;padding:14px;}
+.fl{font-size:13px;color:var(--muted);margin-bottom:5px;display:block;}
+.fi{width:100%;padding:12px 14px;border:.5px solid var(--border);border-radius:11px;font-size:14px;background:var(--bg);color:var(--text);margin-bottom:12px;font-family:'Cairo',sans-serif;}
+.fi:last-child{margin-bottom:0;}
+.fi:focus{outline:none;border-color:var(--g2);}
+
+/* CONFIRM */
+.conf-ico{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;margin:30px auto 14px;}
+
+/* BOOKING STATUS */
+.bcard{background:var(--white);border:.5px solid var(--border);border-radius:14px;margin:0 12px 10px;padding:14px;}
+.bs{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;}
+.bs-pend{background:var(--orange-light);color:var(--orange);}
+.bs-done{background:var(--g-light);color:var(--g1);}
+
+/* STARS RATE */
+.star-row{display:flex;gap:10px;justify-content:center;margin:14px 0;direction:ltr;}
+.star-btn{font-size:38px;cursor:pointer;opacity:.25;transition:opacity .1s,transform .1s;}
+.star-btn.lit{opacity:1;}
+.star-btn:active{transform:scale(1.2);}
+
+/* PORTAL */
+.ph{background:var(--g1);padding:24px 16px 20px;color:#fff;text-align:center;flex-shrink:0;position:relative;overflow:hidden;}
+.ph::before{content:'';position:absolute;top:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:rgba(201,168,76,.08);pointer-events:none;}
+.ph-logo{font-size:26px;font-weight:900;margin-bottom:4px;letter-spacing:-1px;}
+.ph-sub{font-size:13px;opacity:.6;}
+.psec{font-size:14px;font-weight:700;color:var(--g2);margin:14px 12px 6px;}
+
+/* ADMIN */
+.ag{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;padding:0 12px;margin-bottom:14px;}
+.astat{background:var(--white);border:.5px solid var(--border);border-radius:12px;padding:13px;}
+.asl{font-size:11px;color:var(--muted);}
+.asv{font-size:22px;font-weight:900;margin-top:3px;}
+.pcard{background:var(--white);border:.5px solid var(--border);border-right:3px solid var(--orange);border-radius:12px;margin:0 12px 10px;padding:13px;}
+.abrow{display:flex;gap:8px;margin-top:10px;}
+.abtn{flex:1;border:none;border-radius:9px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;}
+.ab-ok{background:var(--g-light);color:var(--g1);}
+.ab-no{background:#FFEBEE;color:var(--red);}
+.ab-view{background:var(--g-mid);color:var(--g1);}
+.qbtn{border:none;border-radius:11px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;text-align:right;}
+.suboption{display:inline-flex;align-items:center;gap:6px;background:var(--white);color:var(--text);border:1.5px solid var(--border);border-radius:12px;font-size:13px;padding:10px 14px;font-weight:600;cursor:pointer;transition:all .15s;width:calc(50% - 4px);justify-content:center;margin-bottom:0;}
+.suboption.sel{background:var(--g1);color:#fff;border-color:var(--g1);box-shadow:0 2px 8px rgba(45,59,62,.2);}
+.suboption:active{transform:scale(.96);}
+
+/* ==============================
+   DESKTOP LAYOUT (768px+)
+   ============================== */
+@media (min-width: 768px) {
+  html,body{background:#e8e4dc;overflow:auto;}
+  
+  body{
+    max-width:100%;
+    flex-direction:row;
+    align-items:stretch;
+    height:100vh;
+    overflow:hidden;
+  }
+
+  /* Sidebar */
+  .mode-bar{
+    flex-direction:column;
+    width:220px;
+    min-height:100vh;
+    padding:24px 16px;
+    gap:10px;
+    position:fixed;
+    top:0;right:0;
+    border-bottom:none;
+    border-left:1px solid rgba(255,255,255,0.06);
+    z-index:100;
+  }
+  .mode-bar::before{
+    content:'ملاذ';
+    display:block;
+    color:#fff;
+    font-size:28px;
+    font-weight:900;
+    text-align:center;
+    margin-bottom:8px;
+    letter-spacing:2px;
+  }
+  .mode-bar::after{
+    content:'رعاية طبية منزلية';
+    display:block;
+    color:rgba(255,255,255,.4);
+    font-size:11px;
+    text-align:center;
+    margin-bottom:16px;
+  }
+  .mode-btn{
+    padding:12px 16px;
+    border-radius:12px;
+    font-size:13px;
+    text-align:right;
+  }
+
+  /* Main content area */
+  .screen{
+    margin-right:220px;
+    max-width:520px;
+    width:520px;
+    height:100vh;
+    border-radius:0;
+    border-right:1px solid var(--border);
+    border-left:1px solid var(--border);
+    box-shadow:0 0 40px rgba(0,0,0,.08);
+    background:var(--bg);
+  }
+
+  /* Right panel - info/stats */
+  body::after{
+    content:'';
+    flex:1;
+    background:transparent;
+  }
+}
+
+@media (min-width:1100px){
+  .screen{
+    margin-right:220px;
+    margin-left:auto;
+    position:relative;
+  }
+  
+  /* Show right info panel */
+  #desktop-panel{display:flex !important;}
+}
+
+</style>
+</head>
+<body>
+
+<!-- MODE SWITCHER -->
+<!-- ⚠️ [DEV NOTE] هذا الـ switcher مؤقت للتطوير فقط — عند الفصل لتطبيقات منفصلة يُحذف بالكامل -->
+<div class="mode-bar">
+  <button class="mode-btn on" onclick="setMode('app')">📱 تطبيق العملاء</button>
+  <button class="mode-btn off" onclick="setMode('portal')">🏥 بوابة المقدمين</button>
+  <button class="mode-btn off" onclick="window.location.href='./admin.html'">⚙️ الإدارة</button>
+</div>
+
+<!-- ======================== LOGIN SCREEN ======================== -->
+<div class="screen active" id="a-login">
+  <div style="background:var(--g1);flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:rgba(201,168,76,.07);pointer-events:none;"></div>
+    <div style="position:absolute;bottom:-40px;left:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.03);pointer-events:none;"></div>
+    <!-- Logo -->
+    <div style="text-align:center;margin-bottom:36px;">
+      <div style="font-size:52px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px;">ملاذ</div>
+      <div style="font-size:9px;font-weight:700;color:var(--gold);letter-spacing:7px;margin-top:4px;">M A L A A Z</div>
+      <div style="height:2px;background:linear-gradient(to left,transparent,var(--gold),transparent);margin-top:8px;border-radius:2px;"></div>
+      <div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:10px;">رعاية طبية منزلية متكاملة</div>
+    </div>
+    <!-- Login Card -->
+    <div style="background:rgba(255,255,255,.08);border:0.5px solid rgba(255,255,255,.15);border-radius:18px;padding:22px 20px;width:100%;max-width:360px;">
+      <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:18px;text-align:center;">ادخل بياناتك للمتابعة</div>
+      <label style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:5px;display:block;">الاسم الكامل</label>
+      <input id="login-name" type="text" placeholder="اسمك الكامل" style="width:100%;padding:13px 14px;background:rgba(255,255,255,.1);border:0.5px solid rgba(255,255,255,.2);border-radius:11px;font-size:14px;color:#fff;margin-bottom:14px;font-family:'Cairo',sans-serif;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='rgba(255,255,255,.2)'" />
+      <label style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:5px;display:block;">رقم الموبايل</label>
+      <input id="login-phone" type="tel" placeholder="01xxxxxxxxx" style="width:100%;padding:13px 14px;background:rgba(255,255,255,.1);border:0.5px solid rgba(255,255,255,.2);border-radius:11px;font-size:14px;color:#fff;margin-bottom:20px;font-family:'Cairo',sans-serif;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='rgba(255,255,255,.2)'" />
+      <button onclick="doLogin()" style="width:100%;background:var(--gold);color:var(--g1);border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:900;cursor:pointer;font-family:'Cairo',sans-serif;">دخول ←</button>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:20px;text-align:center;">بالدخول توافق على شروط الاستخدام وسياسة الخصوصية</div>
+  </div>
+</div>
+
+<!-- ======================== APP SCREENS ======================== -->
+
+<!-- HOME -->
+<div class="screen" id="a-home">
+  <div class="hh">
+    <!-- LOGO CENTERED -->
+    <div style="text-align:center;padding:20px 0 14px;position:relative;">
+      <div style="display:inline-block;position:relative;">
+        <div style="font-size:46px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px;text-shadow:0 2px 24px rgba(0,0,0,.25);">ملاذ</div>
+        <div style="font-size:9px;font-weight:700;color:var(--gold);letter-spacing:6px;margin-top:3px;opacity:.9;text-align:center;">M A L A A Z</div>
+        <div style="height:2px;background:linear-gradient(to left,transparent,var(--gold),transparent);border-radius:2px;margin-top:6px;"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:8px;letter-spacing:0.5px;">رعاية طبية منزلية متكاملة</div>
+    </div>
+    <div class="search"><span style="font-size:16px">🔍</span><span>ابحث عن طبيب أو خدمة...</span></div>
+  </div>
+  <div class="scrollable">
+    <div class="sec" style="display:flex;align-items:center;justify-content:space-between;padding-left:14px;">
+      <span>خدماتنا</span>
+      <span style="font-size:11px;color:var(--muted);font-weight:400;">فريق طبي معتمد يصلك في 30 دقيقة</span>
+    </div>
+    <!-- ROTATING SLOGAN -->
+    <div id="slogan-banner" style="margin:0 12px 14px;background:linear-gradient(135deg,var(--g1),#4a6b6f);border-radius:14px;padding:14px 16px;color:#fff;min-height:58px;display:flex;align-items:center;gap:10px;border:0.5px solid rgba(201,168,76,.2);">
+      <span style="font-size:22px" id="slogan-icon">💚</span>
+      <span id="slogan-text" style="font-size:13px;font-weight:600;line-height:1.6;flex:1;opacity:0;transition:opacity .5s"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;">
+      <!-- كشف منزلي — الأكثر طلباً -->
+      <div onclick="goBook('كشف منزلي')" style="background:#fff;border:1.5px solid var(--gold);border-radius:16px;padding:16px 8px 12px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 3px 14px rgba(201,168,76,.18);position:relative;" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+        <div style="position:absolute;top:-1px;right:50%;transform:translateX(50%);background:var(--gold);color:var(--g1);font-size:9px;font-weight:700;padding:2px 8px;border-radius:0 0 8px 8px;white-space:nowrap;">الأكثر طلباً</div>
+        <div style="width:52px;height:52px;border-radius:16px;background:#faf4e6;display:flex;align-items:center;justify-content:center;margin:8px auto 8px;font-size:28px;">🩺</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text)">كشف منزلي</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">طبيب في بيتك</div>
+      </div>
+      <div onclick="goBook('أشعة منزلية')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 2px 10px rgba(58,74,78,.06);" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+        <div style="width:52px;height:52px;border-radius:16px;background:#e8f0f4;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:28px;">🔬</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text)">أشعة منزلية</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">تصوير في موقعك</div>
+      </div>
+      <div onclick="goBook('تمريض منزلي')" style="background:#fff;border:.5px solid var(--border);border-radius:16px;padding:16px 8px;text-align:center;cursor:pointer;transition:transform .15s;box-shadow:0 2px 10px rgba(58,74,78,.06);" ontouchstart="this.style.transform='scale(.96)'" ontouchend="this.style.transform=''">
+        <div style="width:52px;height:52px;border-radius:16px;background:#f4ece8;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:28px;">🧑‍⚕️</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text)">تمريض منزلي</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">رعاية متخصصة</div>
+      </div>
+    </div>
+    <!-- TRUST BAR -->
+    <div style="display:flex;gap:8px;padding:0 14px 16px;overflow-x:auto;scrollbar-width:none;">
+      <div style="flex-shrink:0;background:var(--g-light);border-radius:20px;padding:7px 13px;font-size:11px;font-weight:700;color:var(--g1);white-space:nowrap;">⭐ 4.9 متوسط التقييم</div>
+      <div style="flex-shrink:0;background:var(--g-light);border-radius:20px;padding:7px 13px;font-size:11px;font-weight:700;color:var(--g1);white-space:nowrap;">🏥 +25 مقدم معتمد</div>
+      <div style="flex-shrink:0;background:var(--orange-light);border-radius:20px;padding:7px 13px;font-size:11px;font-weight:700;color:var(--gold);white-space:nowrap;">⚡ وصول خلال 30 دقيقة</div>
+    </div>
+    <div class="sec" style="display:flex;align-items:center;justify-content:space-between;padding-left:14px;">
+      <span>الأعلى تقييماً ⭐</span>
+      <span style="font-size:12px;color:var(--g2);font-weight:700;cursor:pointer;" onclick="aGo('a-list','كل الأطباء')">عرض الكل ›</span>
+    </div>
+    <div class="dc" onclick="showDoctor('ahmed')">
+      <div class="dc-top">
+        <div>
+          <div class="dc-name">د. أحمد حسن</div>
+          <div class="dc-spec">طب عام وأسرة</div>
+          <div class="dc-rat"><span class="stars">★★★★★</span><span style="color:var(--muted)">4.9 · 312 تقييم</span><span class="avdot" style="margin-right:6px"></span><span style="font-size:11px;color:#43A047;font-weight:600">متاح الآن</span></div>
+          <div><span class="badge">⏱ 30 دقيقة</span><span class="badge">📍 مدينة نصر</span></div>
+        </div>
+        <div class="dc-ava" style="background:var(--g-light)">👨‍⚕️</div>
+      </div>
+      <div class="dc-bot">
+        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">350</span> <span class="pcur">ج.م</span></div></div>
+        <button class="bsm">عرض الملف ›</button>
+      </div>
+    </div>
+    <div class="dc" onclick="showDoctor('mona')">
+      <div class="dc-top">
+        <div>
+          <div class="dc-name">أ. منى إبراهيم</div>
+          <div class="dc-spec">ممرضة معتمدة</div>
+          <div class="dc-rat"><span class="stars">★★★★★</span><span style="color:var(--muted)">5.0 · 210 تقييم</span></div>
+          <div><span class="badge">⏱ ساعة</span><span class="badge">📍 المعادي</span></div>
+        </div>
+        <div class="dc-ava" style="background:#FCE4EC">👩‍⚕️</div>
+      </div>
+      <div class="dc-bot">
+        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">200</span> <span class="pcur">ج.م</span></div></div>
+        <button class="bsm">عرض الملف ›</button>
+      </div>
+    </div>
+    <div style="height:12px"></div>
+  </div>
+  <div class="tabbar">
+    <div class="tab" onclick="aShow('a-bookings')"><span class="tabi">📋</span>حجوزاتي</div>
+    <div class="tab on"><span class="tabi">🏠</span>الرئيسية</div>
+    <div class="tab" onclick="aShow('a-profile')"><span class="tabi">👤</span>حسابي</div>
+  </div>
+</div>
+
+<!-- LIST -->
+<div class="screen" id="a-list">
+  <div class="tb"><span class="tb-back" onclick="aShow('a-home')">‹</span><span class="tb-title" id="list-t">كشف منزلي</span></div>
+  <div class="scrollable">
+    <div style="height:10px"></div>
+    <div class="dc" onclick="showDoctor('ahmed')">
+      <div class="dc-top">
+        <div>
+          <div class="dc-name">د. أحمد حسن</div>
+          <div class="dc-spec">طب عام وأسرة</div>
+          <div class="dc-rat"><span class="stars">★★★★★</span> <span style="color:var(--muted)">4.9</span></div>
+          <div><span class="badge">📍 مدينة نصر</span><span class="badge">⏱ 30 دقيقة</span></div>
+        </div>
+        <div class="dc-ava" style="background:var(--g-light)">👨‍⚕️</div>
+      </div>
+      <div class="dc-bot">
+        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">350</span> <span class="pcur">ج.م</span></div></div>
+        <button class="bsm">عرض الملف ›</button>
+      </div>
+    </div>
+    <div class="dc" onclick="showDoctor('alaa')">
+      <div class="dc-top">
+        <div>
+          <div class="dc-name">د. علاء منصور</div>
+          <div class="dc-spec">طب داخلي</div>
+          <div class="dc-rat"><span class="stars">★★★★☆</span> <span style="color:var(--muted)">4.7</span></div>
+          <div><span class="badge">📍 الدقي</span></div>
+        </div>
+        <div class="dc-ava" style="background:#E8F5E9">👨‍⚕️</div>
+      </div>
+      <div class="dc-bot">
+        <div><div class="pfrom">ابتداء من</div><div><span class="pnum">300</span> <span class="pcur">ج.م</span></div></div>
+        <button class="bsm">عرض الملف ›</button>
+      </div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="tabi">📋</span>حجوزاتي</div>
+    <div class="tab on" onclick="aShow('a-home')"><span class="tabi">🏠</span>الرئيسية</div>
+    <div class="tab"><span class="tabi">👤</span>حسابي</div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div class="screen" id="a-detail" style="position:relative">
+  <div style="background:var(--g1);padding:11px 14px 0;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <span style="color:#fff;font-size:24px;cursor:pointer" onclick="aShow('a-home')">‹</span>
+    <span style="color:rgba(255,255,255,.8);font-size:13px">الملف الشخصي</span>
+  </div>
+  <div class="deth" style="flex-shrink:0">
+    <div class="det-top">
+      <div class="det-ava">👨‍⚕️</div>
+      <div>
+        <div class="det-name">د. أحمد حسن</div>
+        <div class="det-spec">طب عام وأسرة</div>
+        <div class="det-rat"><span class="stars" style="color:var(--gold)">★★★★★</span> 4.9 · 312 تقييم</div>
+      </div>
+    </div>
+  </div>
+  <div class="scrollable">
+    <div class="iblock">
+      <div class="irow"><span class="ikey">الخبرة</span><span class="ival">12 سنة</span></div>
+      <div class="irow"><span class="ikey">وقت الوصول</span><span class="ival" style="color:#43A047">خلال 30 دقيقة</span></div>
+      <div class="irow"><span class="ikey">الترخيص</span><span class="ival">نقابة الأطباء ✅</span></div>
+    </div>
+    <div class="sec">الخدمات والأسعار</div>
+    <div class="iblock">
+      <div class="irow"><span class="ikey">كشف عام</span><span class="ival-g">350 ج.م</span></div>
+      <div class="irow"><span class="ikey">كشف متابعة</span><span class="ival-g">200 ج.م</span></div>
+      <div class="irow"><span class="ikey">طوارئ منزلية</span><span class="ival-g">500 ج.م</span></div>
+    </div>
+    <div class="sec">المناطق</div>
+    <div class="iblock"><div class="chips"><span class="chip">مدينة نصر</span><span class="chip">هليوبوليس</span><span class="chip">الزيتون</span><span class="chip">شبرا</span><span class="chip">المطرية</span><span class="chip">عين شمس</span></div></div>
+    <div class="sec">تقييمات المرضى ⭐</div>
+    <div class="rcard">
+      <div class="r-head"><span class="r-name">محمد علي</span><span class="r-date">أبريل 2026</span></div>
+      <div class="r-stars">★★★★★</div>
+      <div class="r-text">دكتور محترم جداً، وصل في الوقت المحدد والكشف كان شامل. هنتعامل معاه تاني بالتأكيد.</div>
+    </div>
+    <div class="rcard">
+      <div class="r-head"><span class="r-name">سارة أحمد</span><span class="r-date">مارس 2026</span></div>
+      <div class="r-stars">★★★★★</div>
+      <div class="r-text">تجربة ممتازة، الدكتور متعاون ومتفهم. الأسعار معقولة والخدمة سريعة.</div>
+    </div>
+    <div style="height:80px"></div>
+  </div>
+  <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 16px 20px;background:linear-gradient(transparent,var(--bg) 40%);pointer-events:none;">
+    <button class="btnmain" style="pointer-events:all;box-shadow:0 4px 20px rgba(46,125,50,0.4);margin:0;width:100%;" id="detail-book-btn" onclick="goBookDoctor('ahmed')">احجز الآن 🩺</button>
+  </div>
+</div>
+
+<!-- BOOKING -->
+<div class="screen" id="a-booking">
+  <div style="flex-shrink:0;position:relative;overflow:hidden;background:var(--g1);min-height:140px;">
+    <div style="position:absolute;inset:0;overflow:hidden;">
+      <div style="position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(201,168,76,.08);top:-60px;left:-40px;"></div>
+      <div style="position:absolute;width:150px;height:150px;border-radius:50%;background:rgba(74,107,111,.4);top:20px;right:-30px;"></div>
+    </div>
+    <div style="position:relative;padding:12px 14px 0;display:flex;align-items:center;gap:8px;">
+      <span style="color:#fff;font-size:24px;cursor:pointer" onclick="aShow('a-home')">‹</span>
+      <span style="color:rgba(255,255,255,.6);font-size:13px">حجز موعد</span>
+    </div>
+    <div style="position:relative;padding:14px 16px 20px;display:flex;align-items:center;gap:16px;">
+      <div style="width:70px;height:70px;border-radius:22px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:38px;flex-shrink:0;" id="book-service-icon">🩺</div>
+      <div>
+        <div style="font-size:20px;font-weight:900;color:#fff;line-height:1.2;" id="book-service-badge">كشف منزلي</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.55);margin-top:5px;margin-bottom:8px;">احجز موعدك الآن بسهولة</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span style="background:rgba(255,255,255,.12);padding:4px 11px;border-radius:20px;font-size:11px;color:#fff;">⏱ 30 دقيقة</span>
+          <span style="background:rgba(255,255,255,.12);padding:4px 11px;border-radius:20px;font-size:11px;color:#fff;">✅ معتمد</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scrollable">
+    <input type="hidden" id="book-hidden-service" value="كشف منزلي"/>
+
+    <!-- التخصصات الديناميكية -->
+    <div style="padding:0 14px 4px;">
+      <label class="fl" id="sub-label">اختر التخصص</label>
+      <select class="fi" id="sub-options-container" style="font-size:14px;font-weight:600;color:var(--text);border:1.5px solid var(--g1);background:var(--white);padding:13px 14px;">
+        <option value="">اختر...</option>
+      </select>
+    </div>
+
+    <div class="fcard">
+      <!-- بيانات العميل — تتملا تلقائي لو مسجل دخول -->
+<div id="user-prefill-banner" style="display:none;"></div>
+      <label class="fl">الاسم الكامل</label>
+      <input class="fi" id="b-name" type="text" placeholder="اسمك الكامل"/>
+      <label class="fl">رقم الموبايل</label>
+      <input class="fi" id="b-phone" type="tel" placeholder="01xxxxxxxxx"/>
+      <label class="fl">المنطقة</label>
+      <select class="fi" id="b-area">
+        <option value="">اختر منطقتك</option>
+        <optgroup label="── القاهرة ──">
+          <option>مدينة نصر</option><option>النزهة</option><option>مصر الجديدة (هليوبوليس)</option>
+          <option>عين شمس</option><option>المطرية</option><option>الزيتون</option>
+          <option>شبرا</option><option>المرج</option><option>وسط البلد</option>
+          <option>الزمالك</option><option>العباسية</option><option>الأزهر</option>
+          <option>السيدة زينب</option><option>المعادي</option><option>حلوان</option>
+          <option>المقطم</option><option>15 مايو</option><option>التبين</option>
+          <option>إمبابة (القاهرة)</option><option>الهرم (القاهرة)</option>
+        </optgroup>
+        <optgroup label="── الجيزة ──">
+          <option>الدقي</option><option>المهندسين</option><option>العجوزة</option>
+          <option>بولاق الدكرور</option><option>إمبابة</option><option>الهرم</option>
+          <option>فيصل</option><option>العمرانية</option><option>6 أكتوبر</option>
+          <option>الشيخ زايد</option><option>حدائق الأهرام</option><option>كرداسة</option>
+          <option>أبو النمرس</option><option>البدرشين</option><option>العياط</option>
+          <option>الصف</option><option>أطفيح</option>
+        </optgroup>
+      </select>
+      <!-- عنوان + زر خرائط -->
+      <label class="fl">العنوان التفصيلي</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input class="fi" id="b-address" type="text" placeholder="الشارع، العمارة، الشقة" style="margin:0;flex:1;"/>
+        <button type="button" onclick="openMaps()" style="flex-shrink:0;background:var(--g-light);color:var(--g1);border:.5px solid var(--border);border-radius:11px;padding:0 14px;font-size:20px;cursor:pointer;font-family:'Cairo',sans-serif;" title="تحديد الموقع على الخريطة">📍</button>
+      </div>
+      <div id="map-link-row" style="display:none;background:#e8f5e9;border-radius:9px;padding:9px 12px;margin-bottom:12px;font-size:12px;color:#2e7d32;font-weight:700;">
+        ✅ تم تحديد موقعك على الخريطة
+      </div>
+      <label class="fl">الفترة المفضلة</label>
+      <select class="fi" id="b-appoint">
+        <option value="">اختر الفترة</option>
+        <option value="صباحاً (8 - 12)">🌅 صباحاً (8 - 12)</option>
+        <option value="ظهراً (12 - 4)">☀️ ظهراً (12 - 4)</option>
+        <option value="مساءً (4 - 9)">🌙 مساءً (4 - 9)</option>
+      </select>
+    </div>
+
+    <div class="sec">طريقة الدفع 💳</div>
+    <div class="pay-opt sel" id="py-cash" onclick="selPay('cash')">
+      <div class="pay-ico" style="background:var(--g-light)">💵</div>
+      <div><div class="pay-label">كاش عند الزيارة</div><div class="pay-sub">ادفع للمقدم مباشرة</div></div>
+      <div class="radio on" id="r-cash"></div>
+    </div>
+    <div class="pay-opt" id="py-card" onclick="selPay('card')">
+      <div class="pay-ico" style="background:#e8f0f8">💳</div>
+      <div><div class="pay-label">فيزا / ماستركارد</div><div class="pay-sub">دفع إلكتروني آمن</div></div>
+      <div class="radio" id="r-card"></div>
+    </div>
+    <div class="pay-opt" id="py-wallet" onclick="selPay('wallet')">
+      <div class="pay-ico" style="background:#faf4e6">📱</div>
+      <div><div class="pay-label">فودافون كاش / إنستاباي</div><div class="pay-sub">ادفع من موبايلك</div></div>
+      <div class="radio" id="r-wallet"></div>
+    </div>
+    <div id="card-form" style="display:none">
+      <div class="fcard">
+        <label class="fl">رقم الكارت</label>
+        <input class="fi" type="text" placeholder="XXXX XXXX XXXX XXXX"/>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1"><label class="fl">تاريخ الانتهاء</label><input class="fi" style="margin:0" type="text" placeholder="MM/YY"/></div>
+          <div style="flex:1"><label class="fl">CVV</label><input class="fi" style="margin:0" type="text" placeholder="XXX"/></div>
+        </div>
+      </div>
+    </div>
+    <div style="height:10px"></div>
+  </div>
+  <div style="padding:12px 14px 16px;background:var(--white);border-top:0.5px solid var(--border);flex-shrink:0;">
+  <button class="btnmain" onclick="saveBooking()" style="background:var(--gold);color:var(--g1);box-shadow:0 4px 20px rgba(201,168,76,0.35);margin:0;width:100%;">تأكيد الحجز وإرسال واتساب 💬</button>
+</div>
+</div>
+
+<!-- CONFIRM -->
+<div class="screen" id="a-confirm">
+  <div class="scrollable" style="display:flex;flex-direction:column;align-items:center;padding:0 16px">
+    <div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,var(--g1),#4a6b6f);display:flex;align-items:center;justify-content:center;font-size:44px;margin:32px auto 16px;box-shadow:0 8px 32px rgba(45,59,62,.2);">✅</div>
+    <div style="font-size:22px;font-weight:900;text-align:center;color:var(--text)">تم الحجز بنجاح!</div>
+    <div style="font-size:13px;color:var(--muted);margin:8px 0 22px;line-height:1.9;text-align:center">سيتواصل معك فريق ملاذ <strong style="color:var(--g1)">حالاً</strong> لتأكيد الموعد.<br>تابع حجزك من صفحة "حجوزاتي".</div>
+    <div class="iblock" style="width:100%;margin:0 0 12px">
+      <div class="irow"><span class="ikey">الاسم</span><span class="ival" id="conf-name">—</span></div>
+      <div class="irow"><span class="ikey">الخدمة</span><span class="ival" id="conf-service">—</span></div>
+      <div class="irow"><span class="ikey">التخصص</span><span class="ival" id="conf-sub">—</span></div>
+      <div class="irow"><span class="ikey">المنطقة</span><span class="ival" id="conf-area">—</span></div>
+      <div class="irow"><span class="ikey">الفترة</span><span class="ival" id="conf-appoint">—</span></div>
+      <div class="irow"><span class="ikey">المبلغ</span><span class="ival-g">350 ج.م</span></div>
+      <div class="irow"><span class="ikey">الدفع</span><span class="ival" id="pay-conf">كاش عند الزيارة</span></div>
+      <div class="irow"><span class="ikey">الحالة</span><span style="color:var(--orange);font-weight:700">⏳ قيد التأكيد</span></div>
+    </div>
+    <div style="background:var(--orange-light);border-radius:13px;padding:14px 16px;width:100%;margin-bottom:14px;border:.5px solid rgba(201,168,76,.2);">
+      <div style="font-size:13px;font-weight:700;color:var(--g1);margin-bottom:6px;">📞 الخطوات التالية</div>
+      <div style="font-size:12px;color:var(--g1);line-height:2;">📞 سيتصل بك أحد فريق ملاذ لتأكيد الموعد<br>🩺 المقدم سيتواصل معك قبل الزيارة<br>💵 الدفع بعد إتمام الخدمة والاطمئنان على حبايبك</div>
+    </div>
+  </div>
+  <button class="btnmain" style="background:#25D366;color:#fff;margin-bottom:0;" onclick="sendWhatsApp()">💬 إرسال تأكيد الحجز على واتساب</button>
+  <button class="btnmain" onclick="aShow('a-home')" style="background:var(--g-light);color:var(--g1);">العودة للرئيسية 🏠</button>
+</div>
+
+<!-- BOOKINGS -->
+<div class="screen" id="a-bookings">
+  <div class="tb"><span class="tb-title">حجوزاتي 📋</span></div>
+  <div class="scrollable">
+    <div class="sec">نشطة</div>
+    <div class="bcard" style="border-right:3px solid var(--gold);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:15px;font-weight:700">د. أحمد حسن</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">🩺 كشف منزلي — الباطنة</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:1px">📅 السبت 3 مايو · 🕙 10 صباحاً</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:1px">📍 مدينة نصر</div>
+        </div>
+        <span class="bs bs-pend">قيد التأكيد</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:.5px solid var(--border)">
+        <div style="font-size:14px;color:var(--g2);font-weight:900;">350 ج.م <span style="font-size:11px;font-weight:400;color:var(--muted)">· كاش</span></div>
+        <div style="display:flex;gap:7px;">
+          <button onclick="cancelBooking(this)" style="background:#fff0f0;color:var(--red);border:.5px solid rgba(192,57,43,.2);border-radius:9px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;">إلغاء الحجز</button>
+          <button style="background:var(--g-light);color:var(--g1);border:none;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;">تفاصيل</button>
+        </div>
+      </div>
+    </div>
+    <div class="sec">مكتملة</div>
+    <div class="bcard">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:15px;font-weight:700">أ. منى إبراهيم</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">🧑‍⚕️ تمريض منزلي — خدمة سريعة</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:1px">📅 25 أبريل 2026</div>
+        </div>
+        <span class="bs bs-done">مكتمل ✓</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:.5px solid var(--border)">
+        <div style="font-size:14px;color:var(--g2);font-weight:900;">200 ج.م</div>
+        <button onclick="aShow('a-rate')" style="background:var(--orange-light);color:var(--gold);border:none;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;">⭐ قيّم الخدمة</button>
+      </div>
+    </div>
+    <div class="bcard">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:15px;font-weight:700">د. علاء منصور</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">🩺 كشف منزلي — طب داخلي</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:1px">📅 10 أبريل 2026</div>
+        </div>
+        <span class="bs bs-done">مكتمل ✓</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:.5px solid var(--border)">
+        <div style="font-size:14px;color:var(--g2);font-weight:900;">300 ج.م</div>
+        <div style="font-size:12px;color:var(--gold);">★★★★★ تم التقييم</div>
+      </div>
+    </div>
+    <div style="height:12px"></div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><span class="tabi">📋</span>حجوزاتي</div>
+    <div class="tab" onclick="aShow('a-home')"><span class="tabi">🏠</span>الرئيسية</div>
+    <div class="tab" onclick="aShow('a-profile')"><span class="tabi">👤</span>حسابي</div>
+  </div>
+</div>
+
+<!-- RATE -->
+<div class="screen" id="a-rate">
+  <div class="tb"><span class="tb-back" onclick="aShow('a-bookings')">‹</span><span class="tb-title">تقييم الخدمة</span></div>
+  <div class="scrollable">
+    <div style="text-align:center;padding:22px 16px 0">
+      <div style="font-size:40px;margin-bottom:8px">👩‍⚕️</div>
+      <div style="font-size:17px;font-weight:700">أ. منى إبراهيم</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">تمريض منزلي · 25 أبريل</div>
+      <div style="font-size:15px;font-weight:700;margin-top:20px">إزاي كانت تجربتك؟</div>
+      <div class="star-row" id="stars-row">
+        <span class="star-btn" onclick="rateStar(1)">★</span>
+        <span class="star-btn" onclick="rateStar(2)">★</span>
+        <span class="star-btn" onclick="rateStar(3)">★</span>
+        <span class="star-btn" onclick="rateStar(4)">★</span>
+        <span class="star-btn" onclick="rateStar(5)">★</span>
+      </div>
+      <div style="font-size:14px;color:var(--muted)" id="star-lbl">اضغط على نجمة</div>
+    </div>
+    <div class="fcard" style="margin-top:16px">
+      <label class="fl">تعليقك (اختياري)</label>
+      <textarea class="fi" rows="3" placeholder="شاركنا تجربتك..."></textarea>
+    </div>
+    <div style="height:10px"></div>
+  </div>
+  <button class="btnmain" onclick="submitRate()">إرسال التقييم</button>
+</div>
+
+<!-- RATE DONE -->
+<div class="screen" id="a-rate-done">
+  <div class="scrollable" style="display:flex;flex-direction:column;align-items:center;padding:0 16px">
+    <div class="conf-ico" style="background:#FFF9C4">⭐</div>
+    <div style="font-size:20px;font-weight:900;text-align:center">شكراً على تقييمك!</div>
+    <div style="font-size:13px;color:var(--muted);margin:8px 0 20px;line-height:1.8;text-align:center">رأيك بيساعدنا نحسّن الخدمة ويساعد المرضى التانيين.</div>
+  </div>
+  <button class="btnmain" onclick="aShow('a-home')">العودة للرئيسية</button>
+</div>
+
+<!-- PROFILE -->
+<div class="screen" id="a-profile">
+  <div class="tb"><span class="tb-title">حسابي</span></div>
+  <div class="scrollable">
+    <!-- Avatar & Name -->
+    <div style="background:var(--g1);padding:20px 16px 24px;text-align:center;flex-shrink:0;">
+      <div style="width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 10px">👤</div>
+      <div style="font-size:18px;font-weight:900;color:#fff;" class="profile-name">محمد علي</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.55);margin-top:3px;" class="profile-phone">01012345678</div>
+      <div style="display:inline-block;margin-top:9px;background:rgba(201,168,76,.2);border:0.5px solid rgba(201,168,76,.4);padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;color:var(--gold);">عميل مميز ★</div>
+    </div>
+    <!-- Stats -->
+    <div class="ag" style="margin-top:14px;">
+      <div class="astat"><div class="asl">إجمالي الحجوزات</div><div class="asv">3</div></div>
+      <div class="astat"><div class="asl">المكتملة</div><div class="asv" style="color:#43A047">2</div></div>
+      <div class="astat"><div class="asl">النشطة</div><div class="asv" style="color:var(--orange)">1</div></div>
+      <div class="astat"><div class="asl">التقييمات</div><div class="asv" style="color:var(--gold)">★ 5.0</div></div>
+    </div>
+    <!-- Quick actions -->
+    <div class="sec">الإعدادات</div>
+    <div class="iblock">
+      <div class="irow" style="cursor:pointer;"><span class="ikey">📍 عناويني المحفوظة</span><span style="color:var(--muted);font-size:13px;">2 عنوان ›</span></div>
+      <div class="irow" style="cursor:pointer;"><span class="ikey">🔔 الإشعارات</span><span style="color:#43A047;font-size:13px;font-weight:700;">مفعّل ›</span></div>
+      <div class="irow" style="cursor:pointer;"><span class="ikey">⭐ قيّم التطبيق</span><span style="color:var(--gold);font-size:13px;">›</span></div>
+    </div>
+    <div class="sec">تواصل معنا</div>
+    <div class="iblock">
+      <div class="irow" style="cursor:pointer;" onclick="window.open('https://wa.me/201006484908','_blank')">
+        <span class="ikey">💬 واتساب</span>
+        <span style="color:#25D366;font-size:13px;font-weight:700;">01006484908 ›</span>
+      </div>
+      <div class="irow" style="cursor:pointer;" onclick="window.open('tel:+201006484908','_blank')">
+        <span class="ikey">📞 اتصال مباشر</span>
+        <span style="color:var(--g2);font-size:13px;font-weight:700;">01006484908 ›</span>
+      </div>
+    </div>
+    <div class="sec">من نحن</div>
+    <div style="background:var(--white);border:.5px solid var(--border);border-radius:14px;margin:0 12px 10px;padding:16px;">
+      <div style="font-size:15px;font-weight:900;color:var(--g1);margin-bottom:8px;">ملاذ — رعاية طبية منزلية 🏥</div>
+      <div style="font-size:13px;color:var(--muted);line-height:2;">نوفر خدمات طبية منزلية متكاملة من أطباء وممرضين معتمدين يصلونك في أقل من 30 دقيقة. كل مقدمينا مرخصين من نقابة الأطباء ويخضعون لمراجعة صارمة قبل الانضمام.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <div style="background:var(--g-light);border-radius:10px;padding:8px 12px;text-align:center;flex:1;min-width:80px;">
+          <div style="font-size:18px;font-weight:900;color:var(--g1);">+25</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">مقدم معتمد</div>
+        </div>
+        <div style="background:var(--orange-light);border-radius:10px;padding:8px 12px;text-align:center;flex:1;min-width:80px;">
+          <div style="font-size:18px;font-weight:900;color:var(--gold);">4.9 ★</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">متوسط التقييم</div>
+        </div>
+        <div style="background:#e8f5e9;border-radius:10px;padding:8px 12px;text-align:center;flex:1;min-width:80px;">
+          <div style="font-size:18px;font-weight:900;color:#43A047;">30د</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">وقت الوصول</div>
+        </div>
+      </div>
+    </div>
+    <div class="sec">المزيد</div>
+    <div class="iblock">
+      <div class="irow" style="cursor:pointer;" onclick="setMode('portal')"><span class="ikey">🏥 انضم كمقدم خدمة</span><span style="color:var(--g2);font-size:13px;font-weight:700;">›</span></div>
+      <div class="irow" style="cursor:pointer;" onclick="doLogout()"><span class="ikey" style="color:var(--red);">🚪 تسجيل الخروج</span><span style="color:var(--muted);font-size:13px;">›</span></div>
+    </div>
+    <div style="text-align:center;padding:16px;font-size:11px;color:var(--muted);">ملاذ v5.0 · جميع الحقوق محفوظة 2026</div>
+  </div>
+  <div class="tabbar">
+    <div class="tab" onclick="aShow('a-bookings')"><span class="tabi">📋</span>حجوزاتي</div>
+    <div class="tab" onclick="aShow('a-home')"><span class="tabi">🏠</span>الرئيسية</div>
+    <div class="tab on"><span class="tabi">👤</span>حسابي</div>
+  </div>
+</div>
+
+<!-- ======================== PORTAL SCREENS ======================== -->
+<!-- 📦 [APP 2: بوابة مقدمي الخدمة] — كل حاجة من هنا لـ ADMIN SCREENS دي تطبيق مستقل -->
+<!-- Portal يحتاج: CSS كامل + Supabase + saveProvider() + pShow() -->
+
+<!-- PORTAL LOGIN -->
+<div class="screen" id="p-login">
+  <div style="background:var(--g1);flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:rgba(201,168,76,.07);pointer-events:none;"></div>
+    <div style="position:absolute;bottom:-40px;left:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.03);pointer-events:none;"></div>
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-size:44px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px;">ملاذ</div>
+      <div style="font-size:9px;font-weight:700;color:var(--gold);letter-spacing:7px;margin-top:4px;">M A L A A Z</div>
+      <div style="height:2px;background:linear-gradient(to left,transparent,var(--gold),transparent);margin-top:8px;border-radius:2px;"></div>
+      <div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:10px;">بوابة مقدمي الخدمة 🏥</div>
+    </div>
+    <div style="background:rgba(255,255,255,.08);border:0.5px solid rgba(255,255,255,.15);border-radius:18px;padding:22px 20px;width:100%;max-width:360px;">
+      <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:18px;text-align:center;">دخول مقدم الخدمة</div>
+      <label style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:5px;display:block;">البريد الإلكتروني</label>
+      <input id="p-login-email" type="email" placeholder="example@email.com" style="width:100%;padding:13px 14px;background:rgba(255,255,255,.1);border:0.5px solid rgba(255,255,255,.2);border-radius:11px;font-size:14px;color:#fff;margin-bottom:14px;font-family:'Cairo',sans-serif;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='rgba(255,255,255,.2)'" />
+      <label style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:5px;display:block;">كلمة المرور</label>
+      <input id="p-login-pass" type="password" placeholder="••••••••" style="width:100%;padding:13px 14px;background:rgba(255,255,255,.1);border:0.5px solid rgba(255,255,255,.2);border-radius:11px;font-size:14px;color:#fff;margin-bottom:20px;font-family:'Cairo',sans-serif;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='rgba(255,255,255,.2)'" />
+      <button onclick="doProviderLogin()" style="width:100%;background:var(--gold);color:var(--g1);border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:900;cursor:pointer;font-family:'Cairo',sans-serif;">دخول ←</button>
+      <div style="text-align:center;margin-top:14px;">
+        <span style="font-size:12px;color:rgba(255,255,255,.4);">ليس لديك حساب؟ </span>
+        <span onclick="pShow('p-reg')" style="font-size:12px;color:var(--gold);font-weight:700;cursor:pointer;">سجّل الآن</span>
+      </div>
+    </div>
+    <button onclick="window.open('https://wa.me/201006484908?text=مرحباً، أريد التواصل مع إدارة ملاذ','_blank')" style="margin-top:20px;background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.4);color:#25D366;border-radius:12px;padding:12px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;">💬 تواصل مع الإدارة</button>
+  </div>
+</div>
+
+<!-- PORTAL HOME -->
+<div class="screen" id="p-home">
+  <div class="ph">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+      <div>
+        <div class="ph-logo">ملاذ · بوابة المقدمين 🏥</div>
+        <div class="ph-sub" id="p-home-name">مرحباً بك</div>
+      </div>
+      <button onclick="doProviderLogout()" style="background:rgba(255,255,255,.12);border:none;color:rgba(255,255,255,.7);border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;">خروج</button>
+    </div>
+  </div>
+  <div class="scrollable">
+    <div style="background:var(--white);border:.5px solid var(--border);border-radius:14px;margin:14px 12px;padding:16px;text-align:center">
+      <div style="font-size:34px;margin-bottom:8px">🩺</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px" id="p-dash-name">مرحباً</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px" id="p-dash-spec">—</div>
+      <div style="display:inline-block;background:var(--g-light);color:var(--g1);font-size:12px;padding:5px 14px;border-radius:20px;font-weight:700;">✅ نشط ومقبول</div>
+    </div>
+    <div class="ag" style="margin-top:4px;">
+      <div class="astat"><div class="asl">حجوزات الشهر</div><div class="asv">0</div></div>
+      <div class="astat"><div class="asl">إجمالي الإيرادات</div><div class="asv" style="font-size:16px">0 ج</div></div>
+    </div>
+    <div class="sec">الإجراءات السريعة</div>
+    <div style="padding:0 12px;display:flex;flex-direction:column;gap:9px;margin-bottom:14px;">
+      <button onclick="pShow('p-myprofile')" class="btnmain" style="margin:0;">👤 ملفي الشخصي</button>
+      <button onclick="window.open('https://wa.me/201006484908?text=مرحباً، أريد التواصل مع إدارة ملاذ','_blank')" class="btnmain" style="margin:0;background:#25D366;">💬 تواصل مع الإدارة</button>
+      <button onclick="pShow('p-reg')" class="btnmain" style="margin:0;background:var(--g-light);color:var(--g1);">✏️ تعديل بياناتي</button>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div class="screen" id="p-reg">
+  <div class="tb"><span class="tb-back" onclick="pShow('p-home')">‹</span><span class="tb-title">تسجيل مقدم خدمة</span></div>
+  <div class="scrollable">
+    <div class="psec">البيانات الشخصية</div>
+    <div class="fcard">
+      <label class="fl">الاسم الكامل / اسم المركز</label>
+      <input class="fi" id="p-name" type="text" placeholder="د. أحمد حسن"/>
+      <label class="fl">رقم الموبايل</label>
+      <input class="fi" id="b-phone" type="tel" placeholder="01xxxxxxxxx"/>
+      <label class="fl">البريد الإلكتروني</label>
+      <input class="fi" id="p-email" type="email" placeholder="example@email.com"/>
+    </div>
+    <div class="psec">التخصص والخدمة</div>
+    <div class="fcard">
+      <label class="fl">نوع الخدمة</label>
+      <select class="fi" id="p-stype"><option>اختر نوع الخدمة</option><option>كشف منزلي</option><option>أشعة منزلية</option><option>تمريض منزلي</option><option>تحاليل منزلية</option></select>
+      <label class="fl">التخصص التفصيلي</label>
+      <input class="fi" id="p-spec" type="text" placeholder="مثال: طب عام وأسرة"/>
+      <label class="fl">سنوات الخبرة</label>
+      <input class="fi" id="p-exp" type="number" placeholder="مثال: 10"/>
+      <label class="fl">رقم الترخيص / النقابة</label>
+      <input class="fi" id="p-lic" type="text" placeholder="رقم ترخيص مزاولة المهنة"/>
+    </div>
+    <div class="psec">الأسعار</div>
+    <div class="fcard">
+      <label class="fl">الخدمة الأولى واسعرها (ج.م)</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px"><input class="fi" style="margin:0;flex:2" type="text" placeholder="اسم الخدمة"/><input class="fi" style="margin:0;flex:1" type="number" placeholder="السعر"/></div>
+      <label class="fl">الخدمة الثانية (اختياري)</label>
+      <div style="display:flex;gap:8px"><input class="fi" style="margin:0;flex:2" type="text" placeholder="اسم الخدمة"/><input class="fi" style="margin:0;flex:1" type="number" placeholder="السعر"/></div>
+    </div>
+    <div class="psec">المناطق</div>
+    <div class="fcard">
+      <div style="display:flex;flex-wrap:wrap;gap:7px" id="area-chips">
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">مدينة نصر</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">هليوبوليس</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">المعادي</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">الزيتون</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">شبرا</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">الدقي</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">المهندسين</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">الجيزة</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">التجمع</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">الرحاب</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">النزهة</span>
+        <span class="chip" style="cursor:pointer" onclick="tog(this)">مصر الجديدة</span>
+      </div>
+    </div>
+    <div class="psec">صورة شخصية / شعار</div>
+    <div class="fcard" style="text-align:center">
+      <div style="width:80px;height:80px;border-radius:16px;border:2px dashed var(--g2);background:var(--g-light);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 8px;cursor:pointer">📷</div>
+      <div style="font-size:12px;color:var(--muted)">اضغط لرفع صورتك الشخصية</div>
+    </div>
+    <div style="height:10px"></div>
+  </div>
+  <button class="btnmain" onclick="saveProvider()">إرسال الطلب للمراجعة</button>
+</div>
+
+<!-- SENT -->
+<div class="screen" id="p-sent">
+  <div class="scrollable" style="display:flex;flex-direction:column;align-items:center;padding:0 16px">
+    <div class="conf-ico" style="background:var(--orange-light)">⏳</div>
+    <div style="font-size:20px;font-weight:900;text-align:center">تم إرسال طلبك!</div>
+    <div style="font-size:13px;color:var(--muted);margin:9px 0 22px;line-height:1.8;text-align:center">فريق ملاذ هيراجع بياناتك خلال 24-48 ساعة وهتوصلك رسالة عند القبول.</div>
+    <div style="background:var(--g-light);border-radius:13px;padding:14px;width:100%">
+      <div style="font-size:13px;font-weight:700;color:var(--g1);margin-bottom:8px">الخطوات القادمة:</div>
+      <div style="font-size:13px;color:var(--g1);line-height:2.1">✅ تم استقبال طلبك<br>🔄 مراجعة البيانات والترخيص<br>📱 موافقة المؤسس وإضافتك للتطبيق</div>
+    </div>
+  </div>
+  <button class="btnmain" onclick="pShow('p-home')">العودة للبوابة</button>
+</div>
+
+<!-- MY PROFILE PROVIDER -->
+<div class="screen" id="p-myprofile">
+  <div style="background:var(--g1);padding:11px 14px 0;display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <span style="color:#fff;font-size:24px;cursor:pointer" onclick="pShow('p-home')">‹</span>
+    <span style="color:rgba(255,255,255,.8);font-size:13px">ملفي الشخصي</span>
+  </div>
+  <div class="deth" style="flex-shrink:0">
+    <div class="det-top">
+      <div class="det-ava">👨‍⚕️</div>
+      <div>
+        <div class="det-name">د. أحمد حسن</div>
+        <div class="det-spec">طب عام وأسرة</div>
+        <div style="margin-top:7px;background:rgba(255,255,255,.2);display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;color:#fff;font-weight:600">✅ نشط ومقبول</div>
+      </div>
+    </div>
+  </div>
+  <div class="scrollable">
+    <div class="sec">إحصائياتي</div>
+    <div class="ag">
+      <div class="astat"><div class="asl">حجوزات الشهر</div><div class="asv">18</div></div>
+      <div class="astat"><div class="asl">إجمالي الإيرادات</div><div class="asv" style="font-size:16px">6,300 ج</div></div>
+      <div class="astat"><div class="asl">متوسط التقييم</div><div class="asv" style="color:var(--gold)">4.9 ⭐</div></div>
+      <div class="astat"><div class="asl">عدد التقييمات</div><div class="asv">312</div></div>
+    </div>
+    <div class="sec">بياناتي</div>
+    <div class="iblock">
+      <div class="irow"><span class="ikey">الخدمة</span><span class="ival">كشف منزلي</span></div>
+      <div class="irow"><span class="ikey">التخصص</span><span class="ival">طب عام وأسرة</span></div>
+      <div class="irow"><span class="ikey">الخبرة</span><span class="ival">12 سنة</span></div>
+      <div class="irow"><span class="ikey">الحالة</span><span style="color:var(--g2);font-weight:700">نشط ✅</span></div>
+    </div>
+    <button class="btnmain" style="font-size:14px" onclick="pShow('p-reg')">تعديل بياناتي</button>
+    <div style="height:10px"></div>
+  </div>
+</div>
+
+<!-- ======================== ADMIN SCREENS ======================== -->
+<!-- 📦 [APP 3: لوحة الإدارة] -->
+
+<!-- ADMIN LOGIN -->
+<div class="screen" id="ad-login">
+  <div style="background:var(--g1);flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:rgba(201,168,76,.07);pointer-events:none;"></div>
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-size:44px;font-weight:900;color:#fff;letter-spacing:-2px;">ملاذ</div>
+      <div style="font-size:9px;font-weight:700;color:var(--gold);letter-spacing:7px;margin-top:4px;">M A L A A Z</div>
+      <div style="height:2px;background:linear-gradient(to left,transparent,var(--gold),transparent);margin-top:8px;border-radius:2px;"></div>
+      <div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:10px;">لوحة تحكم الإدارة ⚙️</div>
+    </div>
+    <div style="background:rgba(255,255,255,.08);border:0.5px solid rgba(255,255,255,.15);border-radius:18px;padding:22px 20px;width:100%;max-width:360px;">
+      <label style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:5px;display:block;">كلمة المرور</label>
+      <input id="ad-pass-input" type="password" placeholder="••••••••"
+        style="width:100%;padding:13px 14px;background:rgba(255,255,255,.1);border:0.5px solid rgba(255,255,255,.2);border-radius:11px;font-size:14px;color:#fff;margin-bottom:20px;font-family:'Cairo',sans-serif;"
+        onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='rgba(255,255,255,.2)'"
+        onkeydown="if(event.key==='Enter') doAdminLogin()" />
+      <button onclick="doAdminLogin()" style="width:100%;background:var(--gold);color:var(--g1);border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:900;cursor:pointer;font-family:'Cairo',sans-serif;">دخول ←</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="ad-home">
+  <div class="tb">
+    <span class="tb-title">لوحة تحكم المؤسس ⚙️</span>
+    <button onclick="doAdminLogout()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:9px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;">خروج</button>
+  </div>
+  <div class="scrollable">
+    <div class="sec">إحصائيات الشهر</div>
+    <div class="ag">
+      <div class="astat"><div class="asl">إجمالي الحجوزات</div><div class="asv" id="admin-bookings-count">47</div></div>
+      <div class="astat"><div class="asl">إيرادات الشهر</div><div class="asv" style="font-size:15px">16,450 ج</div></div>
+      <div class="astat"><div class="asl">مقدمو الخدمة</div><div class="asv">25</div></div>
+      <div class="astat"><div class="asl" style="color:var(--orange)">طلبات معلقة</div><div class="asv" style="color:var(--orange)" id="admin-pending-count">3</div></div>
+    </div>
+    <div class="sec">طلبات مقدمي خدمة جدد ⚡</div>
+    <div class="pcard">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:15px;font-weight:700">د. نور إبراهيم</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">طب أطفال · 15 سنة · مدينة نصر</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px">الترخيص: 12345 ✅ تم التحقق</div>
+        </div>
+        <span style="background:var(--orange-light);color:var(--orange);font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600">جديد</span>
+      </div>
+      <div class="abrow">
+        <button class="abtn ab-ok" onclick="approve(this)">✅ قبول وإضافة</button>
+        <button class="abtn ab-no">❌ رفض</button>
+      </div>
+    </div>
+    <div class="pcard">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:15px;font-weight:700">مركز الأشعة الحديث</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">أشعة منزلية · الدقي، الجيزة</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px">الترخيص: 67890 ⏳ قيد التحقق</div>
+        </div>
+        <span style="background:#FFF3E0;color:var(--orange);font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600">مراجعة</span>
+      </div>
+      <div class="abrow">
+        <button class="abtn ab-ok" onclick="approve(this)">✅ قبول وإضافة</button>
+        <button class="abtn ab-no">❌ رفض</button>
+      </div>
+    </div>
+    <div class="sec">آخر الحجوزات</div><div id="admin-bookings-list"></div><div class="sec">إدارة سريعة</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:9px;padding:0 12px;margin-bottom:16px">
+      <button class="qbtn" style="background:var(--g-light);color:var(--g1)">📋 الحجوزات الجديدة</button>
+      <button class="qbtn" style="background:#E3F2FD;color:#0D47A1">📊 التقارير الشهرية</button>
+      <button class="qbtn" style="background:var(--orange-light);color:var(--orange)">➕ إضافة خدمة</button>
+      <button class="qbtn" style="background:#F3E5F5;color:#6A1B9A">👥 كل المقدمين</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://oobzgibvjrpkichtitgy.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYnpnaWJ2anJwa2ljaHRpdGd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0OTY1NjEsImV4cCI6MjA5MzA3MjU2MX0.SiBYYbdLtIxPHPv5gn9dUhA1enMqfv9VKsGc2zGfkAQ";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let curProvider=null;
+let curMode='app';
+let curPay='cash';
+let curStar=0;
+let curUser=null; // { name, phone }
+let curMapLink='';
+let lastBooking={};
+
+// ============================================================
+// بيانات الأطباء — عدّلها هنا لما تضيف مقدم جديد
+// ============================================================
+const DOCTORS = {
+  'ahmed': { name:'د. أحمد حسن',    service:'كشف منزلي',   spec:'طب عام وأسرة',       icon:'👨‍⚕️', rating:'4.9', reviews:'312', price:'350', time:'30 دقيقة', area:'مدينة نصر' },
+  'mona':  { name:'أ. منى إبراهيم', service:'تمريض منزلي', spec:'⚡ خدمة سريعة',      icon:'👩‍⚕️', rating:'5.0', reviews:'210', price:'200', time:'ساعة',    area:'المعادي' },
+  'alaa':  { name:'د. علاء منصور',  service:'كشف منزلي',   spec:'طب داخلي',           icon:'👨‍⚕️', rating:'4.7', reviews:'180', price:'300', time:'ساعة',    area:'الدقي' },
+};
+
+// ============================================================
+// التخصصات الديناميكية — عدّلها هنا بسهولة
+// ============================================================
+const PRICE_RANGES = {
+  'الباطنة': {min:250, max:500},
+  'صدر وجهاز تنفسي': {min:300, max:600},
+  'قلب وأوعية دموية': {min:350, max:700},
+  'أطفال وحديثي الولادة': {min:250, max:500},
+  'جراحة عامة': {min:400, max:800},
+  'جراحة أوعية دموية': {min:400, max:800},
+  'مسالك بولية': {min:300, max:600},
+  'أمراض نفسية وعصبية': {min:300, max:600},
+  'أنف وأذن وحنجرة': {min:300, max:600},
+  'السكري والغدد الصماء': {min:300, max:600},
+  'أمراض الكلى': {min:300, max:600},
+  'العظام': {min:300, max:600},
+  'المخ والأعصاب': {min:350, max:700},
+  'طب المسنين': {min:250, max:500},
+  'أشعة عادية X-Ray': {min:200, max:500},
+  'رسم قلب ECG': {min:200, max:400},
+  'سونار على البطن': {min:300, max:700},
+  'إيكو على القلب': {min:500, max:1200},
+  'دوبلر / دوبلكس أوردة وشرايين': {min:400, max:900},
+  'خدمة سريعة': {min:150, max:300},
+  'إقامة 12 ساعة': {min:400, max:800},
+  'إقامة 24 ساعة': {min:700, max:1200}
+};
+
+function updatePriceDisplay(spec) {
+  const badge = document.getElementById('book-price-badge');
+  if (!spec || !badge) return;
+  const range = PRICE_RANGES[spec];
+  if (range) {
+    badge.textContent = range.min === range.max ? 
+      range.min + ' ج.م' : 
+      range.min + ' – ' + range.max + ' ج.م';
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+const SPECIALTIES = {
+  'كشف منزلي': [
+    'الباطنة','صدر وجهاز تنفسي','قلب وأوعية دموية',
+    'أطفال وحديثي الولادة','جراحة عامة','جراحة أوعية دموية',
+    'مسالك بولية','أمراض نفسية وعصبية','أنف وأذن وحنجرة',
+    'السكري والغدد الصماء','أمراض الكلى','العظام',
+    'المخ والأعصاب','طب المسنين'
+  ],
+  'تمريض منزلي': [
+    '⚡ خدمة سريعة','🕛 إقامة 12 ساعة','🌙 إقامة 24 ساعة'
+  ],
+  'أشعة منزلية': [
+    'أشعة عادية X-Ray','رسم قلب ECG','سونار على البطن',
+    'إيكو على القلب','دوبلر / دوبلكس أوردة وشرايين'
+  ]
+};
+
+// ============================================================
+// LOGIN
+// ============================================================
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsDel(k){try{localStorage.removeItem(k);}catch(e){}}
+
+function doLogin(){
+  const name=document.getElementById('login-name').value.trim();
+  const phone=document.getElementById('login-phone').value.trim();
+  if(!name||!phone){alert('من فضلك ادخل اسمك ورقمك');return;}
+  if(!/^01[0125]\d{8}$/.test(phone)){alert('رقم الموبايل مش صح، تأكد منه');return;}
+  curUser={name,phone};
+  lsSet('malaaz_user',JSON.stringify(curUser));
+  updateProfileUI();
+  aShow('a-home');
+}
+
+function doLogout(){
+  if(!confirm('هتخرج من حسابك؟'))return;
+  curUser=null;
+  lsDel('malaaz_user');
+  aShow('a-login');
+}
+
+// ============================================================
+// PROVIDER LOGIN
+// ============================================================
+// بيانات المقدمين المسجلين (في الواقع هتجي من Supabase)
+const PROVIDERS_DB = {
+  'ahmed@malaaz.com':   { pass:'ahmed123',   name:'د. أحمد حسن',       spec:'طب عام وأسرة',        service:'كشف منزلي' },
+  'mona@malaaz.com':    { pass:'mona123',    name:'أ. منى إبراهيم',     spec:'ممرضة معتمدة',        service:'تمريض منزلي' },
+  'alaa@malaaz.com':    { pass:'alaa123',    name:'د. علاء منصور',      spec:'طب داخلي',            service:'كشف منزلي' },
+  'radiology@malaaz.com':{ pass:'rad123',   name:'مركز الأشعة الحديث', spec:'أشعة وتصوير طبي',    service:'أشعة منزلية' },
+};
+
+function doProviderLogin(){
+  const email=document.getElementById('p-login-email').value.trim().toLowerCase();
+  const pass=document.getElementById('p-login-pass').value;
+  const found=PROVIDERS_DB[email];
+  if(!found||found.pass!==pass){
+    alert('البريد الإلكتروني أو كلمة المرور غلط ❌');
+    return;
+  }
+  curProvider={email, name:found.name, spec:found.spec, service:found.service};
+  lsSet('malaaz_provider', JSON.stringify(curProvider));
+  updateProviderUI();
+  pShow('p-home');
+}
+
+function doProviderLogout(){
+  if(!confirm('هتخرج من حسابك؟')) return;
+  curProvider=null;
+  lsDel('malaaz_provider');
+  pShow('p-login');
+}
+
+function doAdminLogin(){
+  const pass=document.getElementById('ad-pass-input').value;
+  if(pass!=='malaaz2026'){
+    alert('كلمة المرور غلط ❌');
+    document.getElementById('ad-pass-input').value='';
+    return;
+  }
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('ad-home').classList.add('active');
+  loadAdminData();
+}
+
+function doAdminLogout(){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('ad-login').classList.add('active');
+  document.getElementById('ad-pass-input').value='';
+}
+
+function updateProviderUI(){
+  if(!curProvider) return;
+  const nameEl=document.getElementById('p-home-name');
+  const dashName=document.getElementById('p-dash-name');
+  const dashSpec=document.getElementById('p-dash-spec');
+  if(nameEl) nameEl.textContent='مرحباً، '+curProvider.name;
+  if(dashName) dashName.textContent=curProvider.name;
+  if(dashSpec) dashSpec.textContent=curProvider.spec+' · '+curProvider.service;
+}
+
+function updateProfileUI(){
+  if(!curUser)return;
+  const nameEls=document.querySelectorAll('.profile-name');
+  const phoneEls=document.querySelectorAll('.profile-phone');
+  nameEls.forEach(el=>el.textContent=curUser.name);
+  phoneEls.forEach(el=>el.textContent=curUser.phone);
+}
+
+// تحقق لو في يوزر محفوظ
+(function(){
+  const saved=lsGet('malaaz_user');
+  if(saved){
+    try{
+      curUser=JSON.parse(saved);
+      document.getElementById('a-login').classList.remove('active');
+      document.getElementById('a-home').classList.add('active');
+      updateProfileUI();
+    }catch(e){lsDel('malaaz_user');}
+  }
+  // تحقق لو في مقدم خدمة محفوظ
+  const savedP=lsGet('malaaz_provider');
+  if(savedP){
+    try{ curProvider=JSON.parse(savedP); }catch(e){ lsDel('malaaz_provider'); }
+  }
+})();
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function setMode(m){
+  curMode=m;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  if(m==='app'){
+    if(curUser) document.getElementById('a-home').classList.add('active');
+    else document.getElementById('a-login').classList.add('active');
+  }
+  else if(m==='portal'){
+    const saved=lsGet('malaaz_provider');
+    if(saved){
+      try{
+        curProvider=JSON.parse(saved);
+        updateProviderUI();
+        document.getElementById('p-home').classList.add('active');
+      }catch(e){ document.getElementById('p-login').classList.add('active'); }
+    } else {
+      document.getElementById('p-login').classList.add('active');
+    }
+  }
+  else{
+    document.getElementById('ad-login').classList.add('active');
+  }
+  document.querySelectorAll('.mode-btn').forEach((b,i)=>{
+    const modes=['app','portal','admin'];
+    b.className='mode-btn '+(modes[i]===m?'on':'off');
+  });
+}
+
+function aShow(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  // لو رحنا حسابي — حدّث البيانات
+  if(id==='a-profile') updateProfileUI();
+}
+function pShow(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ============================================================
+// BOOKING
+// ============================================================
+// حجز من صفحة دكتور محدد — بيحدد التخصص تلقائي
+function goBookDoctor(doctorId){
+  const doc=DOCTORS[doctorId];
+  if(!doc) return;
+  goBook(doc.service, doc.spec);
+}
+
+// عرض صفحة دكتور محدد بياناته الحقيقية
+function showDoctor(doctorId){
+  const doc=DOCTORS[doctorId];
+  if(!doc) return;
+  // حدّث الـ detail screen بالبيانات الحقيقية
+  document.querySelector('#a-detail .det-ava').textContent=doc.icon;
+  document.querySelector('#a-detail .det-name').textContent=doc.name;
+  document.querySelector('#a-detail .det-spec').textContent=doc.spec;
+  // زرار الحجز
+  document.getElementById('detail-book-btn').onclick=()=>goBookDoctor(doctorId);
+  aShow('a-detail');
+}
+
+function goBook(service, preSelectedSub){
+  const icons={'كشف منزلي':'🩺','أشعة منزلية':'🔬','تمريض منزلي':'🧑‍⚕️'};
+  document.getElementById('book-service-icon').textContent=icons[service]||'🏥';
+  document.getElementById('book-service-badge').textContent=service;
+  document.getElementById('book-hidden-service').value=service;
+
+  const container=document.getElementById('sub-options-container');
+  const subSection=document.getElementById('sub-label').parentElement||document.getElementById('sub-label').closest('div');
+
+  if(preSelectedSub){
+    // لو في تخصص محدد مسبقاً — اخفي الاختيارات وحدده تلقائي
+    document.getElementById('sub-label').textContent='التخصص';
+    container.innerHTML=`<option value="${preSelectedSub}">${preSelectedSub}</option>`;
+    container.style.pointerEvents='none';
+  } else {
+    const list=SPECIALTIES[service]||[];
+    const labelMap={'كشف منزلي':'اختر التخصص','تمريض منزلي':'اختر نوع الخدمة','أشعة منزلية':'اختر نوع الأشعة'};
+    document.getElementById('sub-label').textContent=labelMap[service]||'اختر الخدمة';
+    container.innerHTML='<option value="">اختر...</option>'+list.map(s=>`<option value="${s}">${s}</option>`).join('');
+    container.style.pointerEvents='';
+  }
+
+  // auto-fill لو في يوزر
+  if(curUser){
+    document.getElementById('b-name').value=curUser.name;
+    document.getElementById('b-phone').value=curUser.phone;
+    document.getElementById('user-prefill-banner').style.display='flex';
+  } else {
+    document.getElementById('b-name').value='';
+    document.getElementById('b-phone').value='';
+    document.getElementById('user-prefill-banner').style.display='none';
+  }
+  curMapLink='';
+  document.getElementById('map-link-row').style.display='none';
+  aShow('a-booking');
+}
+
+function selSub(el){
+  el.closest('#sub-options-container').querySelectorAll('.suboption').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+function openMaps(){
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const lat=pos.coords.latitude;
+      const lng=pos.coords.longitude;
+      curMapLink=`https://maps.google.com/?q=${lat},${lng}`;
+      document.getElementById('map-link-row').style.display='block';
+      document.getElementById('map-link-row').innerHTML='✅ تم تحديد موقعك — <a href="'+curMapLink+'" target="_blank" style="color:#2e7d32">افتح الخريطة</a>';
+    }, ()=>{
+      window.open('https://maps.google.com/','_blank');
+      curMapLink='';
+      document.getElementById('map-link-row').style.display='block';
+      document.getElementById('map-link-row').textContent='⚠️ لم يتم تحديد الموقع تلقائياً — يمكنك كتابة العنوان يدوياً';
+    });
+  } else {
+    window.open('https://maps.google.com/','_blank');
+  }
+}
+
+function aGo(id,t){
+  document.getElementById('list-t').textContent=t;
+  aShow(id);
+}
+
+// ============================================================
+// PAYMENT
+// ============================================================
+function tog(el){
+  const on=el.dataset.on==='1';
+  el.dataset.on=on?'0':'1';
+  el.style.background=on?'':'var(--g2)';
+  el.style.color=on?'':'#fff';
+}
+function selPay(p){
+  ['cash','card','wallet'].forEach(x=>{
+    document.getElementById('py-'+x).classList.remove('sel');
+    document.getElementById('r-'+x).classList.remove('on');
+  });
+  document.getElementById('py-'+p).classList.add('sel');
+  document.getElementById('r-'+p).classList.add('on');
+  document.getElementById('card-form').style.display=p==='card'?'block':'none';
+  curPay=p;
+  const lbs={cash:'كاش عند الزيارة',card:'فيزا / ماستركارد',wallet:'فودافون كاش'};
+  document.getElementById('pay-conf').textContent=lbs[p];
+}
+
+// ============================================================
+// SAVE BOOKING + WHATSAPP
+// ============================================================
+async function saveBooking(){
+  const name=document.getElementById('b-name').value.trim();
+  const phone=document.getElementById('b-phone').value.trim();
+  const area=document.getElementById('b-area').value;
+  const address=document.getElementById('b-address').value.trim();
+  const appointment=document.getElementById('b-appoint').value;
+  const service=document.getElementById('book-hidden-service').value;
+  const subSelect=document.getElementById('sub-options-container');
+  const subOption=subSelect?subSelect.value.trim():'';
+
+  if(!name||!phone){alert('من فضلك ادخل الاسم ورقم الموبايل');return;}
+  if(!area){alert('من فضلك اختر المنطقة');return;}
+  if(!subOption){
+    const labels={'كشف منزلي':'التخصص','تمريض منزلي':'نوع الخدمة','أشعة منزلية':'نوع الأشعة'};
+    alert('من فضلك اختر '+(labels[service]||'الخدمة'));return;
+  }
+
+  lastBooking={name,phone,area,address,appointment,service,subOption,pay:curPay,mapLink:curMapLink};
+
+  // حفظ في Supabase
+  let saveError=null;
+  try{
+    const res=await sb.from('bookings').insert([{
+      name,phone,area,address,appointment,
+      service,sub_option:subOption,provider:'',
+      price:'350',status:'pending',payment_method:curPay
+    }]);
+    // استخرج الـ error كـ plain string فوراً عشان نتفادى DataCloneError
+    if(res && res.error){
+      saveError = res.error.message || res.error.details || res.error.hint || 'خطأ غير معروف';
+    }
+  }catch(e){
+    saveError = e && e.message ? e.message : 'خطأ في الاتصال';
+  }
+
+  if(saveError){
+    console.warn('Supabase warning (غير حارق):', saveError);
+    // نكمل عادي — الواتساب هو الـ fallback الأساسي
+  }
+
+  // ملء شاشة التأكيد ببيانات الحجز الفعلية
+  const payLabels={cash:'كاش عند الزيارة',card:'فيزا / ماستركارد',wallet:'فودافون كاش'};
+  document.getElementById('conf-name').textContent=name;
+  document.getElementById('conf-service').textContent=service;
+  document.getElementById('conf-sub').textContent=subOption;
+  document.getElementById('conf-area').textContent=area;
+  document.getElementById('conf-appoint').textContent=appointment||'—';
+  document.getElementById('pay-conf').textContent=payLabels[curPay]||curPay;
+
+  aShow('a-confirm');
+  // افتح واتساب بعد شوية عشان الشاشة تتغير الأول
+  setTimeout(()=>sendWhatsApp(), 600);
+}
+
+function sendWhatsApp(){
+  const b=lastBooking;
+  if(!b.name)return;
+  const payLabel={'cash':'كاش عند الزيارة','card':'فيزا / ماستركارد','wallet':'فودافون كاش'};
+  const mapLine=b.mapLink&&b.mapLink.startsWith('http')?`\n📍 رابط الموقع: ${b.mapLink}`:'';
+  const msg=
+`🏥 *حجز جديد — ملاذ*
+
+👤 الاسم: ${b.name}
+📱 الموبايل: ${b.phone}
+📋 الخدمة: ${b.service}
+🔹 التخصص: ${b.subOption}
+📍 المنطقة: ${b.area}
+🏠 العنوان: ${b.address||'—'}${mapLine}
+⏰ الفترة: ${b.appointment||'—'}
+💳 الدفع: ${payLabel[b.pay]||b.pay}
+
+⏳ الحالة: قيد التأكيد`;
+
+  const encoded=encodeURIComponent(msg);
+  window.open(`https://wa.me/201006484908?text=${encoded}`,'_blank');
+}
+
+// ============================================================
+// CANCEL BOOKING
+// ============================================================
+function cancelBooking(btn){
+  if(!confirm('هتلغي الحجز؟ مش هيتقدر يترجع.')){return;}
+  const card=btn.closest('.bcard');
+  // غيّر الشكل مباشرة
+  card.style.opacity='0.5';
+  card.style.pointerEvents='none';
+  const badge=card.querySelector('.bs');
+  if(badge){badge.textContent='ملغي';badge.className='bs';badge.style.background='#fce4e4';badge.style.color='var(--red)';}
+  const btns=card.querySelector('[style*="display:flex;gap"]');
+  if(btns) btns.innerHTML='<span style="font-size:12px;color:var(--red);font-weight:700;">تم إلغاء الحجز ✕</span>';
+  // إرسال واتساب للإلغاء
+  const msg=`❌ *طلب إلغاء حجز — ملاذ*\n\nالعميل: ${curUser?curUser.name:'—'}\nالموبايل: ${curUser?curUser.phone:'—'}\nالخدمة: كشف منزلي\nالطبيب: د. أحمد حسن\n\n⚠️ يرجى تأكيد الإلغاء`;
+  window.open('https://wa.me/201006484908?text='+encodeURIComponent(msg),'_blank');
+}
+
+
+function rateStar(n){
+  curStar=n;
+  document.querySelectorAll('.star-btn').forEach((b,i)=>{b.classList.toggle('lit',i<n);});
+  const lbs={1:'سيء 😞',2:'مقبول 😐',3:'كويس 🙂',4:'جيد جداً 😊',5:'ممتاز! 🌟'};
+  document.getElementById('star-lbl').textContent=lbs[n];
+}
+function submitRate(){if(curStar>0)aShow('a-rate-done');}
+
+// ============================================================
+// ADMIN
+// ============================================================
+function approve(btn){
+  const c=btn.closest('.pcard');
+  c.style.borderRightColor='var(--g2)';
+  c.style.opacity='.55';
+  btn.textContent='✅ تم القبول';btn.disabled=true;
+}
+
+async function saveProvider(){
+  const name=document.getElementById('p-name').value;
+  const phone=document.getElementById('p-phone').value;
+  const email=document.getElementById('p-email').value;
+  const service_type=document.getElementById('p-stype').value;
+  const specialty=document.getElementById('p-spec').value;
+  const experience=document.getElementById('p-exp').value;
+  const license=document.getElementById('p-lic').value;
+  if(!name||!phone||!service_type||service_type==='اختر نوع الخدمة'){
+    alert('من فضلك اكمل اسمك ورقمك ونوع خدمتك');return;
+  }
+  const {error}=await sb.from('providers').insert([{
+    name,phone,email,service_type,specialty,experience,license,status:'pending'
+  }]);
+  if(error){alert('حصل خطأ، حاول تاني');console.error(error);return;}
+  pShow('p-sent');
+}
+
+async function loadAdminData(){
+  const {data:bookings}=await sb.from('bookings').select('*').order('created_at',{ascending:false});
+  const {data:providers}=await sb.from('providers').select('*').eq('status','pending');
+  const bEl=document.getElementById('admin-bookings-count');
+  const pEl=document.getElementById('admin-pending-count');
+  if(bEl&&bookings) bEl.textContent=bookings.length;
+  if(pEl&&providers) pEl.textContent=providers.length;
+  const list=document.getElementById('admin-bookings-list');
+  if(list&&bookings){
+    list.innerHTML=bookings.slice(0,5).map(b=>`
+      <div class="bcard">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div style="font-size:15px;font-weight:700">${b.name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${b.service||''} · ${b.area||''} · ${b.appointment||''}</div></div>
+          <span class="bs ${b.status==='pending'?'bs-pend':'bs-done'}">${b.status==='pending'?'جديد':'مكتمل'}</span>
+        </div>
+        <div style="font-size:13px;color:var(--g2);font-weight:700;margin-top:8px">${b.price||''} ج.م · ${b.payment_method||''}</div>
+      </div>`).join('');
+  }
+}
+
+// ============================================================
+// SLOGAN
+// ============================================================
+const slogans=[
+  {icon:'🏥',text:'صحتك أغلى ما عندك — ملاذ يجيب الطبيب لبيتك في أي وقت'},
+  {icon:'💚',text:'مع ملاذ، الرعاية الصحية مش محتاج تخرج ليها'},
+  {icon:'⏱',text:'طبيب معتمد يوصلك خلال 30 دقيقة — جرب ملاذ النهارده'},
+  {icon:'🌟',text:'آلاف العائلات المصرية تثق في ملاذ — انضم إليهم'},
+  {icon:'🩺',text:'كشف منزلي، أشعة، وتمريض — كل الرعاية في تطبيق واحد'},
+  {icon:'❤️',text:'راحتك في بيتك أولويتنا — احجز دلوقتي في ثواني'},
+  {icon:'🏠',text:'بيتك هو أفضل مكان للتعافي — وملاذ معاك فيه'},
+  {icon:'✨',text:'صحة أفضل تبدأ بخطوة واحدة — خطوتك مع ملاذ'},
+];
+let sIdx=Math.floor(Math.random()*slogans.length);
+function showSlogan(){
+  const el=document.getElementById('slogan-text');
+  const ic=document.getElementById('slogan-icon');
+  if(!el||!ic)return;
+  el.style.opacity=0;
+  setTimeout(()=>{
+    const s=slogans[sIdx];
+    el.textContent=s.text;
+    ic.textContent=s.icon;
+    el.style.opacity=1;
+    sIdx=(sIdx+1)%slogans.length;
+  },400);
+}
+showSlogan();
+setInterval(showSlogan,5000);
+</script>
+</body>
+</html>
