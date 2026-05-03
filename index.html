@@ -1634,7 +1634,26 @@ function scrollToBooking(service) {
 .bm-sub{border:1.5px solid rgba(58,74,78,.12);border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:var(--dark);transition:all .15s;font-family:'Cairo',sans-serif;}
 .bm-sub:hover{border-color:var(--teal);}
 .bm-sub.sel{background:var(--dark2);color:#fff;border-color:var(--dark2);}
-@media(max-width:640px){
+/* Doctor Cards */
+.doctor-card{background:#fff;border:.5px solid var(--border);border-radius:20px;overflow:hidden;transition:all .25s;}
+.doctor-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(45,59,62,.1);}
+.dc-head{padding:22px;text-align:center;}
+.dc-ava{width:72px;height:72px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;}
+.dc-name{font-size:16px;font-weight:700;color:#fff;margin-bottom:3px;}
+.dc-spec{font-size:12px;color:rgba(255,255,255,.45);}
+.dc-type-tag{display:inline-block;background:rgba(201,168,76,.15);color:var(--accent);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:8px;}
+.dc-body{padding:16px;}
+.dc-rat{font-size:13px;margin-bottom:6px;}
+.dc-avail{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#43A047;margin-bottom:10px;}
+.dc-avail::before{content:'';width:7px;height:7px;border-radius:50%;background:#43A047;}
+.dc-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.dc-tag{background:var(--bg);border-radius:20px;font-size:11px;padding:4px 10px;font-weight:600;}
+.dc-bot{display:flex;justify-content:space-between;align-items:center;border-top:.5px solid var(--border);padding-top:12px;}
+.dc-price{font-size:20px;font-weight:900;color:var(--dark2);}
+.dc-book-btn{background:var(--dark2);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;}
+.dc-book-btn:hover{background:var(--teal);}
+.stars{color:var(--accent);}
+.doctors-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
   #bm-panel{margin:0!important;border-radius:20px 20px 0 0;position:fixed!important;bottom:0;left:0;right:0;max-height:92vh;overflow-y:auto;}
   #bm-svc-grid{grid-template-columns:repeat(2,1fr)!important;}
   #bm-form [style*="grid-template-columns:1fr 1fr"]{display:block!important;}
@@ -1985,31 +2004,184 @@ function openBMFromDoc(btn) {
   const name = btn.dataset.name || '';
   const service = btn.dataset.service || 'كشف منزلي';
   const spec = btn.dataset.spec || '';
-  
-  // Open modal with service pre-selected
   openBookingModal(service);
-  
-  // Pre-select specialty after modal opens
   setTimeout(() => {
     if (spec) {
-      // Find and click the matching sub button
       const subBtns = document.querySelectorAll('#bm-sub-grid .bm-sub');
-      subBtns.forEach(b => {
-        if (b.textContent.trim() === spec) {
-          bmSelSub(b, spec);
-        }
-      });
+      subBtns.forEach(b => { if (b.textContent.trim() === spec) bmSelSub(b, spec); });
     }
-    
-    // Update modal title
     const title = document.getElementById('bm-title');
     if (title && name) title.textContent = 'حجز مع ' + name;
-    
-    // Pre-fill notes with doctor name
     const notes = document.getElementById('bm-notes');
     if (notes && name) notes.value = 'الطبيب المطلوب: ' + name;
   }, 400);
 }
+
+// ============================================================
+// DOCTORS PAGE — تحميل ديناميكي من Supabase
+// ============================================================
+let _docsLoaded = false;
+let _allDocs = [];
+
+async function loadDoctorsPage() {
+  if (_docsLoaded && _allDocs.length) { renderDocs(_allDocs); return; }
+  const grid = document.getElementById('doctors-grid');
+  const loading = document.getElementById('loading-state');
+  const empty = document.getElementById('empty-state');
+  if (!grid) return;
+  try {
+    const { data, error } = await sb.from('providers').select('*').eq('status','active').order('created_at');
+    if (error) { console.error('providers:', error); return; }
+    _allDocs = data || [];
+    _docsLoaded = true;
+    renderDocs(_allDocs);
+  } catch(e) { console.error(e); }
+}
+
+function renderDocs(list) {
+  const grid = document.getElementById('doctors-grid');
+  const loading = document.getElementById('loading-state');
+  const empty = document.getElementById('empty-state');
+  if (!grid) return;
+  if (loading) loading.style.display = 'none';
+  if (!list.length) {
+    grid.style.display = 'none';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  grid.style.display = 'grid';
+  const headColors = {'كشف منزلي':'var(--dark2)','تمريض منزلي':'#3a2a3e','أشعة منزلية':'#1e2f3a'};
+  const avaColors  = {'كشف منزلي':'#e8f0e8','تمريض منزلي':'#FCE4EC','أشعة منزلية':'#e8f0f4'};
+  const icons      = {'كشف منزلي':'👨‍⚕️','تمريض منزلي':'👩‍⚕️','أشعة منزلية':'🔬'};
+  grid.innerHTML = list.map(p => `
+    <div class="doctor-card">
+      <div class="dc-head" style="background:${headColors[p.service_type]||'var(--dark2)'}">
+        <div class="dc-ava" style="background:${avaColors[p.service_type]||'#e8f0e8'}">${icons[p.service_type]||'👨‍⚕️'}</div>
+        <div class="dc-name">${p.name||'—'}</div>
+        <div class="dc-spec">${p.specialty||'—'}</div>
+        ${p.service_type?`<div class="dc-type-tag">${p.service_type}</div>`:''}
+      </div>
+      <div class="dc-body">
+        <div class="dc-rat"><span class="stars">★★★★★</span> <span style="color:var(--muted);font-size:12px">${p.rating||'5.0'} · ${p.reviews||'0'} تقييم</span></div>
+        <div class="dc-avail">متاح الآن</div>
+        <div class="dc-tags">
+          ${p.area?`<span class="dc-tag">📍 ${p.area}</span>`:''}
+          <span class="dc-tag">⏱ ${p.arrival_time||'30 دقيقة'}</span>
+          ${p.experience?`<span class="dc-tag">${p.experience} سنة خبرة</span>`:''}
+        </div>
+        <div class="dc-bot">
+          <div>
+            <div style="font-size:10px;color:var(--muted);">ابتداء من</div>
+            <div class="dc-price">${p.price||'—'} <span style="font-size:13px;font-weight:400;color:var(--muted)">ج.م</span></div>
+          </div>
+          <button class="dc-book-btn" data-name="${p.name||''}" data-service="${p.service_type||''}" data-spec="${p.specialty||''}" onclick="openBMFromDoc(this)">احجز ›</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterDocs(btn, type) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered = type === 'all' ? _allDocs : _allDocs.filter(p => p.service_type === type);
+  renderDocs(filtered);
+}
+
+// ============================================================
+// SERVICES PAGE — تحميل ديناميكي من Supabase
+// ============================================================
+let _svcsLoaded = false;
+
+async function initServicesPage() {
+  if (_svcsLoaded) return;
+  const content = document.getElementById('services-content');
+  const loading = document.getElementById('loading-state');
+  if (!content) return;
+  try {
+    const { data: svcs, error } = await sb.from('services').select('*').eq('is_active', true).order('created_at');
+    if (error) { console.error('services:', error); return; }
+    _svcsLoaded = true;
+    if (loading) loading.style.display = 'none';
+    content.style.display = 'block';
+    if (!svcs || !svcs.length) {
+      content.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);">لا توجد خدمات — أضفها من لوحة الإدارة</div>';
+      return;
+    }
+    const colors = ['#faf4e6','#f4ece8','#e8f0f4'];
+    const includes = {
+      'كشف منزلي': ['الكشف الكامل','التشخيص','وصفة العلاج','نصائح متابعة'],
+      'تمريض منزلي': ['رعاية احترافية','حقن وتسريب','تغيير ضمادات','متابعة يومية'],
+      'أشعة منزلية': ['التصوير','التقرير الطبي','إرسال النتائج','مراجعة طبية']
+    };
+    const specs = {
+      'كشف منزلي':['الباطنة','صدر وتنفس','قلب وأوعية','أطفال','جراحة عامة','مسالك بولية','سكري وغدد','كلى','عظام','مخ وأعصاب','طب مسنين','أنف وأذن'],
+      'تمريض منزلي':['⚡ خدمة سريعة','🕛 إقامة 12 ساعة','🌙 إقامة 24 ساعة'],
+      'أشعة منزلية':['أشعة X-Ray','رسم قلب ECG','سونار بطن','إيكو قلب','دوبلر أوردة']
+    };
+    content.innerHTML = svcs.map((s, i) => `
+      <div style="background:#fff;border:.5px solid var(--border);border-radius:24px;overflow:hidden;margin-bottom:24px;">
+        <div style="padding:28px 32px;display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;">
+          <div style="width:64px;height:64px;border-radius:18px;background:${colors[i%colors.length]};display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;">${s.icon||'🩺'}</div>
+          <div style="flex:1;min-width:200px;">
+            <div style="font-size:20px;font-weight:900;margin-bottom:6px;">${s.name}</div>
+            <div style="font-size:14px;color:var(--muted);line-height:1.8;margin-bottom:14px;">${s.description||''}</div>
+            <div style="display:inline-flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:8px 16px;">
+              <span style="font-size:11px;color:var(--muted);font-weight:700;">نطاق السعر:</span>
+              <span style="font-size:18px;font-weight:900;color:#2eb872;">${s.price_min} ج.م</span>
+              <span style="color:var(--muted);">←</span>
+              <span style="font-size:18px;font-weight:900;color:var(--dark2);">${s.price_max} ج.م</span>
+            </div>
+          </div>
+          <button onclick="openBookingModal('${s.name}')" style="background:var(--dark);color:#fff;border:none;border-radius:12px;padding:13px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;white-space:nowrap;">احجز ${s.name} ←</button>
+        </div>
+        ${specs[s.name]?`<div style="border-top:.5px solid var(--border);padding:20px 32px;">
+          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:12px;letter-spacing:.5px;">التخصصات / الأنواع المتاحة</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">${specs[s.name].map(sp=>`<span onclick="openBookingModal('${s.name}')" style="background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;" onmouseover="this.style.background='rgba(201,168,76,.1)';this.style.borderColor='rgba(201,168,76,.3)'" onmouseout="this.style.background='var(--bg)';this.style.borderColor='var(--border)'">${sp}</span>`).join('')}</div>
+        </div>`:''}
+        ${includes[s.name]?`<div style="background:var(--bg);border-top:.5px solid var(--border);padding:16px 32px;display:flex;gap:20px;flex-wrap:wrap;">${includes[s.name].map(inc=>`<div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;"><span style="color:#2eb872;font-size:16px;">✓</span>${inc}</div>`).join('')}</div>`:''}
+      </div>`).join('');
+    // Update areas dropdown from Supabase
+    const { data: areas } = await sb.from('coverage_areas').select('*').eq('is_active', true).order('name');
+    if (areas && areas.length) {
+      const sel = document.getElementById('bm-area');
+      if (sel) {
+        const cairo = areas.filter(a=>a.city==='القاهرة'), giza = areas.filter(a=>a.city==='الجيزة');
+        sel.innerHTML = '<option value="">اختر منطقتك</option>';
+        if(cairo.length) sel.innerHTML += `<optgroup label="── القاهرة ──">${cairo.map(a=>`<option>${a.name}</option>`).join('')}</optgroup>`;
+        if(giza.length)  sel.innerHTML += `<optgroup label="── الجيزة ──">${giza.map(a=>`<option>${a.name}</option>`).join('')}</optgroup>`;
+      }
+    }
+  } catch(e) { console.error(e); }
+}
+
+// ============================================================
+// استدعاء تلقائي عند تحميل الصفحة — تحميل مسبق للبيانات
+// ============================================================
+(async function preload() {
+  try {
+    // تحميل مسبق للمقدمين عند فتح الصفحة
+    const { data } = await sb.from('providers').select('*').eq('status','active').order('created_at');
+    if (data) { _allDocs = data; _docsLoaded = true; }
+    // تحميل المناطق وتحديث الـ dropdown
+    const { data: areas } = await sb.from('coverage_areas').select('*').eq('is_active', true).order('name');
+    if (areas && areas.length) {
+      const sel = document.getElementById('bm-area');
+      if (sel) {
+        const cairo = areas.filter(a=>a.city==='القاهرة'), giza = areas.filter(a=>a.city==='الجيزة');
+        if (cairo.length || giza.length) {
+          sel.innerHTML = '<option value="">اختر منطقتك</option>';
+          if(cairo.length) sel.innerHTML += `<optgroup label="── القاهرة ──">${cairo.map(a=>`<option>${a.name}</option>`).join('')}</optgroup>`;
+          if(giza.length)  sel.innerHTML += `<optgroup label="── الجيزة ──">${giza.map(a=>`<option>${a.name}</option>`).join('')}</optgroup>`;
+        }
+      }
+    }
+    // تحديث stats في الهيرو لو موجودة
+    const provCount = document.getElementById('hero-providers-count');
+    if (provCount && data) provCount.textContent = data.length;
+  } catch(e) { console.warn('preload:', e); }
+})();
+
 </script>
 </body>
 </html>
