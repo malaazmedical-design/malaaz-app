@@ -10,6 +10,7 @@ import React, {
 import { Linking } from "react-native";
 
 import { sendMalaazEmail } from "@/lib/emailjs";
+import { clientHasPushToken, registerProviderPushToken } from "@/lib/push";
 import {
   supabase,
   DbBooking,
@@ -243,7 +244,11 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   }, [provider?.id]);
 
   useEffect(() => {
-    if (provider?.id) refreshAll();
+    if (provider?.id) {
+      refreshAll();
+      // تسجيل توكن الإشعارات عشان توصله الحجوزات الجديدة
+      registerProviderPushToken(provider.id).catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider?.id]);
 
@@ -279,7 +284,10 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
     if (!booking) return;
 
-    if (status === "confirmed" && booking.patient_email) {
+    // الـ push بيتبعت تلقائياً من السيرفر (تريجر) — الإيميل fallback بس لو العميل معندوش التطبيق
+    const hasApp = await clientHasPushToken(booking.phone);
+
+    if (!hasApp && status === "confirmed" && booking.patient_email) {
       sendMalaazEmail({
         to_email: booking.patient_email,
         subject: "✅ تم تأكيد حجزك مع ملاذ",
@@ -297,7 +305,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    if (status === "cancelled" && booking.patient_email) {
+    if (!hasApp && status === "cancelled" && booking.patient_email) {
       sendMalaazEmail({
         to_email: booking.patient_email,
         subject: "تحديث بخصوص حجزك مع ملاذ",

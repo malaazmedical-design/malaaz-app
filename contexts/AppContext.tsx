@@ -9,6 +9,7 @@ import React, {
   ReactNode,
 } from "react";
 
+import { registerClientPushToken } from "@/lib/push";
 import { supabase, DbBooking } from "@/lib/supabase";
 import {
   Provider,
@@ -198,7 +199,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [profile.phone, providers]);
 
   useEffect(() => {
-    if (profile.phone) refreshBookings();
+    if (profile.phone) {
+      refreshBookings();
+      // تسجيل توكن الإشعارات — عشان توصله تحديثات حجوزاته push بدل الإيميل
+      registerClientPushToken(profile.phone).catch(() => {});
+    }
   }, [profile.phone]);
 
   // ─── Profile actions ─────────────────────────────────────────────────────
