@@ -1,17 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
+import { Platform } from "react-native";
 
 const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL ??
   "https://omsictbrqlsohrmxeuym.supabase.co";
+// المفتاح ده publishable (anon) — آمن في كود العميل، والصلاحيات محكومة بـ RLS
 const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tc2ljdGJycWxzb2hybXhldXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTc1NzcsImV4cCI6MjA5NTI5MzU3N30.tbFL_7mWZ6qVUtgFkagfSwWdgni5JKRuCR8nbwqIqho";
+
+// أثناء الـ static export للويب مفيش window، فلازم نعطّل تخزين الجلسة
+const isServer = Platform.OS === "web" && typeof window === "undefined";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
+    ...(Platform.OS === "web" ? {} : { storage: AsyncStorage }),
+    autoRefreshToken: !isServer,
+    persistSession: !isServer,
     detectSessionInUrl: false,
   },
 });
