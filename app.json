@@ -2,6 +2,7 @@
   "expo": {
     "name": "ملاذ",
     "slug": "malaaz",
+    "owner": "malaaz-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -59,11 +60,6 @@
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
-      }
     }
   }
 }
