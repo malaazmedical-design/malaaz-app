@@ -4,7 +4,7 @@ const { chromium } = require("playwright");
 const path = require("path");
 const fs = require("fs");
 
-const BASE = "http://127.0.0.1:8091";
+const BASE = "http://127.0.0.1:8094";
 const OUT = "/tmp/malaaz-shots";
 const providers = fs.readFileSync(path.join(__dirname, "providers.json"), "utf8");
 const placeholderPng = fs.readFileSync(
@@ -78,6 +78,10 @@ async function main() {
   // البروفايل
   await page.goto(BASE + "/profile", { waitUntil: "networkidle" });
   await shot("06-profile");
+
+  // بوابة مقدم الخدمة — تسجيل الدخول
+  await page.goto(BASE + "/provider-portal/login", { waitUntil: "networkidle" });
+  await shot("07-provider-login");
 
   await browser.close();
 }

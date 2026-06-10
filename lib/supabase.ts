@@ -97,8 +97,20 @@ export type DbSubService = {
   duration: string | null;
   price_min: number | null;
   price_max: number | null;
+  price_min_specialist: number | null;
+  price_max_specialist: number | null;
+  price_min_consultant: number | null;
+  price_max_consultant: number | null;
   is_active: boolean;
   created_at: string;
+};
+
+export type DbProviderService = {
+  id: string;
+  provider_id: string;
+  sub_service_id: string;
+  custom_price: number | null;
+  is_active: boolean;
 };
 
 export type DbCoverageArea = {
