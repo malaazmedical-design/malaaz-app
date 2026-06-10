@@ -7,6 +7,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card, EmptyState, Pill, PrimaryButton } from "@/components/ui";
+import { PAYMENT_METHOD_LABELS } from "@/constants/data";
 import { Booking, useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -103,9 +104,9 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
   const canCancel = booking.status === "pending" || booking.status === "confirmed";
   const canRate = booking.status === "completed" && !booking.review && booking.provider_id;
 
-  const date = booking.scheduled_date
-    ? new Date(booking.scheduled_date).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })
-    : new Date(booking.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
+  const date =
+    booking.appointment_time ??
+    new Date(booking.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <Card style={{ padding: 16 }}>
@@ -125,7 +126,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" }}>
-            {booking.service_name}
+            {booking.sub_option ?? booking.service_type}
           </Text>
           {booking.providerName ? (
             <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 2 }}>
@@ -141,12 +142,12 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
 
       {/* Details */}
       <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-        {booking.area ? <Pill label={`${booking.area}، ${booking.city ?? ""}`} icon="map-marker" /> : null}
+        {booking.area ? <Pill label={booking.area} icon="map-marker" /> : null}
         {booking.payment_method ? (
-          <Pill label={booking.payment_method === "cash" ? "كاش" : "محفظة فودافون"} icon="cash" />
+          <Pill label={PAYMENT_METHOD_LABELS[booking.payment_method] ?? booking.payment_method} icon="cash" />
         ) : null}
-        {booking.service_price ? (
-          <Pill label={`${booking.service_price} ج.م`} icon="tag" />
+        {booking.price ? (
+          <Pill label={`${booking.price} ج.م`} icon="tag" />
         ) : null}
       </View>
 

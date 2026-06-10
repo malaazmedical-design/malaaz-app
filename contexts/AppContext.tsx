@@ -10,7 +10,13 @@ import React, {
 } from "react";
 
 import { supabase, DbBooking } from "@/lib/supabase";
-import { Provider, mapDbProviderToProvider } from "@/constants/data";
+import {
+  Provider,
+  mapDbProviderToProvider,
+  serviceTypeToArabic,
+  ServiceType,
+  PaymentMethod,
+} from "@/constants/data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,11 +50,22 @@ export type CreateBookingInput = {
   providerName?: string;
   scheduledDate?: string;
   scheduledTime?: string;
-  paymentMethod: "cash" | "vodafone_cash";
+  paymentMethod: PaymentMethod;
   notes?: string;
 };
 
 const PROFILE_KEY = "malaaz.profile.v1";
+const BOOKINGS_KEY = "malaaz.bookings.v1";
+
+// RLS بيمنع الزائر (anon) من قراءة الحجوزات من السيرفر، فبنحتفظ بنسخة محلية
+// من الحجوزات اللي اتعملت من الجهاز ده لحد ما نضيف تسجيل دخول.
+function makeLocalId(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 const DEFAULT_PROFILE: CustomerProfile = {
   name: "",
@@ -95,12 +112,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
-  // ─── Hydrate profile from AsyncStorage ──────────────────────────────────
+  // ─── Hydrate profile + local bookings from AsyncStorage ──────────────────
   useEffect(() => {
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(PROFILE_KEY);
-        if (raw) setProfile(JSON.parse(raw) as CustomerProfile);
+        const [profileRaw, bookingsRaw] = await Promise.all([
+          AsyncStorage.getItem(PROFILE_KEY),
+          AsyncStorage.getItem(BOOKINGS_KEY),
+        ]);
+        if (profileRaw) setProfile(JSON.parse(profileRaw) as CustomerProfile);
+        if (bookingsRaw) setBookings(JSON.parse(bookingsRaw) as Booking[]);
       } catch {
         // ignore
       } finally {
@@ -108,6 +129,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, []);
+
+  const persistBookings = async (next: Booking[]) => {
+    setBookings(next);
+    try {
+      await AsyncStorage.setItem(BOOKINGS_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
 
   // ─── Load providers from Supabase ───────────────────────────────────────
   const refreshProviders = useCallback(async () => {
@@ -134,6 +164,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshProviders]);
 
   // ─── Load bookings (by phone) ───────────────────────────────────────────
+  // ملحوظة: RLS بيرجّع قائمة فاضية للزائر، فبندمج نتيجة السيرفر مع الكاش المحلي
   const refreshBookings = useCallback(async () => {
     if (!profile.phone) return;
     setLoadingBookings(true);
@@ -141,18 +172,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("bookings")
         .select("*")
-        .eq("client_phone", profile.phone)
+        .eq("phone", profile.phone)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // إضافة اسم المزود لكل حجز
-      const enriched: Booking[] = (data ?? []).map((b) => ({
+      const remote: Booking[] = (data ?? []).map((b: DbBooking) => ({
         ...b,
         providerName:
           providers.find((p) => p.id === b.provider_id)?.name ?? undefined,
       }));
-      setBookings(enriched);
+
+      setBookings((local) => {
+        const remoteIds = new Set(remote.map((b) => b.id));
+        const merged = [...remote, ...local.filter((b) => !remoteIds.has(b.id))];
+        merged.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+        AsyncStorage.setItem(BOOKINGS_KEY, JSON.stringify(merged)).catch(() => {});
+        return merged;
+      });
     } catch (err) {
       console.error("Error loading bookings:", err);
     } finally {
@@ -174,7 +211,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setProfile(DEFAULT_PROFILE);
     setBookings([]);
-    await AsyncStorage.removeItem(PROFILE_KEY);
+    await AsyncStorage.multiRemove([PROFILE_KEY, BOOKINGS_KEY]);
   };
 
   // ─── Create booking ───────────────────────────────────────────────────────
@@ -183,57 +220,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
       throw new Error("يرجى إدخال بياناتك أولاً");
     }
 
+    // بنولّد الـ id محلياً لأن RLS بيمنع قراءة الصف بعد الإدراج
+    const id = makeLocalId();
+    const appointmentTime =
+      [input.scheduledDate, input.scheduledTime].filter(Boolean).join(" ") || null;
+
     const bookingData = {
-      client_name: profile.name,
-      client_phone: profile.phone,
-      client_address: profile.address,
-      area: profile.area,
-      city: profile.city,
-      service_type: input.serviceType,
-      service_name: input.serviceName,
-      service_price: input.servicePrice ?? null,
+      id,
+      patient_name: profile.name,
+      phone: profile.phone,
+      address: profile.address || null,
+      area: profile.area || profile.city || null,
+      service_type: serviceTypeToArabic(input.serviceType as ServiceType),
+      sub_option: input.serviceName,
+      price: input.servicePrice ?? null,
       provider_id: input.providerId ?? null,
       status: "pending" as const,
       payment_method: input.paymentMethod,
+      payment_status: "pending",
       notes: input.notes ?? null,
-      scheduled_date: input.scheduledDate ?? null,
-      scheduled_time: input.scheduledTime ?? null,
+      appointment_time: appointmentTime,
     };
 
-    const { data, error } = await supabase
-      .from("bookings")
-      .insert(bookingData);
+    const { error } = await supabase.from("bookings").insert(bookingData);
 
     if (error) throw error;
 
-    // نجيب الحجز اللي اتعمل عشان نرجع الـ id
-    const { data: newBooking } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("client_phone", profile.phone)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-
     const booking: Booking = {
-      ...(newBooking ?? { ...bookingData, id: Date.now().toString(), created_at: new Date().toISOString() }),
+      ...bookingData,
+      provider_phone: null,
+      patient_email: null,
+      client_id: null,
+      created_at: new Date().toISOString(),
       providerName: input.providerName,
     };
 
-    setBookings((prev) => [booking, ...prev]);
+    await persistBookings([booking, ...bookings]);
     return booking;
   };
 
   // ─── Cancel booking ───────────────────────────────────────────────────────
   const cancelBooking = async (id: string) => {
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: "cancelled" })
-      .eq("id", id);
-
-    if (error) throw error;
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, status: "cancelled" as const } : b))
+    // التحديث على السيرفر محتاج تسجيل دخول (RLS)؛ بنحدّث محلياً في كل الأحوال
+    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id);
+    await persistBookings(
+      bookings.map((b) => (b.id === id ? { ...b, status: "cancelled" as const } : b))
     );
   };
 
@@ -243,18 +274,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     providerId: string,
     review: Review
   ) => {
-    // حفظ الريفيو في Supabase
+    const booking = bookings.find((b) => b.id === bookingId);
+
+    // حفظ الريفيو في Supabase (بيظهر للعامة بعد موافقة الأدمن)
     await supabase.from("reviews").insert({
-      booking_id: bookingId,
-      provider_id: providerId,
+      provider_id: providerId || null,
       client_name: profile.name,
+      service_type: booking?.service_type ?? null,
       rating: review.rating,
-      comment: review.comment,
+      text: review.comment || null,
     });
 
     // تحديث الـ booking محلياً
-    setBookings((prev) =>
-      prev.map((b) =>
+    await persistBookings(
+      bookings.map((b) =>
         b.id === bookingId ? { ...b, status: "completed" as const, review } : b
       )
     );

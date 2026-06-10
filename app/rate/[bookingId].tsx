@@ -16,7 +16,6 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card, PrimaryButton } from "@/components/ui";
-import { getProviderById, getServiceById } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -33,11 +32,13 @@ export default function RateScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
-  const { bookings, addReview } = useApp();
+  const { bookings, providers, addReview } = useApp();
 
   const booking = bookings.find((b) => b.id === bookingId);
-  const provider = booking ? getProviderById(booking.providerId) : undefined;
-  const service = booking ? getServiceById(booking.serviceId) : undefined;
+  const provider = booking?.provider_id
+    ? providers.find((p) => p.id === booking.provider_id)
+    : undefined;
+  const serviceName = booking?.sub_option ?? booking?.service_type ?? "";
 
   const [rating, setRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
@@ -47,7 +48,7 @@ export default function RateScreen() {
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const activeStar = hoveredStar || rating;
 
-  if (!booking || !provider || !service) {
+  if (!booking || !provider) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }}>
         <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_500Medium" }}>الحجز غير موجود</Text>
@@ -62,7 +63,7 @@ export default function RateScreen() {
     }
     setSubmitting(true);
     try {
-      await addReview(booking.id, {
+      await addReview(booking.id, provider.id, {
         rating,
         comment: comment.trim(),
         createdAt: new Date().toISOString(),
@@ -128,7 +129,7 @@ export default function RateScreen() {
                   {provider.name}
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 2 }}>
-                  {service.name}
+                  {serviceName}
                 </Text>
               </View>
             </View>

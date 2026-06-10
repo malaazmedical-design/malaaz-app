@@ -61,7 +61,7 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
 ];
 
 // ─── Payment Methods ──────────────────────────────────────────────────────────
-export type PaymentMethod = "cash" | "vodafone_cash";
+export type PaymentMethod = "cash" | "vodafone_cash" | "instapay";
 
 export const PAYMENT_METHODS = [
   {
@@ -78,7 +78,20 @@ export const PAYMENT_METHODS = [
     icon: "cellphone",
     detail: "01039091989",
   },
+  {
+    id: "instapay" as PaymentMethod,
+    name: "إنستاباي",
+    description: "تحويل فوري عبر إنستاباي",
+    icon: "contactless-payment",
+    detail: null,
+  },
 ];
+
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: "كاش",
+  vodafone_cash: "محفظة فودافون",
+  instapay: "إنستاباي",
+};
 
 // ─── Provider Type ────────────────────────────────────────────────────────────
 export type ProviderService = {
@@ -106,29 +119,59 @@ export type Provider = {
   services: ProviderService[];
 };
 
+// service_type في القاعدة مخزّن بالاسم العربي
+export function serviceTypeFromArabic(name: string | null): ServiceType {
+  if (!name) return "doctor";
+  if (name.includes("تمريض")) return "nurse";
+  if (name.includes("أشعة") || name.includes("اشعة")) return "xray";
+  return "doctor";
+}
+
+export function serviceTypeToArabic(type: ServiceType): string {
+  return getCategoryById(type)?.name ?? "كشف منزلي";
+}
+
 export function mapDbProviderToProvider(db: DbProvider): Provider {
+  const serviceType = serviceTypeFromArabic(db.service_type);
+  const areasList = (db.areas ?? db.area ?? "")
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
+
   return {
     id: db.id,
-    name: db.full_name,
-    title: getProviderTitle(db.specialty),
-    serviceType: db.specialty as ServiceType,
-    rating: db.rating ?? 5.0,
-    reviewsCount: db.reviews_count ?? 0,
-    yearsExperience: db.experience_years ?? 1,
-    city: db.coverage_areas?.[0] ?? "القاهرة",
+    name: db.name,
+    title: getProviderTitle(serviceType, db.grade, db.specialty),
+    serviceType,
+    rating: toNumber(db.rating) ?? 5.0,
+    reviewsCount: 0,
+    yearsExperience: toNumber(db.experience) ?? 1,
+    city: db.area ?? areasList[0] ?? "القاهرة",
     bio: db.bio ?? "",
-    phone: db.phone,
+    phone: db.phone ?? "",
     avatar: db.photo_url
       ? { uri: db.photo_url }
       : require("../assets/images/provider1.png"),
-    available: db.available ?? true,
-    responseTime: db.response_time ?? "خلال ساعة",
-    services: getDefaultServices(db.specialty as ServiceType),
+    available: db.is_available ?? false,
+    responseTime: "خلال ساعة",
+    services: getDefaultServices(serviceType, toNumber(db.price)),
   };
 }
 
-function getProviderTitle(specialty: string): string {
-  switch (specialty) {
+function toNumber(v: string | number | null | undefined): number | undefined {
+  if (v === null || v === undefined || v === "") return undefined;
+  const n = typeof v === "number" ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function getProviderTitle(
+  type: ServiceType,
+  grade: string | null,
+  specialty: string | null
+): string {
+  const parts = [grade, specialty].filter(Boolean);
+  if (parts.length) return parts.join(" ");
+  switch (type) {
     case "doctor": return "طبيب منزلي";
     case "nurse":  return "ممرض/ممرضة قانونية";
     case "xray":   return "أخصائي أشعة منزلية";
@@ -136,24 +179,24 @@ function getProviderTitle(specialty: string): string {
   }
 }
 
-function getDefaultServices(type: ServiceType): ProviderService[] {
+function getDefaultServices(type: ServiceType, basePrice?: number): ProviderService[] {
   switch (type) {
     case "doctor":
       return [
-        { id: "d1", name: "كشف عام شامل",         description: "فحص سريري كامل مع استشارة طبية", price: 350, durationMinutes: 45 },
-        { id: "d2", name: "متابعة أمراض مزمنة",    description: "سكري، ضغط، قلب",                 price: 250, durationMinutes: 30 },
-        { id: "d3", name: "كشف كبار السن",         description: "تقييم صحي شامل",                  price: 400, durationMinutes: 60 },
+        { id: "d1", name: "كشف عام شامل",         description: "فحص سريري كامل مع استشارة طبية", price: basePrice ?? 350, durationMinutes: 45 },
+        { id: "d2", name: "متابعة أمراض مزمنة",    description: "سكري، ضغط، قلب",                 price: basePrice ?? 250, durationMinutes: 30 },
+        { id: "d3", name: "كشف كبار السن",         description: "تقييم صحي شامل",                  price: basePrice ?? 400, durationMinutes: 60 },
       ];
     case "nurse":
       return [
-        { id: "n1", name: "تركيب محلول وريدي",     description: "حسب وصفة الطبيب",                 price: 200, durationMinutes: 60 },
-        { id: "n2", name: "تغيير وعناية بالجروح",  description: "تنظيف وتغيير الضمادات",            price: 150, durationMinutes: 30 },
-        { id: "n3", name: "حقن عضل / وريد",        description: "إعطاء الحقن بأمان",               price: 100, durationMinutes: 20 },
+        { id: "n1", name: "تركيب محلول وريدي",     description: "حسب وصفة الطبيب",                 price: basePrice ?? 200, durationMinutes: 60 },
+        { id: "n2", name: "تغيير وعناية بالجروح",  description: "تنظيف وتغيير الضمادات",            price: basePrice ?? 150, durationMinutes: 30 },
+        { id: "n3", name: "حقن عضل / وريد",        description: "إعطاء الحقن بأمان",               price: basePrice ?? 100, durationMinutes: 20 },
       ];
     case "xray":
       return [
-        { id: "x1", name: "أشعة سينية للصدر",      description: "مع تقرير طبي معتمد",              price: 500, durationMinutes: 30 },
-        { id: "x2", name: "سونار منزلي",           description: "بطن أو حمل بجهاز محمول",          price: 600, durationMinutes: 45 },
+        { id: "x1", name: "أشعة سينية للصدر",      description: "مع تقرير طبي معتمد",              price: basePrice ?? 500, durationMinutes: 30 },
+        { id: "x2", name: "سونار منزلي",           description: "بطن أو حمل بجهاز محمول",          price: basePrice ?? 600, durationMinutes: 45 },
       ];
   }
 }

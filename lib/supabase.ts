@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL ??
-  "https://sjaktzqolztzsipjkrts.supabase.co";
+  "https://omsictbrqlsohrmxeuym.supabase.co";
 const SUPABASE_ANON_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
@@ -18,61 +18,98 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // ─── Database Types (مطابقة لجداول Supabase بتاع ملاذ) ──────────────────────
 
+// service_type في القاعدة بالعربي: "كشف منزلي" | "تمريض منزلي" | "أشعة منزلية"
 export type DbProvider = {
   id: string;
-  full_name: string;
-  specialty: "doctor" | "nurse" | "xray";
-  service_type: string;
-  rating: number | null;
-  reviews_count: number | null;
-  experience_years: number | null;
-  coverage_areas: string[] | null;
-  bio: string | null;
-  phone: string;
+  user_id: string | null;
+  name: string;
   email: string | null;
+  phone: string | null;
+  service_type: string;
+  specialty: string | null;
+  grade: string | null;
+  area: string | null;
+  areas: string | null; // قائمة مناطق مفصولة بفواصل
+  bio: string | null;
+  experience: string | null;
+  rating: string | number | null;
+  price: string | number | null;
+  status: "active" | "pending" | "suspended" | string;
+  is_available: boolean | null;
   photo_url: string | null;
-  status: "active" | "pending" | "suspended";
-  available: boolean | null;
-  response_time: string | null;
   created_at: string;
 };
 
 export type DbBooking = {
   id: string;
-  client_name: string;
-  client_phone: string;
-  client_address: string;
-  service_type: string;
-  service_name: string;
-  service_price: number | null;
-  provider_id: string | null;
-  status: "pending" | "confirmed" | "completed" | "cancelled";
-  payment_method: "cash" | "vodafone_cash" | null;
-  notes: string | null;
-  scheduled_date: string | null;
-  scheduled_time: string | null;
+  patient_name: string;
+  phone: string;
   area: string | null;
-  city: string | null;
+  address: string | null;
+  appointment_time: string | null;
+  service_type: string;
+  sub_option: string | null;
+  payment_method: string | null;
+  payment_status: string | null;
+  status: "pending" | "confirmed" | "completed" | "cancelled" | string;
+  notes: string | null;
+  provider_phone: string | null;
+  provider_id: string | null;
+  price: number | string | null;
+  patient_email: string | null;
+  client_id: string | null;
   created_at: string;
 };
 
 export type DbReview = {
   id: string;
-  booking_id: string;
-  provider_id: string;
+  provider_id: string | null;
   client_name: string;
+  service_type: string | null;
   rating: number;
-  comment: string | null;
+  text: string | null;
+  is_approved: boolean;
   created_at: string;
 };
 
-export type DbUser = {
+export type DbService = {
   id: string;
-  email: string | null;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  price_min: number | null;
+  price_max: number | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type DbSubService = {
+  id: string;
+  service_name: string;
+  group_name: string | null;
+  name: string;
+  duration: string | null;
+  price_min: number | null;
+  price_max: number | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type DbCoverageArea = {
+  id: string;
+  city: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type DbClient = {
+  id: string;
+  auth_id: string | null;
+  name: string | null;
   phone: string | null;
-  full_name: string | null;
-  address: string | null;
-  area: string | null;
-  city: string | null;
+  phone2: string | null;
+  whatsapp: string | null;
+  email: string | null;
   created_at: string;
 };
