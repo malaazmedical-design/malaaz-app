@@ -32,7 +32,7 @@ function priceRange(sub: DbSubService, grade: Grade): { min: number; max: number
 export default function QuickRequestScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, createBooking, subServices, coverageAreas } = useApp();
+  const { profile, updateProfile, createBooking, subServices, coverageAreas, client, familyMembers, addresses } = useApp();
 
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +44,7 @@ export default function QuickRequestScreen() {
   const [selectedSub, setSelectedSub] = useState<DbSubService | null>(null);
 
   // Step 2 — بيانات المريض والموعد والمكان
+  const [forMemberId, setForMemberId] = useState<string | null>(null); // null = أنا شخصياً
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone);
   const [email, setEmail] = useState(profile.email ?? "");
@@ -136,8 +137,10 @@ export default function QuickRequestScreen() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      // لو الحجز لفرد عائلة — اسم صاحب الحساب يفضل زي ما هو في البروفايل
+      const bookingForFamily = forMemberId !== null;
       await updateProfile({
-        name: name.trim(),
+        ...(bookingForFamily ? {} : { name: name.trim() }),
         phone: phone.trim(),
         email: email.trim() || undefined,
         area,
@@ -149,6 +152,7 @@ export default function QuickRequestScreen() {
         paymentMethod: paymentMethod!,
         scheduledTime: timePeriod,
         notes: notes.trim() || undefined,
+        patientName: name.trim(),
       });
       router.replace("/booking-success");
     } catch (err: any) {
@@ -333,6 +337,32 @@ export default function QuickRequestScreen() {
               </Text>
             </View>
 
+            {/* الحجز لـ — أفراد العائلة (للعميل المسجّل) */}
+            {client && familyMembers.length > 0 ? (
+              <View>
+                <Text style={{ color: colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right", marginBottom: 8 }}>الحجز لـ</Text>
+                <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+                  <Pressable
+                    onPress={() => { setForMemberId(null); setName(profile.name); }}
+                    style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, backgroundColor: forMemberId === null ? "#1C2B2A" : colors.card, borderColor: forMemberId === null ? "#C9A84C" : colors.border }}
+                  >
+                    <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: forMemberId === null ? "#C9A84C" : colors.foreground }}>👤 أنا شخصياً</Text>
+                  </Pressable>
+                  {familyMembers.map((m) => (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => { setForMemberId(m.id); setName(m.name); }}
+                      style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, backgroundColor: forMemberId === m.id ? "#1C2B2A" : colors.card, borderColor: forMemberId === m.id ? "#C9A84C" : colors.border }}
+                    >
+                      <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: forMemberId === m.id ? "#C9A84C" : colors.foreground }}>
+                        {m.name}{m.relation ? ` (${m.relation})` : ""}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right" }}>بيانات المريض</Text>
             <Field label="اسم المريض" icon="account" value={name} onChange={setName} placeholder="مثال: محمد أحمد" />
             <Field label="رقم الموبايل" icon="phone" value={phone} onChange={setPhone} placeholder="01xxxxxxxxx" keyboardType="phone-pad" />
@@ -360,6 +390,26 @@ export default function QuickRequestScreen() {
             {/* العنوان + GPS */}
             <View>
               <Text style={{ color: colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right", marginBottom: 8 }}>العنوان التفصيلي</Text>
+
+              {/* العناوين المحفوظة للعميل المسجّل */}
+              {client && addresses.length > 0 ? (
+                <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                  {addresses.map((a) => {
+                    const active = address === a.address;
+                    return (
+                      <Pressable
+                        key={a.id}
+                        onPress={() => { setAddress(a.address); if (a.area) setArea(a.area); }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1.5, backgroundColor: active ? "#1C2B2A" : colors.card, borderColor: active ? "#C9A84C" : colors.border, maxWidth: "100%" }}
+                      >
+                        <Text numberOfLines={1} style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: active ? "#C9A84C" : colors.foreground }}>
+                          {a.is_default ? "⭐ " : "📍 "}{a.address}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
               <Pressable
                 onPress={handleGetLocation}
                 style={({ pressed }) => ({

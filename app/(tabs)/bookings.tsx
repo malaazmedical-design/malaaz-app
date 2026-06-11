@@ -142,6 +142,16 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
         </View>
       </View>
 
+      {/* في الطريق إليك */}
+      {booking.status === "confirmed" && booking.on_way_at ? (
+        <View style={{ backgroundColor: "#7C3AED14", borderWidth: 1.5, borderColor: "#7C3AED44", borderRadius: 12, padding: 10, marginBottom: 10, flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 18 }}>🚗</Text>
+          <Text style={{ color: "#7C3AED", fontFamily: "Cairo_700Bold", fontSize: 13, flex: 1, textAlign: "right" }}>
+            مقدم الخدمة في الطريق إليك — استعد!
+          </Text>
+        </View>
+      ) : null}
+
       {/* Details */}
       <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
         {booking.area ? <Pill label={booking.area} icon="map-marker" /> : null}

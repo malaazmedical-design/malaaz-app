@@ -13,7 +13,10 @@ import { registerClientPushToken } from "@/lib/push";
 import {
   supabase,
   DbBooking,
+  DbClient,
+  DbClientAddress,
   DbCoverageArea,
+  DbFamilyMember,
   DbProviderService,
   DbSubService,
 } from "@/lib/supabase";
@@ -71,6 +74,15 @@ export type CreateBookingInput = {
   scheduledTime?: string;
   paymentMethod: PaymentMethod;
   notes?: string;
+  // الحجز لفرد من العائلة — الاسم بيحل محل اسم صاحب الحساب
+  patientName?: string;
+};
+
+export type ClientRegisterInput = {
+  name: string;
+  phone: string;
+  email: string;
+  password: string;
 };
 
 const PROFILE_KEY = "malaaz.profile.v1";
@@ -123,6 +135,24 @@ type AppContextValue = {
   cancelBooking: (id: string) => Promise<void>;
   addReview: (bookingId: string, providerId: string, review: Review) => Promise<void>;
   refreshBookings: () => Promise<void>;
+
+  // ─── حساب العميل (زي client.html) ─────────────────────────────────────
+  client: DbClient | null;
+  clientLogin: (email: string, password: string) => Promise<void>;
+  clientRegister: (input: ClientRegisterInput) => Promise<void>;
+  clientLogout: () => Promise<void>;
+  clientResetPassword: (email: string) => Promise<void>;
+
+  // العناوين المحفوظة
+  addresses: DbClientAddress[];
+  addAddress: (address: string, area: string, isDefault: boolean) => Promise<void>;
+  deleteAddress: (id: string) => Promise<void>;
+  setDefaultAddress: (id: string) => Promise<void>;
+
+  // أفراد العائلة
+  familyMembers: DbFamilyMember[];
+  addFamilyMember: (m: { name: string; relation?: string; birthYear?: number; notes?: string }) => Promise<void>;
+  deleteFamilyMember: (id: string) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -139,6 +169,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [providerReviews, setProviderReviews] = useState<Record<string, ProviderReview[]>>({});
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [client, setClient] = useState<DbClient | null>(null);
+  const [addresses, setAddresses] = useState<DbClientAddress[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<DbFamilyMember[]>([]);
 
   // ─── Hydrate profile + local bookings from AsyncStorage ──────────────────
   useEffect(() => {
@@ -157,6 +190,162 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, []);
+
+  // ─── حساب العميل: استرجاع الجلسة المحفوظة ────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+        const { data } = await supabase
+          .from("clients")
+          .select("*")
+          .eq("auth_id", session.user.id)
+          .single();
+        if (data) await onClientReady(data as DbClient);
+      } catch {
+        // مفيش جلسة عميل — وضع الزائر عادي
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // بعد تسجيل الدخول/الاسترجاع: مزامنة البروفايل + ربط الحجوزات القديمة + تحميل بياناته
+  const onClientReady = async (c: DbClient) => {
+    setClient(c);
+    setProfile((prev) => {
+      const merged: CustomerProfile = {
+        ...prev,
+        name: c.name ?? prev.name,
+        phone: c.phone ?? prev.phone,
+        email: c.email ?? prev.email,
+        whatsapp: c.whatsapp ?? prev.whatsapp,
+        phone2: c.phone2 ?? prev.phone2,
+        isGuest: false,
+      };
+      AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged)).catch(() => {});
+      return merged;
+    });
+    // ربط أي حجوزات قديمة بنفس رقم الموبايل بالحساب (RPC آمنة على السيرفر)
+    supabase.rpc("link_my_bookings").then(() => {}, () => {});
+    loadClientData(c.id);
+  };
+
+  const loadClientData = async (clientId: string) => {
+    const [addr, fam] = await Promise.all([
+      supabase
+        .from("client_addresses")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("is_default", { ascending: false }),
+      supabase
+        .from("family_members")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("created_at"),
+    ]);
+    setAddresses((addr.data ?? []) as DbClientAddress[]);
+    setFamilyMembers((fam.data ?? []) as DbFamilyMember[]);
+  };
+
+  const clientLogin = async (email: string, password: string) => {
+    const { data: authData, error: authErr } =
+      await supabase.auth.signInWithPassword({ email, password });
+    if (authErr) throw new Error("بيانات الدخول غير صحيحة");
+    const { data } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("auth_id", authData.user.id)
+      .single();
+    if (!data) {
+      await supabase.auth.signOut();
+      throw new Error("لم يتم العثور على حسابك — جرّب إنشاء حساب جديد");
+    }
+    await onClientReady(data as DbClient);
+  };
+
+  const clientRegister = async (input: ClientRegisterInput) => {
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
+      email: input.email,
+      password: input.password,
+    });
+    if (authErr) {
+      throw new Error(
+        authErr.message.includes("already") ? "البريد مسجّل بالفعل — جرّب تسجيل الدخول" : authErr.message
+      );
+    }
+    const userId = authData?.user?.id ?? authData?.session?.user?.id;
+    if (!userId) throw new Error("✅ تم إنشاء الحساب — تحقق من بريدك الإلكتروني لتأكيده ثم سجّل دخول");
+
+    const { data: newClient, error: cErr } = await supabase
+      .from("clients")
+      .insert([{ auth_id: userId, name: input.name, phone: input.phone, email: input.email }])
+      .select()
+      .single();
+    if (cErr) throw new Error(cErr.message);
+    await onClientReady(newClient as DbClient);
+  };
+
+  const clientLogout = async () => {
+    await supabase.auth.signOut();
+    setClient(null);
+    setAddresses([]);
+    setFamilyMembers([]);
+    setProfile((prev) => ({ ...prev, isGuest: true }));
+  };
+
+  const clientResetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://malaaz-plum.vercel.app/client.html",
+    });
+    if (error) throw new Error(error.message);
+  };
+
+  // ─── العناوين المحفوظة ────────────────────────────────────────────────────
+  const addAddress = async (address: string, area: string, isDefault: boolean) => {
+    if (!client) return;
+    if (isDefault) {
+      await supabase.from("client_addresses").update({ is_default: false }).eq("client_id", client.id);
+    }
+    const { error } = await supabase
+      .from("client_addresses")
+      .insert([{ client_id: client.id, address, area, is_default: isDefault }]);
+    if (error) throw new Error(error.message);
+    loadClientData(client.id);
+  };
+
+  const deleteAddress = async (id: string) => {
+    if (!client) return;
+    await supabase.from("client_addresses").delete().eq("id", id);
+    loadClientData(client.id);
+  };
+
+  const setDefaultAddress = async (id: string) => {
+    if (!client) return;
+    await supabase.from("client_addresses").update({ is_default: false }).eq("client_id", client.id);
+    await supabase.from("client_addresses").update({ is_default: true }).eq("id", id);
+    loadClientData(client.id);
+  };
+
+  // ─── أفراد العائلة ───────────────────────────────────────────────────────
+  const addFamilyMember = async (m: { name: string; relation?: string; birthYear?: number; notes?: string }) => {
+    if (!client) return;
+    const { error } = await supabase.from("family_members").insert([{
+      client_id: client.id,
+      name: m.name,
+      relation: m.relation ?? null,
+      birth_year: m.birthYear ?? null,
+      notes: m.notes ?? null,
+    }]);
+    if (error) throw new Error(error.message);
+    loadClientData(client.id);
+  };
+
+  const deleteFamilyMember = async (id: string) => {
+    if (!client) return;
+    await supabase.from("family_members").delete().eq("id", id);
+    loadClientData(client.id);
+  };
 
   const persistBookings = async (next: Booking[]) => {
     setBookings(next);
@@ -274,14 +463,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ─── Load bookings (by phone) ───────────────────────────────────────────
   // ملحوظة: RLS بيرجّع قائمة فاضية للزائر، فبندمج نتيجة السيرفر مع الكاش المحلي
   const refreshBookings = useCallback(async () => {
-    if (!profile.phone) return;
+    if (!profile.phone && !client) return;
     setLoadingBookings(true);
     try {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("phone", profile.phone)
-        .order("created_at", { ascending: false });
+      // العميل المسجّل بيشوف كل حجوزاته من السيرفر مباشرة (RLS بتسمح له)
+      const query = client
+        ? supabase.from("bookings").select("*").eq("client_id", client.id)
+        : supabase.from("bookings").select("*").eq("phone", profile.phone);
+      const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) throw error;
 
@@ -303,21 +492,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoadingBookings(false);
     }
-  }, [profile.phone, providers]);
+  }, [profile.phone, providers, client?.id]);
 
   useEffect(() => {
-    if (profile.phone) {
+    if (profile.phone || client) {
       refreshBookings();
       // تسجيل توكن الإشعارات — عشان توصله تحديثات حجوزاته push بدل الإيميل
-      registerClientPushToken(profile.phone).catch(() => {});
+      if (profile.phone) registerClientPushToken(profile.phone).catch(() => {});
     }
-  }, [profile.phone]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile.phone, client?.id]);
 
   // ─── Profile actions ─────────────────────────────────────────────────────
   const updateProfile = async (next: Partial<CustomerProfile>) => {
     const merged = { ...profile, ...next };
     setProfile(merged);
     await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged));
+    // العميل المسجّل: مزامنة بياناته مع السيرفر (زي client.html)
+    if (client) {
+      supabase
+        .from("clients")
+        .update({
+          name: merged.name || client.name,
+          email: merged.email || null,
+          phone2: merged.phone2 || null,
+          whatsapp: merged.whatsapp || null,
+        })
+        .eq("id", client.id)
+        .then(() => {});
+    }
   };
 
   const logout = async () => {
@@ -346,8 +549,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const bookingData = {
       id,
-      patient_name: profile.name,
+      patient_name: input.patientName || profile.name,
       phone: profile.phone,
+      client_id: client?.id ?? null,
       patient_email: profile.email || null,
       address: profile.address || null,
       area: derivedArea,
@@ -369,7 +573,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const booking: Booking = {
       ...bookingData,
       provider_phone: null,
-      client_id: null,
+      on_way_at: null,
       created_at: new Date().toISOString(),
       providerName: input.providerName,
     };
@@ -431,8 +635,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelBooking,
       addReview,
       refreshBookings,
+      client,
+      clientLogin,
+      clientRegister,
+      clientLogout,
+      clientResetPassword,
+      addresses,
+      addAddress,
+      deleteAddress,
+      setDefaultAddress,
+      familyMembers,
+      addFamilyMember,
+      deleteFamilyMember,
     }),
-    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, bookings, loadingBookings]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, bookings, loadingBookings, client, addresses, familyMembers]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -64,6 +64,26 @@ export type DbBooking = {
   price: number | string | null;
   patient_email: string | null;
   client_id: string | null;
+  on_way_at: string | null;
+  created_at: string;
+};
+
+export type DbClientAddress = {
+  id: string;
+  client_id: string;
+  area: string | null;
+  address: string;
+  is_default: boolean;
+  created_at: string;
+};
+
+export type DbFamilyMember = {
+  id: string;
+  client_id: string;
+  name: string;
+  relation: string | null;
+  birth_year: number | null;
+  notes: string | null;
   created_at: string;
 };
 

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AddressesSection, FamilySection } from "@/components/client/AccountSections";
 import { PrimaryButton } from "@/components/ui";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -20,7 +21,7 @@ const TERMS_URL = "https://malaaz-plum.vercel.app/privacy.html";
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, logout } = useApp();
+  const { profile, updateProfile, logout, client, clientLogout } = useApp();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
   const [name, setName] = useState(profile.name);
@@ -156,6 +157,54 @@ export default function ProfileScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 100, gap: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
+        {/* ─── حساب العميل ─── */}
+        {client ? (
+          <View style={{ backgroundColor: "#16A34A12", borderWidth: 1.5, borderColor: "#16A34A44", borderRadius: 14, padding: 14, flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, flex: 1 }}>
+              <MaterialCommunityIcons name="check-decagram" size={22} color="#16A34A" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#16A34A", fontFamily: "Cairo_700Bold", fontSize: 13, textAlign: "right" }}>مسجّل دخول</Text>
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" }} numberOfLines={1}>
+                  {client.email ?? client.phone}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => Alert.alert("تسجيل الخروج", "هل تريد تسجيل الخروج من حسابك؟", [
+                { text: "إلغاء", style: "cancel" },
+                { text: "خروج", style: "destructive", onPress: clientLogout },
+              ])}
+              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}
+            >
+              <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_600SemiBold", fontSize: 11 }}>خروج</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            onPress={() => router.push("/client-auth")}
+            style={{ backgroundColor: "#1C2B2A", borderWidth: 1.5, borderColor: "#C9A84C", borderRadius: 14, padding: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}
+          >
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, flex: 1 }}>
+              <MaterialCommunityIcons name="account-key" size={24} color="#C9A84C" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>سجّل دخول أو أنشئ حساب</Text>
+                <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" }}>
+                  احفظ عناوينك وعائلتك وتابع كل حجوزاتك من أي جهاز
+                </Text>
+              </View>
+            </View>
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#C9A84C" />
+          </Pressable>
+        )}
+
+        {/* ─── أقسام الحساب ─── */}
+        {client ? (
+          <>
+            <AddressesSection />
+            <FamilySection />
+          </>
+        ) : null}
+
         <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right" }}>بياناتك الشخصية</Text>
 
         <FieldInput label="الاسم الكامل" icon="account" value={name} onChange={setName} placeholder="مثال: محمد أحمد" />
@@ -249,6 +298,21 @@ export default function ProfileScreen() {
           <InfoLine icon="information" text="خدمات طبية منزلية — القاهرة والجيزة" />
           <InfoLine icon="shield-check" text="الإصدار 1.0.0" />
         </View>
+
+        {/* تذكير الأدوية */}
+        <Pressable
+          onPress={() => router.push("/medicines")}
+          style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", padding: 16, borderRadius: 14, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.card }}
+        >
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+            <Text style={{ fontSize: 22 }}>💊</Text>
+            <View>
+              <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>تذكير الأدوية</Text>
+              <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" }}>إشعار يومي بمواعيد جرعاتك</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="chevron-left" size={22} color={colors.mutedForeground} />
+        </Pressable>
 
         {/* Provider portal entry */}
         <Pressable

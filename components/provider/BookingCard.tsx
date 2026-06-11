@@ -18,9 +18,28 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 export function BookingCard({ booking, compact }: { booking: DbBooking; compact?: boolean }) {
   const colors = useColors();
-  const { updateBookingStatus } = useProvider();
+  const { updateBookingStatus, setOnWay } = useProvider();
   const [detailOpen, setDetailOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const handleOnWay = () => {
+    Alert.alert("في الطريق 🚗", "هيوصل العميل إشعار إنك اتحركت ناحيته. تأكيد؟", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "أيوة، اتحركت",
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await setOnWay(booking.id);
+          } catch (e: any) {
+            Alert.alert("خطأ", e.message ?? "تعذر التحديث");
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  };
 
   const st = STATUS_MAP[booking.status] ?? { label: booking.status, color: colors.mutedForeground };
 
@@ -48,6 +67,14 @@ export function BookingCard({ booking, compact }: { booking: DbBooking; compact?
     <View style={{ flexDirection: "row-reverse", gap: 6, flexWrap: "wrap", marginTop: inModal ? 16 : 10 }}>
       {booking.status === "pending" ? (
         <ActBtn label="قبول" color="#16A34A" icon="check" disabled={busy} onPress={() => doUpdate("confirmed", "قبول هذا الحجز؟ سيتم إخطار العميل.")} />
+      ) : null}
+      {booking.status === "confirmed" && !booking.on_way_at ? (
+        <ActBtn label="في الطريق 🚗" color="#7C3AED" icon="truck-fast" disabled={busy} onPress={handleOnWay} />
+      ) : null}
+      {booking.status === "confirmed" && booking.on_way_at ? (
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#7C3AED14", borderWidth: 1, borderColor: "#7C3AED30", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9 }}>
+          <Text style={{ color: "#7C3AED", fontFamily: "Cairo_700Bold", fontSize: 12 }}>🚗 في الطريق ✓</Text>
+        </View>
       ) : null}
       {booking.status === "confirmed" ? (
         <ActBtn label="مكتمل" color="#16A34A" icon="check-all" disabled={busy} onPress={() => doUpdate("completed", "تعيين الحجز كمكتمل؟ سيُفتح واتساب لإرسال رابط التقييم للعميل.")} />

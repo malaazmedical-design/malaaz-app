@@ -65,6 +65,8 @@ type ProviderContextValue = {
     id: string,
     status: "confirmed" | "completed" | "cancelled"
   ) => Promise<void>;
+  // "في الطريق إليك" — بيوصل إشعار للعميل تلقائياً من السيرفر
+  setOnWay: (id: string) => Promise<void>;
   saveProfile: (input: ProviderProfileInput) => Promise<void>;
   saveMyServices: (
     rows: { sub_service_id: string; custom_price: number | null }[]
@@ -338,6 +340,19 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ─── "في الطريق إليك" ────────────────────────────────────────────────────
+  const setOnWay = async (id: string) => {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("bookings")
+      .update({ on_way_at: now })
+      .eq("id", id)
+      .select();
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) throw new Error("لم يتم التحديث");
+    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, on_way_at: now } : b)));
+  };
+
   // ─── حفظ الملف الشخصي ────────────────────────────────────────────────────
   const saveProfile = async (input: ProviderProfileInput) => {
     if (!provider) return;
@@ -414,6 +429,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       refreshAll,
       toggleAvailability,
       updateBookingStatus,
+      setOnWay,
       saveProfile,
       saveMyServices,
     }),

@@ -64,6 +64,14 @@ function RootLayoutNav() {
         name="provider-portal"
         options={{ headerShown: false, animation: "slide_from_left" }}
       />
+      <Stack.Screen
+        name="client-auth"
+        options={{ headerShown: false, presentation: "modal", animation: "slide_from_bottom" }}
+      />
+      <Stack.Screen
+        name="medicines"
+        options={{ headerShown: false, animation: "slide_from_left" }}
+      />
     </Stack>
   );
 }
