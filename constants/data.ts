@@ -93,6 +93,14 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   instapay: "إنستاباي",
 };
 
+// ─── فترات المواعيد (مطابقة للموقع) ─────────────────────────────────────────
+export const TIME_PERIODS = [
+  "أسرع وقت ممكن",
+  "صباحاً (9 - 12)",
+  "ظهراً (12 - 4)",
+  "مساءً (4 - 9)",
+];
+
 // ─── Provider Type ────────────────────────────────────────────────────────────
 export type ProviderService = {
   id: string;

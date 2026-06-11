@@ -30,6 +30,12 @@ export type CustomerProfile = {
   notes: string;
   isGuest: boolean;
   userId?: string;
+  // بيانات إضافية اختيارية
+  email?: string;
+  whatsapp?: string;
+  phone2?: string;
+  avatarUri?: string;
+  termsAccepted?: boolean;
 };
 
 export type Review = {
@@ -144,14 +150,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshProviders = useCallback(async () => {
     setLoadingProviders(true);
     try {
-      const { data, error } = await supabase
-        .from("providers")
-        .select("*")
-        .eq("status", "active")
-        .order("created_at", { ascending: false });
+      const [provRes, reviewsRes] = await Promise.all([
+        supabase
+          .from("providers")
+          .select("*")
+          .eq("status", "active")
+          .order("created_at", { ascending: false }),
+        // عدد التقييمات المعتمدة لكل مقدم (ديناميكي من قاعدة البيانات)
+        supabase.from("reviews").select("provider_id").eq("is_approved", true),
+      ]);
 
-      if (error) throw error;
-      setProviders((data ?? []).map(mapDbProviderToProvider));
+      if (provRes.error) throw provRes.error;
+
+      const counts: Record<string, number> = {};
+      for (const r of reviewsRes.data ?? []) {
+        if (r.provider_id) counts[r.provider_id] = (counts[r.provider_id] ?? 0) + 1;
+      }
+
+      setProviders(
+        (provRes.data ?? []).map((db) => {
+          const p = mapDbProviderToProvider(db);
+          return { ...p, reviewsCount: counts[p.id] ?? 0 };
+        })
+      );
     } catch (err) {
       console.error("Error loading providers:", err);
       setProviders([]);
@@ -230,12 +251,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const appointmentTime =
       [input.scheduledDate, input.scheduledTime].filter(Boolean).join(" ") || null;
 
+    // المنطقة: من الـ GPS لو اتحددت، وإلا أول جزء من العنوان
+    const derivedArea =
+      profile.area ||
+      profile.address?.split(/[،,]/)[0]?.trim().slice(0, 40) ||
+      profile.city ||
+      null;
+
     const bookingData = {
       id,
       patient_name: profile.name,
       phone: profile.phone,
+      patient_email: profile.email || null,
       address: profile.address || null,
-      area: profile.area || profile.city || null,
+      area: derivedArea,
       service_type: serviceTypeToArabic(input.serviceType as ServiceType),
       sub_option: input.serviceName,
       price: input.servicePrice ?? null,
@@ -254,7 +283,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const booking: Booking = {
       ...bookingData,
       provider_phone: null,
-      patient_email: null,
       client_id: null,
       created_at: new Date().toISOString(),
       providerName: input.providerName,

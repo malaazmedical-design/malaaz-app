@@ -368,6 +368,11 @@ function ProviderCard({ provider }: { provider: Provider }) {
                 <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 2 }} numberOfLines={1}>
                   {provider.title}
                 </Text>
+                {provider.bio ? (
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right", marginTop: 3, lineHeight: 16 }} numberOfLines={2}>
+                    {provider.bio}
+                  </Text>
+                ) : null}
               </View>
               {cat ? (
                 <View style={{ backgroundColor: "#1C2B2A12", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: "#C9A84C44" }}>

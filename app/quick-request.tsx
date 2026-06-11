@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PrimaryButton } from "@/components/ui";
 import {
   SERVICE_CATEGORIES, ServiceType, CAIRO_AREAS, GIZA_AREAS,
-  ALL_CITIES, PAYMENT_METHODS, PaymentMethod, ServiceSubOption,
+  PAYMENT_METHODS, PaymentMethod, ServiceSubOption, TIME_PERIODS,
 } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -38,12 +38,12 @@ export default function QuickRequestScreen() {
   const [area, setArea] = useState(profile.area);
   const [address, setAddress] = useState(profile.address);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIODS[0]);
   const [notes, setNotes] = useState("");
 
   // Step 3 — دفع
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
 
-  const areas = city === "القاهرة" ? CAIRO_AREAS : GIZA_AREAS;
   const subOptions = selectedService
     ? SERVICE_CATEGORIES.find((c) => c.id === selectedService)?.subOptions ?? []
     : [];
@@ -93,9 +93,9 @@ export default function QuickRequestScreen() {
       if (!selectedSub)    { Alert.alert("تنبيه", "اختار التخصص المطلوب"); return; }
     }
     if (step === 2) {
-      if (!name.trim())  { Alert.alert("تنبيه", "يرجى إدخال اسمك"); return; }
-      if (!phone.trim()) { Alert.alert("تنبيه", "يرجى إدخال رقم هاتفك"); return; }
-      if (!area)         { Alert.alert("تنبيه", "يرجى اختيار المنطقة"); return; }
+      if (!name.trim())     { Alert.alert("تنبيه", "يرجى إدخال اسمك"); return; }
+      if (!phone.trim())    { Alert.alert("تنبيه", "يرجى إدخال رقم هاتفك"); return; }
+      if (!address.trim())  { Alert.alert("تنبيه", "يرجى كتابة عنوانك أو تحديد موقعك"); return; }
     }
     if (step === 3) {
       if (!paymentMethod) { Alert.alert("تنبيه", "اختار طريقة الدفع"); return; }
@@ -106,11 +106,12 @@ export default function QuickRequestScreen() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await updateProfile({ name: name.trim(), phone: phone.trim(), city, area, address });
+      await updateProfile({ name: name.trim(), phone: phone.trim(), city, area, address: address.trim() });
       await createBooking({
         serviceType: selectedService!,
         serviceName: selectedSub!.name,
         paymentMethod: paymentMethod!,
+        scheduledTime: timePeriod,
         notes: notes.trim() || undefined,
       });
       router.replace("/booking-success");
@@ -304,27 +305,14 @@ export default function QuickRequestScreen() {
               </View>
             </View>
 
-            {/* City */}
+            {/* ─── الفترة المفضلة ─── */}
             <View>
-              <Text style={{ color: colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right", marginBottom: 8 }}>المدينة</Text>
-              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                {ALL_CITIES.map((c) => (
-                  <Pressable key={c} onPress={() => { setCity(c); setArea(""); }}
-                    style={{ flex: 1, padding: 14, borderRadius: 14, borderWidth: 2, alignItems: "center", backgroundColor: city === c ? "#1C2B2A" : colors.card, borderColor: city === c ? "#C9A84C" : colors.border }}>
-                    <Text style={{ color: city === c ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 14 }}>{c}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Area */}
-            <View>
-              <Text style={{ color: colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right", marginBottom: 8 }}>المنطقة</Text>
+              <Text style={{ color: colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 14, textAlign: "right", marginBottom: 8 }}>الموعد المفضل</Text>
               <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
-                {areas.map((a) => (
-                  <Pressable key={a} onPress={() => setArea(a)}
-                    style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 99, borderWidth: 1.5, backgroundColor: area === a ? "#1C2B2A" : colors.card, borderColor: area === a ? "#C9A84C" : colors.border }}>
-                    <Text style={{ color: area === a ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_500Medium", fontSize: 13 }}>{a}</Text>
+                {TIME_PERIODS.map((t) => (
+                  <Pressable key={t} onPress={() => setTimePeriod(t)}
+                    style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, backgroundColor: timePeriod === t ? "#1C2B2A" : colors.card, borderColor: timePeriod === t ? "#C9A84C" : colors.border }}>
+                    <Text style={{ color: timePeriod === t ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>{t}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -390,8 +378,8 @@ export default function QuickRequestScreen() {
               <SummaryRow icon="medical-bag"      label="الخدمة"       value={`${SERVICE_CATEGORIES.find((c) => c.id === selectedService)?.name} — ${selectedSub?.name}`} />
               <SummaryRow icon="account"          label="الاسم"        value={name} />
               <SummaryRow icon="phone"            label="الهاتف"       value={phone} />
-              <SummaryRow icon="map-marker"       label="المنطقة"      value={`${area}، ${city}`} />
-              {address ? <SummaryRow icon="home" label="العنوان"       value={address} /> : null}
+              <SummaryRow icon="home"             label="العنوان"      value={address} />
+              <SummaryRow icon="clock-outline"    label="الموعد"       value={timePeriod} />
               <SummaryRow icon="cash"             label="الدفع"        value={PAYMENT_METHODS.find((p) => p.id === paymentMethod)?.name ?? ""} />
               {notes ? <SummaryRow icon="note-text" label="ملاحظات"   value={notes} /> : null}
             </View>

@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
-  Alert, Platform, Pressable, ScrollView, Text, View, ActivityIndicator,
+  Alert, Modal, Platform, Pressable, ScrollView, Text, View, ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -100,6 +100,7 @@ export default function BookingsScreen() {
 
 function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Booking) => void }) {
   const colors = useColors();
+  const [detailOpen, setDetailOpen] = useState(false);
   const status = STATUS_MAP[booking.status] ?? STATUS_MAP.pending;
   const canCancel = booking.status === "pending" || booking.status === "confirmed";
   const canRate = booking.status === "completed" && !booking.review && booking.provider_id;
@@ -152,8 +153,17 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
       </View>
 
       {/* Actions */}
+      <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 4 }}>
+        <Pressable
+          onPress={() => setDetailOpen(true)}
+          style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#1C2B2A", paddingVertical: 10, borderRadius: 12 }}
+        >
+          <MaterialCommunityIcons name="eye" size={16} color="#C9A84C" />
+          <Text style={{ color: "#C9A84C", fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>عرض</Text>
+        </Pressable>
+      </View>
       {(canCancel || canRate) ? (
-        <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 4 }}>
+        <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
           {canRate ? (
             <Pressable
               onPress={() => router.push(`/rate/${booking.id}`)}
@@ -174,6 +184,49 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
           ) : null}
         </View>
       ) : null}
+
+      {/* ─── Booking Details Modal ─── */}
+      <Modal visible={detailOpen} transparent animationType="slide" onRequestClose={() => setDetailOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => setDetailOpen(false)}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "82%" }}>
+            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: colors.foreground }}>تفاصيل الحجز</Text>
+                <Pressable onPress={() => setDetailOpen(false)} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" }}>
+                  <MaterialCommunityIcons name="close" size={18} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
+
+              <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
+                <DetailField label="الخدمة" value={booking.service_type} />
+                <DetailField label="التفصيل" value={booking.sub_option ?? "—"} />
+                <DetailField label="الحالة" value={status.label} />
+                <DetailField label="الموعد" value={booking.appointment_time ?? "أسرع وقت ممكن"} />
+                <DetailField label="الاسم" value={booking.patient_name} />
+                <DetailField label="الهاتف" value={booking.phone} />
+                <DetailField label="العنوان" value={booking.address ?? "—"} wide />
+                {booking.area ? <DetailField label="المنطقة" value={booking.area} /> : null}
+                <DetailField label="الدفع" value={booking.payment_method ? (PAYMENT_METHOD_LABELS[booking.payment_method] ?? booking.payment_method) : "—"} />
+                {booking.price ? <DetailField label="السعر" value={`${booking.price} ج.م`} /> : null}
+                {booking.providerName ? <DetailField label="مقدم الخدمة" value={booking.providerName} /> : null}
+                {booking.notes ? <DetailField label="ملاحظات" value={booking.notes} wide /> : null}
+                <DetailField label="رقم الحجز" value={`#${booking.id.slice(-6).toUpperCase()}`} />
+                <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })} />
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Card>
+  );
+}
+
+function DetailField({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+  const colors = useColors();
+  return (
+    <View style={{ width: wide ? "100%" : "47%", backgroundColor: colors.surfaceMuted, borderRadius: 10, padding: 10 }}>
+      <Text style={{ fontSize: 10, fontFamily: "Cairo_600SemiBold", color: colors.mutedForeground, textAlign: "right" }}>{label}</Text>
+      <Text style={{ fontSize: 13, fontFamily: "Cairo_700Bold", color: colors.foreground, textAlign: "right", marginTop: 2 }}>{value}</Text>
+    </View>
   );
 }

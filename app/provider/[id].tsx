@@ -10,11 +10,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card, Pill, PrimaryButton, Stars } from "@/components/ui";
-import { ProviderService } from "@/constants/data";
+import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
-
-const TIME_SLOTS = ["09:00", "10:30", "12:00", "14:00", "16:00", "18:00", "20:00"];
 
 function getNextDays(count: number) {
   const days: { key: string; label: string; sub: string }[] = [];
@@ -23,9 +21,10 @@ function getNextDays(count: number) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     days.push({
-      key: d.toISOString().slice(0, 10),
-      label: i === 0 ? "اليوم" : i === 1 ? "غداً" : d.toLocaleDateString("ar-SA", { weekday: "short" }),
-      sub: d.toLocaleDateString("ar-SA", { day: "numeric", month: "short" }),
+      // التاريخ بصيغة عربية مقروءة عشان يظهر كده في الحجز عند الأدمن والمقدم
+      key: d.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" }),
+      label: i === 0 ? "اليوم" : i === 1 ? "غداً" : d.toLocaleDateString("ar-EG", { weekday: "short" }),
+      sub: d.toLocaleDateString("ar-EG", { day: "numeric", month: "short" }),
     });
   }
   return days;
@@ -40,8 +39,8 @@ export default function ProviderScreen() {
 
   const [selectedService, setSelectedService] = useState<ProviderService | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "instapay" | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string>(TIME_PERIODS[0]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const days = getNextDays(7);
@@ -78,8 +77,9 @@ export default function ProviderScreen() {
         servicePrice: selectedService.price,
         providerId: provider.id,
         providerName: provider.name,
-        scheduledDate: days[selectedDay]?.key,
-        scheduledTime: selectedTime ?? undefined,
+        // "أسرع وقت ممكن" مش محتاجة تاريخ — زي الموقع
+        scheduledDate: selectedTime === TIME_PERIODS[0] ? undefined : days[selectedDay]?.key,
+        scheduledTime: selectedTime,
         paymentMethod,
       });
       router.replace("/booking-success");
@@ -163,38 +163,39 @@ export default function ProviderScreen() {
 
           {/* ─── الموعد ─── */}
           <View>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>اختار الموعد</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse", paddingBottom: 4 }}>
-              {days.map((d, i) => (
-                <Pressable key={d.key} onPress={() => setSelectedDay(i)}
-                  style={{ alignItems: "center", padding: 12, borderRadius: 14, minWidth: 64, borderWidth: 2, backgroundColor: selectedDay === i ? "#1C2B2A" : colors.card, borderColor: selectedDay === i ? "#C9A84C" : colors.border }}>
-                  <Text style={{ color: selectedDay === i ? "#C9A84C" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>{d.label}</Text>
-                  <Text style={{ color: selectedDay === i ? "#FFFFFF" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, marginTop: 4 }}>{d.sub}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-              {TIME_SLOTS.map((t) => (
+            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>اختار الفترة</Text>
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+              {TIME_PERIODS.map((t) => (
                 <Pressable key={t} onPress={() => setSelectedTime(t)}
                   style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, backgroundColor: selectedTime === t ? "#1C2B2A" : colors.card, borderColor: selectedTime === t ? "#C9A84C" : colors.border }}>
                   <Text style={{ color: selectedTime === t ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>{t}</Text>
                 </Pressable>
               ))}
             </View>
+
+            {/* اختيار اليوم — يظهر بس لو مش "أسرع وقت ممكن" */}
+            {selectedTime !== TIME_PERIODS[0] ? (
+              <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                {days.map((d, i) => (
+                  <Pressable key={d.key} onPress={() => setSelectedDay(i)}
+                    style={{ alignItems: "center", padding: 12, borderRadius: 14, minWidth: 72, borderWidth: 2, backgroundColor: selectedDay === i ? "#1C2B2A" : colors.card, borderColor: selectedDay === i ? "#C9A84C" : colors.border }}>
+                    <Text style={{ color: selectedDay === i ? "#C9A84C" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>{d.label}</Text>
+                    <Text style={{ color: selectedDay === i ? "#FFFFFF" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, marginTop: 4 }}>{d.sub}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
           </View>
 
           {/* ─── طريقة الدفع ─── */}
           <View>
             <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>طريقة الدفع</Text>
             <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-              {[
-                { key: "cash" as const, label: "كاش", icon: "cash" },
-                { key: "instapay" as const, label: "إنستاباي", icon: "contactless-payment" },
-              ].map((opt) => (
-                <Pressable key={opt.key} onPress={() => setPaymentMethod(opt.key)}
-                  style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, borderRadius: 14, borderWidth: 2, backgroundColor: paymentMethod === opt.key ? "#1C2B2A" : colors.card, borderColor: paymentMethod === opt.key ? "#C9A84C" : colors.border }}>
-                  <MaterialCommunityIcons name={opt.icon as any} size={20} color={paymentMethod === opt.key ? "#C9A84C" : colors.mutedForeground} />
-                  <Text style={{ color: paymentMethod === opt.key ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 14 }}>{opt.label}</Text>
+              {PAYMENT_METHODS.map((opt) => (
+                <Pressable key={opt.id} onPress={() => setPaymentMethod(opt.id)}
+                  style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 12, borderRadius: 14, borderWidth: 2, backgroundColor: paymentMethod === opt.id ? "#1C2B2A" : colors.card, borderColor: paymentMethod === opt.id ? "#C9A84C" : colors.border }}>
+                  <MaterialCommunityIcons name={opt.icon as any} size={20} color={paymentMethod === opt.id ? "#C9A84C" : colors.mutedForeground} />
+                  <Text style={{ color: paymentMethod === opt.id ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "center" }}>{opt.name}</Text>
                 </Pressable>
               ))}
             </View>
