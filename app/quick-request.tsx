@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -6,6 +7,7 @@ import {
   Alert, KeyboardAvoidingView, Modal, Platform, Pressable,
   ScrollView, Text, TextInput, View, ActivityIndicator,
 } from "react-native";
+import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/ui";
@@ -13,6 +15,7 @@ import {
   SERVICE_CATEGORIES, ServiceType, serviceTypeToArabic,
   PAYMENT_METHODS, PaymentMethod, TIME_PERIODS,
 } from "@/constants/data";
+import { serviceIcon } from "@/constants/icons";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { DbSubService } from "@/lib/supabase";
@@ -42,6 +45,7 @@ export default function QuickRequestScreen() {
   const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
   const [grade, setGrade] = useState<Grade>("أخصائي");
   const [selectedSub, setSelectedSub] = useState<DbSubService | null>(null);
+  const [subSearch, setSubSearch] = useState("");
 
   // Step 2 — بيانات المريض والموعد والمكان
   const [forMemberId, setForMemberId] = useState<string | null>(null); // null = أنا شخصياً
@@ -216,7 +220,7 @@ export default function QuickRequestScreen() {
                   return (
                     <Pressable
                       key={cat.id}
-                      onPress={() => { setSelectedService(cat.id as ServiceType); setSelectedSub(null); }}
+                      onPress={() => { setSelectedService(cat.id as ServiceType); setSelectedSub(null); setSubSearch(""); }}
                       style={({ pressed }) => ({
                         flex: 1, alignItems: "center", padding: 12, borderRadius: 16, borderWidth: 2,
                         backgroundColor: isActive ? "#1C2B2A" : colors.card,
@@ -266,57 +270,102 @@ export default function QuickRequestScreen() {
               </View>
             )}
 
-            {/* التخصص / النوع — من قاعدة البيانات بالأسعار */}
+            {/* التخصص / النوع — قائمة أنيقة بأيقونات مميزة (ستايل فيزيتا بهوية ملاذ) */}
             {selectedService && (
               <View>
                 <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>
                   {isDoctor ? "اختر التخصص" : "اختر نوع الخدمة"}
                 </Text>
+
+                {/* بحث في التخصصات */}
+                {dbSubs.length > 5 ? (
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: colors.card, borderRadius: 14, paddingHorizontal: 14, height: 48, borderWidth: 1.5, borderColor: colors.border, marginBottom: 12 }}>
+                    <MaterialCommunityIcons name="magnify" size={20} color={colors.mutedForeground} />
+                    <TextInput
+                      value={subSearch}
+                      onChangeText={setSubSearch}
+                      placeholder={isDoctor ? "ابحث في التخصصات..." : "ابحث في الخدمات..."}
+                      placeholderTextColor={colors.mutedForeground}
+                      style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 13, color: colors.foreground, textAlign: "right" }}
+                    />
+                    {subSearch.length > 0 ? (
+                      <Pressable onPress={() => setSubSearch("")}>
+                        <MaterialCommunityIcons name="close-circle" size={17} color={colors.mutedForeground} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+
                 {dbSubs.length === 0 ? (
                   <View style={{ alignItems: "center", padding: 24 }}>
                     <ActivityIndicator color="#C9A84C" />
                     <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 8 }}>جاري تحميل الخدمات...</Text>
                   </View>
                 ) : (
-                  <View style={{ gap: 8 }}>
-                    {dbSubs.map((sub) => {
-                      const isActive = selectedSub?.id === sub.id;
-                      const range = priceRange(sub, grade);
-                      return (
-                        <Pressable
-                          key={sub.id}
-                          onPress={() => setSelectedSub(sub)}
-                          style={({ pressed }) => ({
-                            flexDirection: "row-reverse", alignItems: "center", gap: 14,
-                            padding: 14, borderRadius: 16, borderWidth: 2,
-                            backgroundColor: isActive ? "#1C2B2A" : colors.card,
-                            borderColor: isActive ? "#C9A84C" : colors.border,
-                            transform: [{ scale: pressed ? 0.98 : 1 }],
-                          })}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>
-                              {sub.name}
-                            </Text>
-                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 4 }}>
-                              {range.max > 0 ? (
-                                <Text style={{ color: isActive ? "#C9A84C" : "#b8860b", fontFamily: "Cairo_700Bold", fontSize: 12 }}>
-                                  {range.min}–{range.max} ج.م
+                  <View style={{ backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+                    {dbSubs
+                      .filter((s) => !subSearch.trim() || s.name.includes(subSearch.trim()))
+                      .map((sub, subIndex, arr) => {
+                        const isActive = selectedSub?.id === sub.id;
+                        const range = priceRange(sub, grade);
+                        return (
+                          <Animated.View key={sub.id} entering={FadeInUp.delay(Math.min(subIndex, 10) * 50).springify()}>
+                            <Pressable
+                              onPress={() => {
+                                setSelectedSub(sub);
+                                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                              }}
+                              style={({ pressed }) => ({
+                                flexDirection: "row-reverse", alignItems: "center", gap: 14,
+                                paddingVertical: 14, paddingHorizontal: 16,
+                                backgroundColor: isActive ? "#1C2B2A" : pressed ? colors.surfaceMuted : "transparent",
+                                borderBottomWidth: subIndex < arr.length - 1 ? 1 : 0,
+                                borderBottomColor: colors.border,
+                              })}
+                            >
+                              {/* أيقونة التخصص بهوية ملاذ */}
+                              <View style={{
+                                width: 50, height: 50, borderRadius: 25,
+                                backgroundColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.10)",
+                                borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.35)",
+                                alignItems: "center", justifyContent: "center",
+                              }}>
+                                <MaterialCommunityIcons
+                                  name={serviceIcon(sub.name) as any}
+                                  size={26}
+                                  color={isActive ? "#1C2B2A" : "#b8860b"}
+                                />
+                              </View>
+
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" }}>
+                                  {sub.name}
                                 </Text>
-                              ) : null}
-                              {sub.duration ? (
-                                <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>
-                                  ⏱ {sub.duration}
-                                </Text>
-                              ) : null}
-                            </View>
-                          </View>
-                          <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C" : "transparent", alignItems: "center", justifyContent: "center" }}>
-                            {isActive ? <MaterialCommunityIcons name="check" size={13} color="#1C2B2A" /> : null}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
+                                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 3 }}>
+                                  {range.max > 0 ? (
+                                    <Text style={{ color: isActive ? "#C9A84C" : "#b8860b", fontFamily: "Cairo_700Bold", fontSize: 12 }}>
+                                      {range.min}–{range.max} ج.م
+                                    </Text>
+                                  ) : null}
+                                  {sub.duration ? (
+                                    <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>
+                                      ⏱ {sub.duration}
+                                    </Text>
+                                  ) : null}
+                                </View>
+                              </View>
+
+                              {isActive ? (
+                                <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: "#C9A84C", alignItems: "center", justifyContent: "center" }}>
+                                  <MaterialCommunityIcons name="check" size={15} color="#1C2B2A" />
+                                </View>
+                              ) : (
+                                <MaterialCommunityIcons name="chevron-left" size={20} color={colors.mutedForeground} />
+                              )}
+                            </Pressable>
+                          </Animated.View>
+                        );
+                      })}
                   </View>
                 )}
               </View>

@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card, Pill, PrimaryButton, Stars } from "@/components/ui";
 import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS } from "@/constants/data";
+import { serviceIcon } from "@/constants/icons";
 import { callCompany, whatsappCompany } from "@/lib/contact";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -185,6 +186,9 @@ export default function ProviderScreen() {
                 return (
                   <Pressable key={svc.id} onPress={() => setSelectedService(svc)}
                     style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 2, backgroundColor: isActive ? "#1C2B2A" : colors.card, borderColor: isActive ? "#C9A84C" : colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.10)", borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.35)", alignItems: "center", justifyContent: "center" }}>
+                      <MaterialCommunityIcons name={serviceIcon(svc.name) as any} size={24} color={isActive ? "#1C2B2A" : "#b8860b"} />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>{svc.name}</Text>
                       <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>{svc.description}</Text>
