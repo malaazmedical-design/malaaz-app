@@ -119,6 +119,7 @@ export type Provider = {
   reviewsCount: number;
   yearsExperience: number;
   city: string;
+  areas: string[];
   bio: string;
   phone: string;
   avatar: ImageSourcePropType | { uri: string };
@@ -155,6 +156,7 @@ export function mapDbProviderToProvider(db: DbProvider): Provider {
     reviewsCount: 0,
     yearsExperience: toNumber(db.experience) ?? 1,
     city: db.area ?? areasList[0] ?? "القاهرة",
+    areas: areasList,
     bio: db.bio ?? "",
     phone: db.phone ?? "",
     avatar: db.photo_url
@@ -229,4 +231,55 @@ export const ALL_CITIES = ["القاهرة", "الجيزة"];
 
 export function getCategoryById(id: ServiceType): ServiceCategory | undefined {
   return SERVICE_CATEGORIES.find((c) => c.id === id);
+}
+
+// ─── مطابقة المدينة الذكية ────────────────────────────────────────────────────
+// المقدمين بيكتبوا مناطقهم بصيغ مختلفة ("جيزه"، "6 أكتوبر"، "التجمع الأول"...)
+// فبنطبّع النص وبنستعين بجدول مناطق التغطية عشان نعرف منطقة دي تبع أنهي مدينة
+
+function normalizeArabic(s: string): string {
+  return s
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^ال/, "");
+}
+
+// بيرجع مجموعة المدن اللي المقدم بيخدم فيها — فاضية لو مش معروفة
+export function providerCities(
+  areas: string[],
+  coverage: { name: string; city: string }[]
+): Set<string> {
+  const cities = new Set<string>();
+  const cairoN = normalizeArabic("القاهرة");
+  const gizaN = normalizeArabic("الجيزة");
+
+  for (const raw of areas) {
+    const na = normalizeArabic(raw);
+    if (!na) continue;
+
+    // ذكر المدينة نفسها في النص ("الجيزه والقاهره")
+    if (na.includes(cairoN)) cities.add("القاهرة");
+    if (na.includes(gizaN)) cities.add("الجيزة");
+
+    // مطابقة مع مناطق التغطية المعروفة (بالاحتواء أو تقاطع الكلمات)
+    const words = na.split(" ").filter((w) => w.length >= 3);
+    for (const c of coverage) {
+      const nc = normalizeArabic(c.name);
+      const ncWords = nc.split(" ").filter((w) => w.length >= 3);
+      const hit =
+        nc === na ||
+        na.includes(nc) ||
+        nc.includes(na) ||
+        words.some((w) => ncWords.includes(w));
+      if (hit) {
+        const cityN = normalizeArabic(c.city);
+        if (cityN === cairoN) cities.add("القاهرة");
+        else if (cityN === gizaN) cities.add("الجيزة");
+      }
+    }
+  }
+  return cities;
 }

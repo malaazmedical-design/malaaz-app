@@ -22,6 +22,7 @@ import {
   SERVICE_CATEGORIES,
   ServiceType,
   getCategoryById,
+  providerCities,
   ALL_CITIES,
 } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
@@ -64,7 +65,7 @@ function countActiveFilters(f: Filters) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { profile, providers, loadingProviders } = useApp();
+  const { profile, providers, loadingProviders, coverageAreas } = useApp();
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
   const [cityFilter, setCityFilter] = useState("الكل");
   const [search, setSearch] = useState("");
@@ -79,11 +80,19 @@ export default function HomeScreen() {
   const filtered = useMemo(() => {
     let list: Provider[] = providers;
     if (serviceFilter !== "all") list = list.filter((p) => p.serviceType === serviceFilter);
-    if (cityFilter !== "الكل") list = list.filter((p) => p.city === cityFilter);
+    if (cityFilter !== "الكل") {
+      // مطابقة ذكية: مناطق المقدم بتتترجم لمدينتها مهما كانت طريقة كتابتها،
+      // واللي مدينته مش معروفة بيظهر في الحالتين بدل ما يختفي
+      list = list.filter((p) => {
+        const cities = providerCities(p.areas.length ? p.areas : [p.city], coverageAreas);
+        return cities.size === 0 || cities.has(cityFilter);
+      });
+    }
     if (search.trim()) {
       const q = search.trim();
       list = list.filter((p) =>
-        p.name.includes(q) || p.title.includes(q) || p.city.includes(q)
+        p.name.includes(q) || p.title.includes(q) || p.city.includes(q) ||
+        p.areas.some((a) => a.includes(q))
       );
     }
     if (filters.minRating > 0) list = list.filter((p) => p.rating >= filters.minRating);
