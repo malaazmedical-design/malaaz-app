@@ -16,13 +16,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppProvider } from "@/contexts/AppContext";
 
 SplashScreen.preventAutoHideAsync();
@@ -85,6 +86,8 @@ export default function RootLayout() {
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
     Cairo_400Regular, Cairo_500Medium, Cairo_600SemiBold, Cairo_700Bold,
   });
+  // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
+  const [introDone, setIntroDone] = useState(Platform.OS === "web");
 
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();
@@ -100,6 +103,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <AppProvider>
                 <RootLayoutNav />
+                {!introDone ? <AnimatedSplash onDone={() => setIntroDone(true)} /> : null}
               </AppProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
