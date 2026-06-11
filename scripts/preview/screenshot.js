@@ -4,7 +4,7 @@ const { chromium } = require("playwright");
 const path = require("path");
 const fs = require("fs");
 
-const BASE = "http://127.0.0.1:8099";
+const BASE = "http://127.0.0.1:8101";
 const OUT = "/tmp/malaaz-shots";
 const providers = fs.readFileSync(path.join(__dirname, "providers.json"), "utf8");
 const placeholderPng = fs.readFileSync(

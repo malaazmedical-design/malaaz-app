@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card, Pill, PrimaryButton, SectionHeader, Stars } from "@/components/ui";
@@ -133,7 +134,7 @@ export default function HomeScreen() {
           }}
         >
           {/* Logo + Bell */}
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <Animated.View entering={FadeInDown.duration(450)} style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <View>
               <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 26, textAlign: "right" }}>
                 ملاذ
@@ -150,9 +151,10 @@ export default function HomeScreen() {
                 <MaterialCommunityIcons name="account-outline" size={22} color="#C9A84C" />
               </Pressable>
             </View>
-          </View>
+          </Animated.View>
 
           {/* ─── Flow 1: طلب سريع ─── */}
+          <Animated.View entering={FadeInDown.delay(120).springify()}>
           <Pressable
             onPress={() => {
               if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -182,6 +184,7 @@ export default function HomeScreen() {
             </View>
             <MaterialCommunityIcons name="chevron-left" size={22} color="#1C2B2A" />
           </Pressable>
+          </Animated.View>
 
           {/* Search + Filter */}
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
@@ -223,17 +226,17 @@ export default function HomeScreen() {
         <View style={{ paddingTop: 22 }}>
           <SectionHeader title="اختار الخدمة" />
           <View style={{ flexDirection: "row-reverse", paddingHorizontal: 16, gap: 8 }}>
-            {SERVICE_CATEGORIES.map((cat) => {
+            {SERVICE_CATEGORIES.map((cat, catIndex) => {
               const isActive = serviceFilter === cat.id;
               return (
+                <Animated.View key={cat.id} entering={FadeInUp.delay(150 + catIndex * 90).springify()} style={{ flex: 1 }}>
                 <Pressable
-                  key={cat.id}
                   onPress={() => {
                     setServiceFilter(isActive ? "all" : (cat.id as ServiceType));
                     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   style={({ pressed }) => ({
-                    flex: 1, padding: 12, borderRadius: 16, borderWidth: 1.5,
+                    padding: 12, borderRadius: 16, borderWidth: 1.5,
                     alignItems: "center",
                     backgroundColor: isActive ? "#1C2B2A" : colors.card,
                     borderColor: isActive ? "#C9A84C" : colors.border,
@@ -254,6 +257,7 @@ export default function HomeScreen() {
                     {cat.description}
                   </Text>
                 </Pressable>
+                </Animated.View>
               );
             })}
           </View>
@@ -323,7 +327,11 @@ export default function HomeScreen() {
             </Card>
           ) : (
             <View style={{ gap: 12 }}>
-              {filtered.map((p) => <ProviderCard key={p.id} provider={p} />)}
+              {filtered.map((p, i) => (
+                <Animated.View key={p.id} entering={FadeInUp.delay(Math.min(i, 7) * 80).springify()}>
+                  <ProviderCard provider={p} />
+                </Animated.View>
+              ))}
             </View>
           )}
         </View>
