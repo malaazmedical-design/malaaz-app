@@ -35,8 +35,9 @@ export default function ProviderScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { providers, profile, createBooking } = useApp();
+  const { providers, profile, createBooking, providerReviews } = useApp();
   const provider = providers.find((p) => p.id === id);
+  const reviews = (id && providerReviews[id]) || [];
 
   const [selectedService, setSelectedService] = useState<ProviderService | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
@@ -107,10 +108,18 @@ export default function ProviderScreen() {
               <Text style={{ color: "#FFFFFF", fontFamily: "Cairo_700Bold", fontSize: 20, textAlign: "right" }}>{provider.name}</Text>
               <Text style={{ color: "#C9A84C", fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", marginTop: 4 }}>{provider.title}</Text>
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8 }}>
-                <Stars rating={provider.rating} size={14} />
-                <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 12 }}>
-                  {provider.rating.toFixed(1)} ({provider.reviewsCount} تقييم)
-                </Text>
+                {provider.reviewsCount > 0 ? (
+                  <>
+                    <Stars rating={provider.rating} size={14} />
+                    <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 12 }}>
+                      {provider.rating.toFixed(1)} ({provider.reviewsCount} تقييم)
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 12 }}>
+                    ⭐ مقدم جديد
+                  </Text>
+                )}
               </View>
             </View>
           </View>
@@ -140,6 +149,30 @@ export default function ProviderScreen() {
             <View>
               <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 8 }}>نبذة</Text>
               <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 14, textAlign: "right", lineHeight: 24 }}>{provider.bio}</Text>
+            </View>
+          ) : null}
+
+          {/* ─── آراء العملاء (زي الموقع) ─── */}
+          {reviews.length > 0 ? (
+            <View>
+              <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>
+                ⭐ آراء العملاء ({reviews.length})
+              </Text>
+              <View style={{ gap: 8 }}>
+                {reviews.map((r, i) => (
+                  <View key={i} style={{ backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 13 }}>{r.clientName}</Text>
+                      <Stars rating={r.rating} size={12} />
+                    </View>
+                    {r.text ? (
+                      <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", lineHeight: 22 }}>
+                        {r.text}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
             </View>
           ) : null}
 

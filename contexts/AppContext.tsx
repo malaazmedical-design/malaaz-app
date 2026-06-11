@@ -50,6 +50,12 @@ export type Review = {
   createdAt: string;
 };
 
+export type ProviderReview = {
+  clientName: string;
+  rating: number;
+  text: string | null;
+};
+
 export type Booking = DbBooking & {
   review?: Review;
   providerName?: string;
@@ -107,6 +113,8 @@ type AppContextValue = {
   // بيانات الخدمات والمناطق من قاعدة البيانات (زي الموقع)
   subServices: DbSubService[];
   coverageAreas: DbCoverageArea[];
+  // آراء العملاء المعتمدة لكل مقدم (لعرضها في بروفايله زي الموقع)
+  providerReviews: Record<string, ProviderReview[]>;
 
   // Bookings
   bookings: Booking[];
@@ -128,6 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loadingProviders, setLoadingProviders] = useState(true);
   const [subServices, setSubServices] = useState<DbSubService[]>([]);
   const [coverageAreas, setCoverageAreas] = useState<DbCoverageArea[]>([]);
+  const [providerReviews, setProviderReviews] = useState<Record<string, ProviderReview[]>>({});
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
@@ -168,8 +177,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .select("*")
           .eq("status", "active")
           .order("created_at", { ascending: false }),
-        // عدد التقييمات المعتمدة لكل مقدم (ديناميكي من قاعدة البيانات)
-        supabase.from("reviews").select("provider_id").eq("is_approved", true),
+        // التقييمات المعتمدة — بنحسب منها المتوسط والعدد ونعرض آراء العملاء (زي الموقع)
+        supabase
+          .from("reviews")
+          .select("provider_id,client_name,rating,text,created_at")
+          .eq("is_approved", true)
+          .order("created_at", { ascending: false }),
         supabase.from("sub_services").select("*").eq("is_active", true).order("name"),
         supabase.from("coverage_areas").select("*").eq("is_active", true).order("name"),
         supabase.from("provider_services").select("*").eq("is_active", true),
@@ -177,10 +190,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (provRes.error) throw provRes.error;
 
-      const counts: Record<string, number> = {};
+      // متوسط التقييم + العدد + آخر 5 آراء لكل مقدم
+      const stats: Record<string, { sum: number; count: number }> = {};
+      const reviewsMap: Record<string, ProviderReview[]> = {};
       for (const r of reviewsRes.data ?? []) {
-        if (r.provider_id) counts[r.provider_id] = (counts[r.provider_id] ?? 0) + 1;
+        if (!r.provider_id) continue;
+        (stats[r.provider_id] ??= { sum: 0, count: 0 });
+        stats[r.provider_id].sum += r.rating ?? 5;
+        stats[r.provider_id].count += 1;
+        (reviewsMap[r.provider_id] ??= []);
+        if (reviewsMap[r.provider_id].length < 5) {
+          reviewsMap[r.provider_id].push({
+            clientName: r.client_name || "عميل",
+            rating: r.rating ?? 5,
+            text: r.text ?? null,
+          });
+        }
       }
+      setProviderReviews(reviewsMap);
 
       const subs = (subsRes.data ?? []) as DbSubService[];
       const subsById = new Map(subs.map((s) => [s.id, s]));
@@ -193,8 +220,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (servicesByProvider[ps.provider_id] ??= []).push(ps);
       }
 
-      setProviders(
-        (provRes.data ?? []).map((db) => {
+      const mapped = (provRes.data ?? []).map((db) => {
           const p = mapDbProviderToProvider(db);
           const own = servicesByProvider[p.id] ?? [];
           const consultant = db.grade === "استشاري";
@@ -215,14 +241,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
             })
             .filter((s): s is NonNullable<typeof s> => s !== null);
 
+          const st = stats[p.id];
           return {
             ...p,
-            reviewsCount: counts[p.id] ?? 0,
+            // التقييم الحقيقي = متوسط آراء العملاء المعتمدة (زي الموقع)
+            rating: st ? st.sum / st.count : p.rating,
+            reviewsCount: st?.count ?? 0,
             // لو المقدم محدد خدماته وأسعاره — نعرضها هي؛ وإلا الافتراضية
             services: realServices.length ? realServices : p.services,
           };
-        })
+        });
+
+      // الترتيب زي الموقع: الأعلى تقييماً ثم الأكثر مراجعات
+      mapped.sort(
+        (a, b) =>
+          (b.reviewsCount ? b.rating : 0) - (a.reviewsCount ? a.rating : 0) ||
+          b.reviewsCount - a.reviewsCount
       );
+      setProviders(mapped);
     } catch (err) {
       console.error("Error loading providers:", err);
       setProviders([]);
@@ -388,6 +424,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshProviders,
       subServices,
       coverageAreas,
+      providerReviews,
       bookings,
       loadingBookings,
       createBooking,
@@ -395,7 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addReview,
       refreshBookings,
     }),
-    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, bookings, loadingBookings]
+    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, bookings, loadingBookings]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

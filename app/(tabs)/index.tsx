@@ -382,10 +382,18 @@ function ProviderCard({ provider }: { provider: Provider }) {
             </View>
 
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8 }}>
-              <Stars rating={provider.rating} size={13} />
-              <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_500Medium", fontSize: 11 }}>
-                {provider.rating.toFixed(1)} ({provider.reviewsCount})
-              </Text>
+              {provider.reviewsCount > 0 ? (
+                <>
+                  <Stars rating={provider.rating} size={13} />
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_500Medium", fontSize: 11 }}>
+                    {provider.rating.toFixed(1)} ({provider.reviewsCount} تقييم)
+                  </Text>
+                </>
+              ) : (
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_500Medium", fontSize: 12 }}>
+                  ⭐ مقدم جديد
+                </Text>
+              )}
             </View>
 
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
