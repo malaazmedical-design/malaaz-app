@@ -9,6 +9,14 @@
     "scheme": "malaaz",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a2dcbf20-8580-4220-b882-8477c635aba0",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 10000
+    },
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
