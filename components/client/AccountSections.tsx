@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
@@ -199,27 +200,32 @@ export function FamilySection() {
         </Text>
       ) : (
         familyMembers.map((m) => (
-          <View key={m.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, marginBottom: 8, flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+          <Pressable
+            key={m.id}
+            onPress={() => router.push(`/family/${m.id}`)}
+            style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, marginBottom: 8, flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}
+          >
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 13, textAlign: "right" }}>
                 {m.name}{m.relation ? `  ·  ${m.relation}` : ""}
               </Text>
-              {m.birth_year || m.notes ? (
-                <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right", marginTop: 2 }}>
-                  {m.birth_year ? `مواليد ${m.birth_year}` : ""}{m.birth_year && m.notes ? " · " : ""}{m.notes ?? ""}
-                </Text>
-              ) : null}
+              <Text style={{ color: "#b8860b", fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right", marginTop: 2 }}>
+                🩺 الملف الطبي والأدوية — اضغط للفتح
+              </Text>
             </View>
-            <Pressable
-              onPress={() => Alert.alert("حذف", `حذف ${m.name}؟`, [
-                { text: "إلغاء", style: "cancel" },
-                { text: "حذف", style: "destructive", onPress: () => deleteFamilyMember(m.id) },
-              ])}
-              style={{ backgroundColor: "#FEE2E2", borderRadius: 8, padding: 6 }}
-            >
-              <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
-            </Pressable>
-          </View>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+              <Pressable
+                onPress={() => Alert.alert("حذف", `حذف ${m.name}؟`, [
+                  { text: "إلغاء", style: "cancel" },
+                  { text: "حذف", style: "destructive", onPress: () => deleteFamilyMember(m.id) },
+                ])}
+                style={{ backgroundColor: "#FEE2E2", borderRadius: 8, padding: 6 }}
+              >
+                <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
+              </Pressable>
+              <MaterialCommunityIcons name="chevron-left" size={20} color={colors.mutedForeground} />
+            </View>
+          </Pressable>
         ))
       )}
 

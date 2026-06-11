@@ -84,6 +84,33 @@ export type DbFamilyMember = {
   relation: string | null;
   birth_year: number | null;
   notes: string | null;
+  phone: string | null;
+  gender: string | null;
+  blood_type: string | null;
+  chronic_conditions: string | null;
+  allergies: string | null;
+  created_at: string;
+};
+
+export type DbMedicalFile = {
+  id: string;
+  client_id: string;
+  family_member_id: string | null;
+  title: string;
+  file_type: "report" | "lab" | "xray" | "prescription" | "other";
+  storage_path: string;
+  created_at: string;
+};
+
+export type DbMedicineReminder = {
+  id: string;
+  client_id: string;
+  family_member_id: string | null;
+  medicine_name: string;
+  dose: string | null;
+  times: string[];
+  notify_caregiver: boolean;
+  active: boolean;
   created_at: string;
 };
 
