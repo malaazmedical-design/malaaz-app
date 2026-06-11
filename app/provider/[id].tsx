@@ -5,12 +5,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert, Linking, Platform, Pressable, ScrollView, Text, View,
+  Alert, Platform, Pressable, ScrollView, Text, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card, Pill, PrimaryButton, Stars } from "@/components/ui";
 import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS } from "@/constants/data";
+import { callCompany, whatsappCompany } from "@/lib/contact";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -114,13 +115,20 @@ export default function ProviderScreen() {
             </View>
           </View>
 
-          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 16 }}>
+          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
             <Pill label={`${provider.yearsExperience} سنة خبرة`} icon="medal" />
             <Pill label={provider.responseTime} icon="clock-fast" tone={provider.available ? "success" : "default"} />
-            <Pressable onPress={() => Linking.openURL(`tel:${provider.phone}`)}
+            {/* التواصل دايماً مع رقم الشركة الرئيسي */}
+            <Pressable onPress={callCompany}
               style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#C9A84C22", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99, borderWidth: 1, borderColor: "#C9A84C44" }}>
               <MaterialCommunityIcons name="phone" size={13} color="#C9A84C" />
               <Text style={{ color: "#C9A84C", fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>اتصال</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => whatsappCompany(`مرحباً، عندي استفسار عن مقدم الخدمة: ${provider.name} (${provider.title})`)}
+              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#25D36622", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99, borderWidth: 1, borderColor: "#25D36644" }}>
+              <MaterialCommunityIcons name="whatsapp" size={13} color="#25D366" />
+              <Text style={{ color: "#25D366", fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>واتساب</Text>
             </Pressable>
           </View>
         </LinearGradient>
@@ -149,7 +157,9 @@ export default function ProviderScreen() {
                       <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>{svc.description}</Text>
                       <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
                         <Text style={{ color: isActive ? "#C9A84C" : "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>{svc.price} ج.م</Text>
-                        <Text style={{ color: isActive ? "#FFFFFF66" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>{svc.durationMinutes} دقيقة</Text>
+                        {svc.durationLabel ? (
+                          <Text style={{ color: isActive ? "#FFFFFF66" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>⏱ {svc.durationLabel}</Text>
+                        ) : null}
                       </View>
                     </View>
                     <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C" : "transparent", alignItems: "center", justifyContent: "center" }}>

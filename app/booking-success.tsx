@@ -3,6 +3,8 @@ import { router } from "expo-router";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { callCompany, whatsappCompany, COMPANY_PHONE } from "@/lib/contact";
 import { useColors } from "@/hooks/useColors";
 
 export default function BookingSuccessScreen() {
@@ -23,9 +25,13 @@ export default function BookingSuccessScreen() {
       </Text>
 
       <View style={{ backgroundColor: "#FFFFFF0D", borderRadius: 18, padding: 20, width: "100%", marginBottom: 32, borderWidth: 1, borderColor: "#C9A84C33" }}>
-        <InfoLine icon="clock-check-outline" text="سيتم التواصل معك خلال 30 دقيقة" />
-        <InfoLine icon="phone" text="للاستفسار: 01039091989" />
-        <InfoLine icon="whatsapp" text="واتساب: 01039091989" />
+        <InfoLine icon="clock-check-outline" text="سيتم التواصل معك خلال 15 دقيقة" />
+        <Pressable onPress={callCompany}>
+          <InfoLine icon="phone" text={`للاستفسار: ${COMPANY_PHONE}`} />
+        </Pressable>
+        <Pressable onPress={() => whatsappCompany("مرحباً، لسه عامل طلب حجز جديد من تطبيق ملاذ وعندي استفسار 🙏")}>
+          <InfoLine icon="whatsapp" text={`واتساب: ${COMPANY_PHONE}`} />
+        </Pressable>
       </View>
 
       <Pressable

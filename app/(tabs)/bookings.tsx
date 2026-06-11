@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Card, EmptyState, Pill, PrimaryButton } from "@/components/ui";
 import { PAYMENT_METHOD_LABELS } from "@/constants/data";
+import { whatsappCompany } from "@/lib/contact";
 import { Booking, useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -213,6 +214,21 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
                 <DetailField label="رقم الحجز" value={`#${booking.id.slice(-6).toUpperCase()}`} />
                 <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })} />
               </View>
+
+              {/* استفسار واتساب برسالة جاهزة عن الحجز ده تحديداً */}
+              <Pressable
+                onPress={() =>
+                  whatsappCompany(
+                    `مرحباً، عندي استفسار عن حجزي رقم #${booking.id.slice(-6).toUpperCase()}\n` +
+                      `الخدمة: ${booking.service_type}${booking.sub_option ? ` — ${booking.sub_option}` : ""}\n` +
+                      `الموعد: ${booking.appointment_time ?? "أسرع وقت ممكن"}`
+                  )
+                }
+                style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#25D366", padding: 14, borderRadius: 14, marginTop: 16 }}
+              >
+                <MaterialCommunityIcons name="whatsapp" size={20} color="#FFFFFF" />
+                <Text style={{ color: "#FFFFFF", fontFamily: "Cairo_700Bold", fontSize: 14 }}>استفسار عن الحجز على واتساب</Text>
+              </Pressable>
             </ScrollView>
           </Pressable>
         </Pressable>

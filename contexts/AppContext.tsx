@@ -10,7 +10,13 @@ import React, {
 } from "react";
 
 import { registerClientPushToken } from "@/lib/push";
-import { supabase, DbBooking } from "@/lib/supabase";
+import {
+  supabase,
+  DbBooking,
+  DbCoverageArea,
+  DbProviderService,
+  DbSubService,
+} from "@/lib/supabase";
 import {
   Provider,
   mapDbProviderToProvider,
@@ -98,6 +104,10 @@ type AppContextValue = {
   loadingProviders: boolean;
   refreshProviders: () => Promise<void>;
 
+  // بيانات الخدمات والمناطق من قاعدة البيانات (زي الموقع)
+  subServices: DbSubService[];
+  coverageAreas: DbCoverageArea[];
+
   // Bookings
   bookings: Booking[];
   loadingBookings: boolean;
@@ -116,6 +126,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
+  const [subServices, setSubServices] = useState<DbSubService[]>([]);
+  const [coverageAreas, setCoverageAreas] = useState<DbCoverageArea[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
@@ -150,7 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshProviders = useCallback(async () => {
     setLoadingProviders(true);
     try {
-      const [provRes, reviewsRes] = await Promise.all([
+      const [provRes, reviewsRes, subsRes, areasRes, provSvcRes] = await Promise.all([
         supabase
           .from("providers")
           .select("*")
@@ -158,6 +170,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .order("created_at", { ascending: false }),
         // عدد التقييمات المعتمدة لكل مقدم (ديناميكي من قاعدة البيانات)
         supabase.from("reviews").select("provider_id").eq("is_approved", true),
+        supabase.from("sub_services").select("*").eq("is_active", true).order("name"),
+        supabase.from("coverage_areas").select("*").eq("is_active", true).order("name"),
+        supabase.from("provider_services").select("*").eq("is_active", true),
       ]);
 
       if (provRes.error) throw provRes.error;
@@ -167,10 +182,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (r.provider_id) counts[r.provider_id] = (counts[r.provider_id] ?? 0) + 1;
       }
 
+      const subs = (subsRes.data ?? []) as DbSubService[];
+      const subsById = new Map(subs.map((s) => [s.id, s]));
+      setSubServices(subs);
+      setCoverageAreas((areasRes.data ?? []) as DbCoverageArea[]);
+
+      // الخدمات والأسعار الحقيقية اللي كل مقدم حددها من بوابته
+      const servicesByProvider: Record<string, DbProviderService[]> = {};
+      for (const ps of (provSvcRes.data ?? []) as DbProviderService[]) {
+        (servicesByProvider[ps.provider_id] ??= []).push(ps);
+      }
+
       setProviders(
         (provRes.data ?? []).map((db) => {
           const p = mapDbProviderToProvider(db);
-          return { ...p, reviewsCount: counts[p.id] ?? 0 };
+          const own = servicesByProvider[p.id] ?? [];
+          const consultant = db.grade === "استشاري";
+          const realServices = own
+            .map((ps) => {
+              const sub = subsById.get(ps.sub_service_id);
+              if (!sub) return null;
+              const fallbackPrice =
+                (consultant ? sub.price_min_consultant : sub.price_min_specialist) ??
+                sub.price_min ?? 0;
+              return {
+                id: ps.id,
+                name: sub.name,
+                description: sub.service_name,
+                price: ps.custom_price ?? fallbackPrice,
+                durationLabel: sub.duration ?? "",
+              };
+            })
+            .filter((s): s is NonNullable<typeof s> => s !== null);
+
+          return {
+            ...p,
+            reviewsCount: counts[p.id] ?? 0,
+            // لو المقدم محدد خدماته وأسعاره — نعرضها هي؛ وإلا الافتراضية
+            services: realServices.length ? realServices : p.services,
+          };
         })
       );
     } catch (err) {
@@ -336,6 +386,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       providers,
       loadingProviders,
       refreshProviders,
+      subServices,
+      coverageAreas,
       bookings,
       loadingBookings,
       createBooking,
@@ -343,7 +395,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addReview,
       refreshBookings,
     }),
-    [profile, isHydrated, providers, loadingProviders, bookings, loadingBookings]
+    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, bookings, loadingBookings]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

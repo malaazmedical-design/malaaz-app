@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PrimaryButton } from "@/components/ui";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { callCompany, whatsappCompany } from "@/lib/contact";
 
 const TERMS_URL = "https://malaaz-plum.vercel.app/privacy.html";
 
@@ -239,8 +240,12 @@ export default function ProfileScreen() {
         {/* App Info */}
         <View style={{ backgroundColor: "#1C2B2A", borderRadius: 18, padding: 16, marginTop: 8, borderWidth: 1, borderColor: "#C9A84C33" }}>
           <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right", marginBottom: 12 }}>عن ملاذ</Text>
-          <InfoLine icon="phone" text="01039091989" />
-          <InfoLine icon="whatsapp" text="واتساب: 01039091989" />
+          <Pressable onPress={callCompany}>
+            <InfoLine icon="phone" text="01039091989" />
+          </Pressable>
+          <Pressable onPress={() => whatsappCompany("مرحباً، عندي استفسار عام عن خدمات ملاذ 🙏")}>
+            <InfoLine icon="whatsapp" text="واتساب: 01039091989" />
+          </Pressable>
           <InfoLine icon="information" text="خدمات طبية منزلية — القاهرة والجيزة" />
           <InfoLine icon="shield-check" text="الإصدار 1.0.0" />
         </View>

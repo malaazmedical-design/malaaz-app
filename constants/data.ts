@@ -74,14 +74,14 @@ export const PAYMENT_METHODS = [
   {
     id: "vodafone_cash" as PaymentMethod,
     name: "محفظة فودافون",
-    description: "تحويل على رقم",
+    description: "حوّل على المحفظة الرسمية وأظهر لقطة الشاشة لمقدم الخدمة —",
     icon: "cellphone",
     detail: "01039091989",
   },
   {
     id: "instapay" as PaymentMethod,
     name: "إنستاباي",
-    description: "تحويل فوري عبر إنستاباي",
+    description: "سيتواصل معك فريقنا على واتساب لإتمام التحويل 💬",
     icon: "contactless-payment",
     detail: null,
   },
@@ -96,7 +96,7 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
 // ─── فترات المواعيد (مطابقة للموقع) ─────────────────────────────────────────
 export const TIME_PERIODS = [
   "أسرع وقت ممكن",
-  "صباحاً (9 - 12)",
+  "صباحاً (8 - 12)",
   "ظهراً (12 - 4)",
   "مساءً (4 - 9)",
 ];
@@ -107,7 +107,7 @@ export type ProviderService = {
   name: string;
   description: string;
   price: number;
-  durationMinutes: number;
+  durationLabel: string;
 };
 
 export type Provider = {
@@ -191,20 +191,20 @@ function getDefaultServices(type: ServiceType, basePrice?: number): ProviderServ
   switch (type) {
     case "doctor":
       return [
-        { id: "d1", name: "كشف عام شامل",         description: "فحص سريري كامل مع استشارة طبية", price: basePrice ?? 350, durationMinutes: 45 },
-        { id: "d2", name: "متابعة أمراض مزمنة",    description: "سكري، ضغط، قلب",                 price: basePrice ?? 250, durationMinutes: 30 },
-        { id: "d3", name: "كشف كبار السن",         description: "تقييم صحي شامل",                  price: basePrice ?? 400, durationMinutes: 60 },
+        { id: "d1", name: "كشف عام شامل",         description: "فحص سريري كامل مع استشارة طبية", price: basePrice ?? 350, durationLabel: "45 دقيقة" },
+        { id: "d2", name: "متابعة أمراض مزمنة",    description: "سكري، ضغط، قلب",                 price: basePrice ?? 250, durationLabel: "30 دقيقة" },
+        { id: "d3", name: "كشف كبار السن",         description: "تقييم صحي شامل",                  price: basePrice ?? 400, durationLabel: "60 دقيقة" },
       ];
     case "nurse":
       return [
-        { id: "n1", name: "تركيب محلول وريدي",     description: "حسب وصفة الطبيب",                 price: basePrice ?? 200, durationMinutes: 60 },
-        { id: "n2", name: "تغيير وعناية بالجروح",  description: "تنظيف وتغيير الضمادات",            price: basePrice ?? 150, durationMinutes: 30 },
-        { id: "n3", name: "حقن عضل / وريد",        description: "إعطاء الحقن بأمان",               price: basePrice ?? 100, durationMinutes: 20 },
+        { id: "n1", name: "تركيب محلول وريدي",     description: "حسب وصفة الطبيب",                 price: basePrice ?? 200, durationLabel: "60 دقيقة" },
+        { id: "n2", name: "تغيير وعناية بالجروح",  description: "تنظيف وتغيير الضمادات",            price: basePrice ?? 150, durationLabel: "30 دقيقة" },
+        { id: "n3", name: "حقن عضل / وريد",        description: "إعطاء الحقن بأمان",               price: basePrice ?? 100, durationLabel: "20 دقيقة" },
       ];
     case "xray":
       return [
-        { id: "x1", name: "أشعة سينية للصدر",      description: "مع تقرير طبي معتمد",              price: basePrice ?? 500, durationMinutes: 30 },
-        { id: "x2", name: "سونار منزلي",           description: "بطن أو حمل بجهاز محمول",          price: basePrice ?? 600, durationMinutes: 45 },
+        { id: "x1", name: "أشعة سينية للصدر",      description: "مع تقرير طبي معتمد",              price: basePrice ?? 500, durationLabel: "30 دقيقة" },
+        { id: "x2", name: "سونار منزلي",           description: "بطن أو حمل بجهاز محمول",          price: basePrice ?? 600, durationLabel: "45 دقيقة" },
       ];
   }
 }
