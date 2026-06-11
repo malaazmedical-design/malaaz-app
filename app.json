@@ -37,6 +37,7 @@
         "backgroundColor": "#1C2B2A"
       },
       "package": "com.malaaz.homecare",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "permissions": [
         "ACCESS_FINE_LOCATION",
