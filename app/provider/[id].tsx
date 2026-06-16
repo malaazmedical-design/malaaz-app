@@ -1,0 +1,272 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useState } from "react";
+import {
+  Alert, Platform, Pressable, ScrollView, Text, View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { Card, Pill, PrimaryButton, Stars } from "@/components/ui";
+import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS } from "@/constants/data";
+import { serviceIcon } from "@/constants/icons";
+import { callCompany, whatsappCompany } from "@/lib/contact";
+import { useApp } from "@/contexts/AppContext";
+import { useColors } from "@/hooks/useColors";
+
+function getNextDays(count: number) {
+  const days: { key: string; label: string; sub: string }[] = [];
+  const today = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    days.push({
+      // التاريخ بصيغة عربية مقروءة عشان يظهر كده في الحجز عند الأدمن والمقدم
+      key: d.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" }),
+      label: i === 0 ? "اليوم" : i === 1 ? "غداً" : d.toLocaleDateString("ar-EG", { weekday: "short" }),
+      sub: d.toLocaleDateString("ar-EG", { day: "numeric", month: "short" }),
+    });
+  }
+  return days;
+}
+
+export default function ProviderScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { providers, profile, createBooking, providerReviews } = useApp();
+  const provider = providers.find((p) => p.id === id);
+  const reviews = (id && providerReviews[id]) || [];
+
+  const [selectedService, setSelectedService] = useState<ProviderService | null>(null);
+  const [selectedDay, setSelectedDay] = useState(0);
+  const [selectedTime, setSelectedTime] = useState<string>(TIME_PERIODS[0]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const webTopInset = Platform.OS === "web" ? 67 : 0;
+  const days = getNextDays(7);
+
+  if (!provider) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <MaterialCommunityIcons name="account-question-outline" size={48} color={colors.mutedForeground} />
+        <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", marginTop: 12 }}>مقدم الخدمة غير موجود</Text>
+        <View style={{ marginTop: 16 }}>
+          <PrimaryButton label="رجوع" onPress={() => router.back()} />
+        </View>
+      </View>
+    );
+  }
+
+  const handleBook = async () => {
+    if (!selectedService) { Alert.alert("تنبيه", "اختار الخدمة أولاً"); return; }
+    if (!paymentMethod) { Alert.alert("تنبيه", "اختار طريقة الدفع"); return; }
+    if (!profile.name || !profile.phone) {
+      Alert.alert("تنبيه", "يرجى إدخال بياناتك من صفحة حسابي أولاً", [
+        { text: "إلغاء", style: "cancel" },
+        { text: "اذهب لحسابي", onPress: () => router.push("/profile") },
+      ]);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await createBooking({
+        serviceType: provider.serviceType,
+        serviceName: selectedService.name,
+        servicePrice: selectedService.price,
+        providerId: provider.id,
+        providerName: provider.name,
+        // "أسرع وقت ممكن" مش محتاجة تاريخ — زي الموقع
+        scheduledDate: selectedTime === TIME_PERIODS[0] ? undefined : days[selectedDay]?.key,
+        scheduledTime: selectedTime,
+        paymentMethod,
+      });
+      router.replace("/booking-success");
+    } catch (err: any) {
+      Alert.alert("خطأ", err.message ?? "حدث خطأ، حاول مرة أخرى");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} showsVerticalScrollIndicator={false}>
+
+        {/* ─── Hero ─── */}
+        <LinearGradient colors={["#1C2B2A", "#243635"]} style={{ paddingTop: insets.top + 12 + webTopInset, paddingBottom: 28, paddingHorizontal: 20 }}>
+          <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF15", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+            <MaterialCommunityIcons name="chevron-right" size={24} color="#C9A84C" />
+          </Pressable>
+
+          <View style={{ flexDirection: "row-reverse", gap: 16, alignItems: "center" }}>
+            <Image source={provider.avatar} style={{ width: 88, height: 88, borderRadius: 24, borderWidth: 3, borderColor: "#C9A84C" }} contentFit="cover" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "#FFFFFF", fontFamily: "Cairo_700Bold", fontSize: 20, textAlign: "right" }}>{provider.name}</Text>
+              <Text style={{ color: "#C9A84C", fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", marginTop: 4 }}>{provider.title}</Text>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8 }}>
+                {provider.reviewsCount > 0 ? (
+                  <>
+                    <Stars rating={provider.rating} size={14} />
+                    <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 12 }}>
+                      {provider.rating.toFixed(1)} ({provider.reviewsCount} تقييم)
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 12 }}>
+                    ⭐ مقدم جديد
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+            <Pill label={`${provider.yearsExperience} سنة خبرة`} icon="medal" />
+            <Pill label={provider.responseTime} icon="clock-fast" tone={provider.available ? "success" : "default"} />
+            {/* التواصل دايماً مع رقم الشركة الرئيسي */}
+            <Pressable onPress={callCompany}
+              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#C9A84C22", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99, borderWidth: 1, borderColor: "#C9A84C44" }}>
+              <MaterialCommunityIcons name="phone" size={13} color="#C9A84C" />
+              <Text style={{ color: "#C9A84C", fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>اتصال</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => whatsappCompany(`مرحباً، عندي استفسار عن مقدم الخدمة: ${provider.name} (${provider.title})`)}
+              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#25D36622", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99, borderWidth: 1, borderColor: "#25D36644" }}>
+              <MaterialCommunityIcons name="whatsapp" size={13} color="#25D366" />
+              <Text style={{ color: "#25D366", fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>واتساب</Text>
+            </Pressable>
+          </View>
+        </LinearGradient>
+
+        <View style={{ padding: 20, gap: 24 }}>
+
+          {/* Bio */}
+          {provider.bio ? (
+            <View>
+              <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 8 }}>نبذة</Text>
+              <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 14, textAlign: "right", lineHeight: 24 }}>{provider.bio}</Text>
+            </View>
+          ) : null}
+
+          {/* ─── آراء العملاء (زي الموقع) ─── */}
+          {reviews.length > 0 ? (
+            <View>
+              <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>
+                ⭐ آراء العملاء ({reviews.length})
+              </Text>
+              <View style={{ gap: 8 }}>
+                {reviews.map((r, i) => (
+                  <View key={i} style={{ backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 13 }}>{r.clientName}</Text>
+                      <Stars rating={r.rating} size={12} />
+                    </View>
+                    {r.text ? (
+                      <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", lineHeight: 22 }}>
+                        {r.text}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {/* ─── اختيار الخدمة ─── */}
+          <View>
+            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>اختار الخدمة</Text>
+            <View style={{ gap: 8 }}>
+              {provider.services.map((svc) => {
+                const isActive = selectedService?.id === svc.id;
+                return (
+                  <Pressable key={svc.id} onPress={() => setSelectedService(svc)}
+                    style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 2, backgroundColor: isActive ? "#1C2B2A" : colors.card, borderColor: isActive ? "#C9A84C" : colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.10)", borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.35)", alignItems: "center", justifyContent: "center" }}>
+                      <MaterialCommunityIcons name={serviceIcon(svc.name) as any} size={24} color={isActive ? "#1C2B2A" : "#b8860b"} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>{svc.name}</Text>
+                      <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>{svc.description}</Text>
+                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
+                        <Text style={{ color: isActive ? "#C9A84C" : "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>{svc.price} ج.م</Text>
+                        {svc.durationLabel ? (
+                          <Text style={{ color: isActive ? "#FFFFFF66" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>⏱ {svc.durationLabel}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C" : "transparent", alignItems: "center", justifyContent: "center" }}>
+                      {isActive ? <MaterialCommunityIcons name="check" size={13} color="#1C2B2A" /> : null}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* ─── الموعد ─── */}
+          <View>
+            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>اختار الفترة</Text>
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+              {TIME_PERIODS.map((t) => (
+                <Pressable key={t} onPress={() => setSelectedTime(t)}
+                  style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, backgroundColor: selectedTime === t ? "#1C2B2A" : colors.card, borderColor: selectedTime === t ? "#C9A84C" : colors.border }}>
+                  <Text style={{ color: selectedTime === t ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>{t}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* اختيار اليوم — يظهر بس لو مش "أسرع وقت ممكن" */}
+            {selectedTime !== TIME_PERIODS[0] ? (
+              <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                {days.map((d, i) => (
+                  <Pressable key={d.key} onPress={() => setSelectedDay(i)}
+                    style={{ alignItems: "center", padding: 12, borderRadius: 14, minWidth: 72, borderWidth: 2, backgroundColor: selectedDay === i ? "#1C2B2A" : colors.card, borderColor: selectedDay === i ? "#C9A84C" : colors.border }}>
+                    <Text style={{ color: selectedDay === i ? "#C9A84C" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>{d.label}</Text>
+                    <Text style={{ color: selectedDay === i ? "#FFFFFF" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, marginTop: 4 }}>{d.sub}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+
+          {/* ─── طريقة الدفع ─── */}
+          <View>
+            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>طريقة الدفع</Text>
+            <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+              {PAYMENT_METHODS.map((opt) => (
+                <Pressable key={opt.id} onPress={() => setPaymentMethod(opt.id)}
+                  style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 12, borderRadius: 14, borderWidth: 2, backgroundColor: paymentMethod === opt.id ? "#1C2B2A" : colors.card, borderColor: paymentMethod === opt.id ? "#C9A84C" : colors.border }}>
+                  <MaterialCommunityIcons name={opt.icon as any} size={20} color={paymentMethod === opt.id ? "#C9A84C" : colors.mutedForeground} />
+                  <Text style={{ color: paymentMethod === opt.id ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "center" }}>{opt.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+        </View>
+      </ScrollView>
+
+      {/* ─── Sticky Book Button ─── */}
+      <View style={{ padding: 20, paddingBottom: insets.bottom + 16, backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.border }}>
+        {selectedService ? (
+          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13 }}>الإجمالي</Text>
+            <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 22 }}>{selectedService.price} ج.م</Text>
+          </View>
+        ) : null}
+        <PrimaryButton
+          label={submitting ? "جاري الحجز..." : "تأكيد الحجز"}
+          icon={submitting ? undefined : "calendar-check"}
+          loading={submitting}
+          disabled={!selectedService || !paymentMethod}
+          onPress={handleBook}
+        />
+      </View>
+    </View>
+  );
+}
