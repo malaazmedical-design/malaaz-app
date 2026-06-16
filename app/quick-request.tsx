@@ -55,6 +55,23 @@ export default function QuickRequestScreen() {
   const [area, setArea] = useState(profile.area);
   const [areaPickerOpen, setAreaPickerOpen] = useState(false);
   const [address, setAddress] = useState(profile.address);
+
+  // لو البروفايل اتحمّل بعد mount (async من Supabase) — نملّي الحقول الفاضية فقط
+  React.useEffect(() => {
+    setName((prev) => prev || profile.name);
+    setPhone((prev) => prev || profile.phone);
+    setEmail((prev) => prev || profile.email || "");
+    setArea((prev) => prev || profile.area);
+    setAddress((prev) => prev || profile.address);
+  }, [profile.name, profile.phone, profile.email, profile.area, profile.address]);
+
+  // لو في عنوان افتراضي محفوظ — نملّيه تلقائياً
+  React.useEffect(() => {
+    if (!addresses.length) return;
+    const def = addresses.find((a) => a.is_default) ?? addresses[0];
+    setAddress((prev) => prev || def.address);
+    setArea((prev) => prev || def.area || "");
+  }, [addresses]);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIODS[0]);
   const [notes, setNotes] = useState("");
