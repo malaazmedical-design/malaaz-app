@@ -1,0 +1,36 @@
+name: EAS Update (OTA)
+
+on:
+  push:
+    branches:
+      - main
+      - claude/zealous-albattani-h4ru0a
+
+jobs:
+  update:
+    name: EAS Update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: malaaz-mobile/malaaz-app/package-lock.json
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: malaaz-mobile/malaaz-app
+        run: npm install --legacy-peer-deps
+
+      - name: Publish OTA update
+        working-directory: malaaz-mobile/malaaz-app
+        run: eas update --branch preview --message "${{ github.event.head_commit.message }}" --non-interactive
