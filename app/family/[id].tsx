@@ -77,6 +77,7 @@ export default function FamilyMemberScreen() {
   const [medTimes, setMedTimes] = useState<string[]>([]);
   const [notifyCaregiver, setNotifyCaregiver] = useState(true);
   const [medBusy, setMedBusy] = useState(false);
+  const [editingMedId, setEditingMedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!member) return;
@@ -196,22 +197,45 @@ export default function FamilyMemberScreen() {
     ]);
   };
 
-  // ─── إضافة دواء ──────────────────────────────────────────────────────────
-  const addMedicine = async () => {
+  // ─── إضافة / تعديل دواء ──────────────────────────────────────────────────
+  const openEditMed = (rem: DbMedicineReminder) => {
+    setEditingMedId(rem.id);
+    setMedName(rem.medicine_name);
+    setMedDose(rem.dose ?? "");
+    setMedTimes(rem.times);
+    setNotifyCaregiver(rem.notify_caregiver ?? true);
+    setMedOpen(true);
+  };
+
+  const resetMedForm = () => {
+    setEditingMedId(null); setMedName(""); setMedDose(""); setMedTimes([]); setNotifyCaregiver(true);
+  };
+
+  const saveMedicine = async () => {
     if (!medName.trim()) { Alert.alert("تنبيه", "اكتب اسم الدواء"); return; }
     if (!medTimes.length) { Alert.alert("تنبيه", "اختر وقت واحد على الأقل"); return; }
     setMedBusy(true);
     try {
-      const { error } = await supabase.from("medicine_reminders").insert([{
-        client_id: client.id,
-        family_member_id: member.id,
-        medicine_name: medName.trim(),
-        dose: medDose.trim() || null,
-        times: medTimes,
-        notify_caregiver: notifyCaregiver,
-      }]);
-      if (error) throw new Error(error.message);
-      setMedOpen(false); setMedName(""); setMedDose(""); setMedTimes([]); setNotifyCaregiver(true);
+      if (editingMedId) {
+        const { error } = await supabase.from("medicine_reminders").update({
+          medicine_name: medName.trim(),
+          dose: medDose.trim() || null,
+          times: medTimes,
+          notify_caregiver: notifyCaregiver,
+        }).eq("id", editingMedId);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase.from("medicine_reminders").insert([{
+          client_id: client.id,
+          family_member_id: member.id,
+          medicine_name: medName.trim(),
+          dose: medDose.trim() || null,
+          times: medTimes,
+          notify_caregiver: notifyCaregiver,
+        }]);
+        if (error) throw new Error(error.message);
+      }
+      setMedOpen(false); resetMedForm();
       loadData();
     } catch (e: any) {
       Alert.alert("خطأ", e.message ?? "تعذر الحفظ");
@@ -381,9 +405,14 @@ export default function FamilyMemberScreen() {
                   <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>💊 {rem.medicine_name}</Text>
                   {rem.dose ? <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" }}>{rem.dose}</Text> : null}
                 </View>
-                <Pressable onPress={() => deleteMedicine(rem)} style={{ backgroundColor: "#FEE2E2", borderRadius: 8, padding: 6 }}>
-                  <MaterialCommunityIcons name="trash-can-outline" size={15} color="#DC2626" />
-                </Pressable>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  <Pressable onPress={() => openEditMed(rem)} style={{ backgroundColor: "rgba(201,168,76,0.12)", borderRadius: 8, padding: 6 }}>
+                    <MaterialCommunityIcons name="pencil-outline" size={15} color="#b8860b" />
+                  </Pressable>
+                  <Pressable onPress={() => deleteMedicine(rem)} style={{ backgroundColor: "#FEE2E2", borderRadius: 8, padding: 6 }}>
+                    <MaterialCommunityIcons name="trash-can-outline" size={15} color="#DC2626" />
+                  </Pressable>
+                </View>
               </View>
               <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                 {rem.times.map((t) => (
@@ -432,13 +461,13 @@ export default function FamilyMemberScreen() {
         </Pressable>
       </Modal>
 
-      {/* ─── مودال إضافة دواء ─── */}
-      <Modal visible={medOpen} transparent animationType="slide" onRequestClose={() => setMedOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => setMedOpen(false)}>
+      {/* ─── مودال إضافة / تعديل دواء ─── */}
+      <Modal visible={medOpen} transparent animationType="slide" onRequestClose={() => { setMedOpen(false); resetMedForm(); }}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => { setMedOpen(false); resetMedForm(); }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "85%" }}>
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
               <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 14 }}>
-                إضافة دواء لـ {member.name}
+                {editingMedId ? `تعديل دواء — ${member.name}` : `إضافة دواء لـ ${member.name}`}
               </Text>
               <TextInput value={medName} onChangeText={setMedName} placeholder="اسم الدواء * (مثال: أنسولين)" placeholderTextColor={colors.mutedForeground}
                 style={[inputStyle, { backgroundColor: colors.surfaceMuted, marginBottom: 10 }]} />
@@ -467,8 +496,8 @@ export default function FamilyMemberScreen() {
                 <Switch value={notifyCaregiver} onValueChange={setNotifyCaregiver} trackColor={{ false: "#ccc", true: "#43A047" }} thumbColor="#FFFFFF" />
               </View>
 
-              <Pressable onPress={addMedicine} disabled={medBusy} style={{ backgroundColor: GOLD, borderRadius: 12, padding: 14, alignItems: "center", opacity: medBusy ? 0.6 : 1 }}>
-                <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 14 }}>{medBusy ? "جاري الحفظ..." : "حفظ وتفعيل التذكير"}</Text>
+              <Pressable onPress={saveMedicine} disabled={medBusy} style={{ backgroundColor: GOLD, borderRadius: 12, padding: 14, alignItems: "center", opacity: medBusy ? 0.6 : 1 }}>
+                <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 14 }}>{medBusy ? "جاري الحفظ..." : editingMedId ? "حفظ التعديلات" : "حفظ وتفعيل التذكير"}</Text>
               </Pressable>
             </ScrollView>
           </Pressable>
