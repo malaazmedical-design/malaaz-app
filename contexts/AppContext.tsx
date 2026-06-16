@@ -159,6 +159,7 @@ type AppContextValue = {
   familyMembers: DbFamilyMember[];
   addFamilyMember: (m: { name: string; relation?: string; birthYear?: number; notes?: string }) => Promise<void>;
   deleteFamilyMember: (id: string) => Promise<void>;
+  updateFamilyMember: (id: string, m: { name: string; relation?: string; birthYear?: number; notes?: string }) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -299,7 +300,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setClient(null);
     setAddresses([]);
     setFamilyMembers([]);
-    setProfile((prev) => ({ ...prev, isGuest: true }));
+    const cleared: CustomerProfile = { ...DEFAULT_PROFILE };
+    setProfile(cleared);
+    AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(cleared)).catch(() => {});
   };
 
   const clientResetPassword = async (email: string) => {
@@ -352,6 +355,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteFamilyMember = async (id: string) => {
     if (!client) return;
     await supabase.from("family_members").delete().eq("id", id);
+    loadClientData(client.id);
+  };
+
+  const updateFamilyMember = async (id: string, m: { name: string; relation?: string; birthYear?: number; notes?: string }) => {
+    if (!client) return;
+    const { error } = await supabase.from("family_members").update({
+      name: m.name,
+      relation: m.relation ?? null,
+      birth_year: m.birthYear ?? null,
+      notes: m.notes ?? null,
+    }).eq("id", id);
+    if (error) throw new Error(error.message);
     loadClientData(client.id);
   };
 
@@ -522,6 +537,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .from("clients")
         .update({
           name: merged.name || client.name,
+          phone: merged.phone || client.phone || null,
           email: merged.email || null,
           phone2: merged.phone2 || null,
           whatsapp: merged.whatsapp || null,
@@ -660,6 +676,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       familyMembers,
       addFamilyMember,
       deleteFamilyMember,
+      updateFamilyMember,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, bookings, loadingBookings, client, addresses, familyMembers]
