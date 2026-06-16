@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "ملاذ - Malaz"
+version = "1.0.0"
+id = "artifacts/malaz"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 25905
+
+[services.development]
+run = "pnpm --filter @workspace/malaz run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/malaz", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/malaz", "run", "serve" ]
+
+[services.env]
+PORT = "25905"
+BASE_PATH = "/"
