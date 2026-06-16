@@ -157,6 +157,10 @@ export default function QuickRequestScreen() {
         scheduledTime: timePeriod,
         notes: notes.trim() || undefined,
         patientName: name.trim(),
+        patientPhone: phone.trim(),
+        patientEmail: email.trim() || undefined,
+        patientAddress: address.trim() || undefined,
+        patientArea: area || undefined,
       });
       router.replace("/booking-success");
     } catch (err: any) {

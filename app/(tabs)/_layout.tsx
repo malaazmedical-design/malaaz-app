@@ -1,13 +1,34 @@
 import { BlurView } from "expo-blur";
-import { Tabs } from "expo-router";
+import { Tabs, router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { supabase } from "@/lib/supabase";
 
 export default function TabLayout() {
   const colors = useColors();
   const isIOS = Platform.OS === "ios";
+
+  // لو فيه جلسة مقدم خدمة محفوظة — نحوّله لبوابته تلقائياً
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+        const { data } = await supabase
+          .from("providers")
+          .select("id, status")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        if (data && data.status === "active") {
+          router.replace("/provider-portal");
+        }
+      } catch {
+        // ignore — يفضل في صفحة العميل
+      }
+    })();
+  }, []);
 
   return (
     <Tabs

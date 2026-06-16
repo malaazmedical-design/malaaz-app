@@ -76,6 +76,12 @@ export type CreateBookingInput = {
   notes?: string;
   // الحجز لفرد من العائلة — الاسم بيحل محل اسم صاحب الحساب
   patientName?: string;
+  // رقم الموبايل من الفورم مباشرة (يتجاوز تأخير تحديث profile)
+  patientPhone?: string;
+  // البريد والعنوان والمنطقة من الفورم مباشرة
+  patientEmail?: string;
+  patientAddress?: string;
+  patientArea?: string;
 };
 
 export type ClientRegisterInput = {
@@ -226,6 +232,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged)).catch(() => {});
       return merged;
     });
+    // تسجيل توكن الإشعارات مباشرة بعد الدخول بدل الانتظار على تغيّر profile.phone
+    if (c.phone) registerClientPushToken(c.phone).catch(() => {});
     // ربط أي حجوزات قديمة بنفس رقم الموبايل بالحساب (RPC آمنة على السيرفر)
     supabase.rpc("link_my_bookings").then(() => {}, () => {});
     loadClientData(c.id);
@@ -531,7 +539,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ─── Create booking ───────────────────────────────────────────────────────
   const createBooking = async (input: CreateBookingInput): Promise<Booking> => {
-    if (!profile.name || !profile.phone) {
+    // input.patientPhone/patientName يأتيان من الفورم مباشرة (قبل تحديث profile state)
+    // client بيوفر fallback لو profile لسه ما اتحدثش (race condition بعد اللوجين)
+    const resolvedName = input.patientName || profile.name || client?.name || "";
+    const resolvedPhone = input.patientPhone || profile.phone || client?.phone || "";
+    if (!resolvedName || !resolvedPhone) {
       throw new Error("يرجى إدخال بياناتك أولاً");
     }
 
@@ -540,21 +552,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const appointmentTime =
       [input.scheduledDate, input.scheduledTime].filter(Boolean).join(" ") || null;
 
-    // المنطقة: من الـ GPS لو اتحددت، وإلا أول جزء من العنوان
-    const derivedArea =
+    const resolvedAddress = input.patientAddress || profile.address || null;
+    const resolvedArea =
+      input.patientArea ||
       profile.area ||
-      profile.address?.split(/[،,]/)[0]?.trim().slice(0, 40) ||
+      resolvedAddress?.split(/[،,]/)[0]?.trim().slice(0, 40) ||
       profile.city ||
       null;
 
     const bookingData = {
       id,
-      patient_name: input.patientName || profile.name,
-      phone: profile.phone,
+      patient_name: resolvedName,
+      phone: resolvedPhone,
       client_id: client?.id ?? null,
-      patient_email: profile.email || null,
-      address: profile.address || null,
-      area: derivedArea,
+      patient_email: input.patientEmail || profile.email || null,
+      address: resolvedAddress,
+      area: resolvedArea,
       service_type: serviceTypeToArabic(input.serviceType as ServiceType),
       sub_option: input.serviceName,
       price: input.servicePrice ?? null,
