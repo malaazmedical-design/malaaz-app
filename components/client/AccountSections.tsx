@@ -159,25 +159,44 @@ const RELATIONS = ["الوالد", "الوالدة", "الزوج/ة", "ابن/ا
 
 export function FamilySection() {
   const colors = useColors();
-  const { familyMembers, addFamilyMember, deleteFamilyMember } = useApp();
+  const { familyMembers, addFamilyMember, deleteFamilyMember, updateFamilyMember } = useApp();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [relation, setRelation] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const openEdit = (m: (typeof familyMembers)[0]) => {
+    setEditingId(m.id);
+    setName(m.name);
+    setRelation(m.relation ?? "");
+    setBirthYear(m.birth_year ? String(m.birth_year) : "");
+    setNotes(m.notes ?? "");
+    setOpen(true);
+  };
 
   const save = async () => {
     if (!name.trim()) { Alert.alert("تنبيه", "أدخل اسم الفرد"); return; }
     setBusy(true);
     try {
-      await addFamilyMember({
-        name: name.trim(),
-        relation: relation || undefined,
-        birthYear: birthYear ? parseInt(birthYear, 10) : undefined,
-        notes: notes.trim() || undefined,
-      });
-      setOpen(false); setName(""); setRelation(""); setBirthYear(""); setNotes("");
+      if (editingId) {
+        await updateFamilyMember(editingId, {
+          name: name.trim(),
+          relation: relation || undefined,
+          birthYear: birthYear ? parseInt(birthYear, 10) : undefined,
+          notes: notes.trim() || undefined,
+        });
+      } else {
+        await addFamilyMember({
+          name: name.trim(),
+          relation: relation || undefined,
+          birthYear: birthYear ? parseInt(birthYear, 10) : undefined,
+          notes: notes.trim() || undefined,
+        });
+      }
+      setOpen(false); setName(""); setRelation(""); setBirthYear(""); setNotes(""); setEditingId(null);
     } catch (e: any) {
       Alert.alert("خطأ", e.message ?? "تعذر الحفظ");
     } finally {
@@ -215,6 +234,12 @@ export function FamilySection() {
             </View>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
               <Pressable
+                onPress={() => openEdit(m)}
+                style={{ backgroundColor: "rgba(201,168,76,0.12)", borderRadius: 8, padding: 6 }}
+              >
+                <MaterialCommunityIcons name="pencil-outline" size={16} color="#b8860b" />
+              </Pressable>
+              <Pressable
                 onPress={() => Alert.alert("حذف", `حذف ${m.name}؟`, [
                   { text: "إلغاء", style: "cancel" },
                   { text: "حذف", style: "destructive", onPress: () => deleteFamilyMember(m.id) },
@@ -229,10 +254,10 @@ export function FamilySection() {
         ))
       )}
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => { setOpen(false); setEditingId(null); setName(""); setRelation(""); setBirthYear(""); setNotes(""); }}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => { setOpen(false); setEditingId(null); setName(""); setRelation(""); setBirthYear(""); setNotes(""); }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 14 }}>إضافة فرد من العائلة</Text>
+            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 14 }}>{editingId ? "تعديل بيانات الفرد" : "إضافة فرد من العائلة"}</Text>
 
             <TextInput value={name} onChangeText={setName} placeholder="الاسم *" placeholderTextColor={colors.mutedForeground}
               style={{ backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 12, textAlign: "right", fontFamily: "Cairo_400Regular", fontSize: 13, color: colors.foreground, borderWidth: 1.5, borderColor: colors.border, marginBottom: 10 }} />
@@ -253,7 +278,7 @@ export function FamilySection() {
               style={{ backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 12, minHeight: 60, textAlign: "right", fontFamily: "Cairo_400Regular", fontSize: 13, color: colors.foreground, borderWidth: 1.5, borderColor: colors.border, marginBottom: 14, textAlignVertical: "top" }} />
 
             <Pressable onPress={save} disabled={busy} style={{ backgroundColor: GOLD, borderRadius: 12, padding: 14, alignItems: "center", opacity: busy ? 0.6 : 1 }}>
-              <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 14 }}>{busy ? "جاري الحفظ..." : "حفظ"}</Text>
+              <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 14 }}>{busy ? "جاري الحفظ..." : editingId ? "حفظ التعديلات" : "حفظ"}</Text>
             </Pressable>
           </Pressable>
         </Pressable>

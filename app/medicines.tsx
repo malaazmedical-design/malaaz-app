@@ -48,6 +48,7 @@ export default function MedicinesScreen() {
   const [dose, setDose] = useState("");
   const [times, setTimes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
@@ -62,6 +63,14 @@ export default function MedicinesScreen() {
 
   const toggleTime = (t: string) => {
     setTimes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t].sort()));
+  };
+
+  const openEdit = (m: Medicine) => {
+    setEditingId(m.id);
+    setName(m.name);
+    setDose(m.dose);
+    setTimes(m.times);
+    setOpen(true);
   };
 
   const addMedicine = async () => {
@@ -96,15 +105,31 @@ export default function MedicinesScreen() {
         }
       }
 
-      const med: Medicine = {
-        id: Date.now().toString(),
-        name: name.trim(),
-        dose: dose.trim(),
-        times,
-        notificationIds,
-      };
-      await persist([...medicines, med]);
-      setOpen(false); setName(""); setDose(""); setTimes([]);
+      if (editingId) {
+        // تعديل: إلغاء الإشعارات القديمة وتحديث بيانات الدواء
+        const existing = medicines.find((m) => m.id === editingId);
+        if (existing) {
+          for (const nid of existing.notificationIds) {
+            await Notifications.cancelScheduledNotificationAsync(nid).catch(() => {});
+          }
+        }
+        const updated = medicines.map((m) =>
+          m.id === editingId
+            ? { ...m, name: name.trim(), dose: dose.trim(), times, notificationIds }
+            : m
+        );
+        await persist(updated);
+      } else {
+        const med: Medicine = {
+          id: Date.now().toString(),
+          name: name.trim(),
+          dose: dose.trim(),
+          times,
+          notificationIds,
+        };
+        await persist([...medicines, med]);
+      }
+      setEditingId(null); setOpen(false); setName(""); setDose(""); setTimes([]);
     } catch (e: any) {
       Alert.alert("خطأ", e.message ?? "تعذر الحفظ");
     } finally {
@@ -166,9 +191,14 @@ export default function MedicinesScreen() {
                     <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 2 }}>{m.dose}</Text>
                   ) : null}
                 </View>
-                <Pressable onPress={() => removeMedicine(m)} style={{ backgroundColor: "#FEE2E2", borderRadius: 8, padding: 7 }}>
-                  <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
-                </Pressable>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  <Pressable onPress={() => openEdit(m)} style={{ backgroundColor: "rgba(201,168,76,0.12)", borderRadius: 8, padding: 7, marginRight: 6 }}>
+                    <MaterialCommunityIcons name="pencil-outline" size={16} color="#b8860b" />
+                  </Pressable>
+                  <Pressable onPress={() => removeMedicine(m)} style={{ backgroundColor: "#FEE2E2", borderRadius: 8, padding: 7 }}>
+                    <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
+                  </Pressable>
+                </View>
               </View>
               <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
                 {m.times.map((t) => (
@@ -191,10 +221,10 @@ export default function MedicinesScreen() {
       </View>
 
       {/* مودال إضافة دواء */}
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => { setOpen(false); setEditingId(null); setName(""); setDose(""); setTimes([]); }}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => { setOpen(false); setEditingId(null); setName(""); setDose(""); setTimes([]); }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 14 }}>إضافة دواء</Text>
+            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 14 }}>{editingId ? "تعديل دواء" : "إضافة دواء"}</Text>
 
             <TextInput value={name} onChangeText={setName} placeholder="اسم الدواء *" placeholderTextColor={colors.mutedForeground}
               style={{ backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 12, textAlign: "right", fontFamily: "Cairo_400Regular", fontSize: 13, color: colors.foreground, borderWidth: 1.5, borderColor: colors.border, marginBottom: 10 }} />
@@ -218,7 +248,7 @@ export default function MedicinesScreen() {
             </View>
 
             <Pressable onPress={addMedicine} disabled={busy} style={{ backgroundColor: GOLD, borderRadius: 12, padding: 14, alignItems: "center", opacity: busy ? 0.6 : 1 }}>
-              <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 14 }}>{busy ? "جاري الحفظ..." : "حفظ وتفعيل التذكير"}</Text>
+              <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 14 }}>{busy ? "جاري الحفظ..." : editingId ? "حفظ التعديلات" : "حفظ وتفعيل التذكير"}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
