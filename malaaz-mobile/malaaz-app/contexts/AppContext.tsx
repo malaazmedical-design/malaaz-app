@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Session } from "@supabase/supabase-js";
 import React, {
   createContext,
   useCallback,
@@ -44,8 +45,11 @@ export type CreateBookingInput = {
   providerName?: string;
   scheduledDate?: string;
   scheduledTime?: string;
-  paymentMethod: "cash" | "vodafone_cash";
+  paymentMethod: "cash" | "vodafone_cash" | "instapay";
   notes?: string;
+  // للحجز بدون تسجيل
+  guestName?: string;
+  guestPhone?: string;
 };
 
 const PROFILE_KEY = "malaaz.profile.v1";
@@ -63,6 +67,12 @@ const DEFAULT_PROFILE: CustomerProfile = {
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 type AppContextValue = {
+  // Auth
+  session: Session | null;
+  isLoggedIn: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+
   // Profile
   profile: CustomerProfile;
   isHydrated: boolean;
@@ -88,6 +98,7 @@ const AppContext = createContext<AppContextValue | undefined>(undefined);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<CustomerProfile>(DEFAULT_PROFILE);
   const [isHydrated, setIsHydrated] = useState(false);
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -95,7 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
-  // ─── Hydrate profile from AsyncStorage ──────────────────────────────────
+  // ─── Hydrate profile from AsyncStorage + Supabase Auth ──────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -107,6 +118,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsHydrated(true);
       }
     })();
+
+    // Listen to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        setSession(newSession);
+        if (newSession?.user) {
+          // جيب بيانات المستخدم من جدول users
+          const { data: userData } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", newSession.user.id)
+            .single();
+
+          if (userData) {
+            const merged: CustomerProfile = {
+              name: userData.full_name ?? "",
+              phone: userData.phone ?? "",
+              address: userData.address ?? "",
+              area: userData.area ?? "",
+              city: userData.city ?? "القاهرة",
+              notes: "",
+              isGuest: false,
+              userId: newSession.user.id,
+            };
+            setProfile(merged);
+            await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged));
+          }
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // ─── Load providers from Supabase ───────────────────────────────────────
@@ -164,14 +207,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (profile.phone) refreshBookings();
   }, [profile.phone]);
 
+  // ─── Auth actions ─────────────────────────────────────────────────────────
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(DEFAULT_PROFILE);
+    setBookings([]);
+    await AsyncStorage.removeItem(PROFILE_KEY);
+  };
+
   // ─── Profile actions ─────────────────────────────────────────────────────
   const updateProfile = async (next: Partial<CustomerProfile>) => {
     const merged = { ...profile, ...next };
     setProfile(merged);
     await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged));
+
+    // لو مسجل، احفظ في Supabase كمان
+    if (session?.user?.id) {
+      await supabase.from("users").upsert({
+        id: session.user.id,
+        full_name: merged.name,
+        phone: merged.phone,
+        address: merged.address,
+        area: merged.area,
+        city: merged.city,
+      });
+    }
   };
 
   const logout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
     setProfile(DEFAULT_PROFILE);
     setBookings([]);
     await AsyncStorage.removeItem(PROFILE_KEY);
@@ -179,13 +250,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ─── Create booking ───────────────────────────────────────────────────────
   const createBooking = async (input: CreateBookingInput): Promise<Booking> => {
-    if (!profile.name || !profile.phone) {
-      throw new Error("يرجى إدخال بياناتك أولاً");
+    const clientName = input.guestName || profile.name;
+    const clientPhone = input.guestPhone || profile.phone;
+
+    if (!clientName || !clientPhone) {
+      throw new Error("يرجى إدخال اسمك ورقم هاتفك أولاً");
+    }
+
+    // احفظ البيانات في البروفايل لو لسه مش محفوظة
+    if (input.guestName || input.guestPhone) {
+      const merged = {
+        ...profile,
+        name: input.guestName || profile.name,
+        phone: input.guestPhone || profile.phone,
+      };
+      setProfile(merged);
+      await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged));
     }
 
     const bookingData = {
-      client_name: profile.name,
-      client_phone: profile.phone,
+      client_name: clientName,
+      client_phone: clientPhone,
       client_address: profile.address,
       area: profile.area,
       city: profile.city,
@@ -210,7 +295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { data: newBooking } = await supabase
       .from("bookings")
       .select("*")
-      .eq("client_phone", profile.phone)
+      .eq("client_phone", clientPhone)
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
@@ -263,6 +348,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ─── Context value ────────────────────────────────────────────────────────
   const value = useMemo<AppContextValue>(
     () => ({
+      session,
+      isLoggedIn: !!session,
+      signIn,
+      signOut,
       profile,
       isHydrated,
       updateProfile,
@@ -277,7 +366,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addReview,
       refreshBookings,
     }),
-    [profile, isHydrated, providers, loadingProviders, bookings, loadingBookings]
+    [session, profile, isHydrated, providers, loadingProviders, bookings, loadingBookings]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

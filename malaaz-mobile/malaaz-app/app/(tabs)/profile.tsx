@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState, useEffect } from "react";
 import {
-  Alert, Platform, Pressable, ScrollView, Text, TextInput, View,
+  Alert, Platform, Pressable, ScrollView, Text, TextInput, View, ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,7 +13,7 @@ import { useColors } from "@/hooks/useColors";
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, logout } = useApp();
+  const { profile, updateProfile, logout, isLoggedIn, signIn, signOut } = useApp();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
   const [name, setName] = useState(profile.name);
@@ -23,6 +23,12 @@ export default function ProfileScreen() {
   const [address, setAddress] = useState(profile.address);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // حالة اللوجين
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
 
   useEffect(() => {
     setName(profile.name);
@@ -59,6 +65,24 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleLogin = async () => {
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      Alert.alert("تنبيه", "يرجى إدخال الإيميل وكلمة المرور");
+      return;
+    }
+    setLoggingIn(true);
+    try {
+      await signIn(loginEmail.trim(), loginPassword.trim());
+      setShowLoginForm(false);
+      setLoginEmail("");
+      setLoginPassword("");
+    } catch (err: any) {
+      Alert.alert("خطأ في الدخول", "تأكد من الإيميل وكلمة المرور");
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
@@ -79,6 +103,83 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 100, gap: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+        {/* ─── قسم الدخول الاختياري ─── */}
+        {!isLoggedIn ? (
+          <View style={{ backgroundColor: "#1C2B2A", borderRadius: 18, padding: 16, borderWidth: 1, borderColor: "#C9A84C33" }}>
+            {!showLoginForm ? (
+              <Pressable
+                onPress={() => setShowLoginForm(true)}
+                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}
+              >
+                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#C9A84C22", alignItems: "center", justifyContent: "center" }}>
+                  <MaterialCommunityIcons name="login" size={22} color="#C9A84C" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" }}>دخول بحساب (اختياري)</Text>
+                  <Text style={{ color: "#FFFFFF66", fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 2 }}>بياناتك بتتملي تلقائياً عند الحجز</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-left" size={20} color="#FFFFFF44" />
+              </Pressable>
+            ) : (
+              <View style={{ gap: 12 }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                  <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 15 }}>تسجيل الدخول</Text>
+                  <Pressable onPress={() => setShowLoginForm(false)}>
+                    <MaterialCommunityIcons name="close" size={20} color="#FFFFFF66" />
+                  </Pressable>
+                </View>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF10", borderRadius: 12, paddingHorizontal: 14, height: 50 }}>
+                  <MaterialCommunityIcons name="email" size={18} color="#C9A84C" />
+                  <TextInput
+                    value={loginEmail}
+                    onChangeText={setLoginEmail}
+                    placeholder="الإيميل"
+                    placeholderTextColor="#FFFFFF44"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: "#FFFFFF", textAlign: "right" }}
+                  />
+                </View>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF10", borderRadius: 12, paddingHorizontal: 14, height: 50 }}>
+                  <MaterialCommunityIcons name="lock" size={18} color="#C9A84C" />
+                  <TextInput
+                    value={loginPassword}
+                    onChangeText={setLoginPassword}
+                    placeholder="كلمة المرور"
+                    placeholderTextColor="#FFFFFF44"
+                    secureTextEntry
+                    style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: "#FFFFFF", textAlign: "right" }}
+                  />
+                </View>
+                <Pressable
+                  onPress={handleLogin}
+                  disabled={loggingIn}
+                  style={{ backgroundColor: "#C9A84C", borderRadius: 12, padding: 14, alignItems: "center", opacity: loggingIn ? 0.7 : 1 }}
+                >
+                  {loggingIn
+                    ? <ActivityIndicator color="#1C2B2A" />
+                    : <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>دخول</Text>
+                  }
+                </Pressable>
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={{ backgroundColor: "#16A34A15", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#16A34A33", flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+            <MaterialCommunityIcons name="check-circle" size={22} color="#16A34A" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: "#16A34A", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>أنت مسجل دخول</Text>
+              <Text style={{ color: "#16A34A99", fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" }}>بياناتك بتتملي تلقائياً</Text>
+            </View>
+            <Pressable onPress={() => Alert.alert("تسجيل الخروج", "هل تريد تسجيل الخروج؟", [
+              { text: "لا", style: "cancel" },
+              { text: "خروج", style: "destructive", onPress: signOut },
+            ])}>
+              <MaterialCommunityIcons name="logout" size={20} color="#16A34A" />
+            </Pressable>
+          </View>
+        )}
 
         <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right" }}>بياناتك الشخصية</Text>
 

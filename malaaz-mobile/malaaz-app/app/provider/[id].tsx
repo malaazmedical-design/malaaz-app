@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert, Linking, Platform, Pressable, ScrollView, Text, View,
+  Alert, Linking, Platform, Pressable, ScrollView, Text, TextInput, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -43,6 +43,10 @@ export default function ProviderScreen() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "instapay" | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // بيانات العميل — مملية من البروفايل لو موجود
+  const [guestName, setGuestName] = useState(profile.name);
+  const [guestPhone, setGuestPhone] = useState(profile.phone);
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const days = getNextDays(7);
 
@@ -61,13 +65,8 @@ export default function ProviderScreen() {
   const handleBook = async () => {
     if (!selectedService) { Alert.alert("تنبيه", "اختار الخدمة أولاً"); return; }
     if (!paymentMethod) { Alert.alert("تنبيه", "اختار طريقة الدفع"); return; }
-    if (!profile.name || !profile.phone) {
-      Alert.alert("تنبيه", "يرجى إدخال بياناتك من صفحة حسابي أولاً", [
-        { text: "إلغاء", style: "cancel" },
-        { text: "اذهب لحسابي", onPress: () => router.push("/profile") },
-      ]);
-      return;
-    }
+    if (!guestName.trim()) { Alert.alert("تنبيه", "يرجى إدخال اسمك"); return; }
+    if (!guestPhone.trim()) { Alert.alert("تنبيه", "يرجى إدخال رقم هاتفك"); return; }
 
     setSubmitting(true);
     try {
@@ -81,6 +80,8 @@ export default function ProviderScreen() {
         scheduledDate: days[selectedDay]?.key,
         scheduledTime: selectedTime ?? undefined,
         paymentMethod,
+        guestName: guestName.trim(),
+        guestPhone: guestPhone.trim(),
       });
       router.replace("/booking-success");
     } catch (err: any) {
@@ -181,6 +182,30 @@ export default function ProviderScreen() {
                 </Pressable>
               ))}
             </View>
+          </View>
+
+          {/* ─── بياناتك ─── */}
+          <View style={{ gap: 10 }}>
+            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 4 }}>بياناتك</Text>
+            {[
+              { label: "الاسم الكامل", icon: "account", value: guestName, onChange: setGuestName, placeholder: "مثال: محمد أحمد", keyboardType: "default" },
+              { label: "رقم الهاتف", icon: "phone", value: guestPhone, onChange: setGuestPhone, placeholder: "01xxxxxxxxx", keyboardType: "phone-pad" },
+            ].map((f) => (
+              <View key={f.label}>
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_600SemiBold", fontSize: 13, textAlign: "right", marginBottom: 6 }}>{f.label}</Text>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: colors.card, borderRadius: 14, paddingHorizontal: 14, height: 52, borderWidth: 1.5, borderColor: colors.border }}>
+                  <MaterialCommunityIcons name={f.icon as any} size={18} color={colors.mutedForeground} />
+                  <TextInput
+                    value={f.value}
+                    onChangeText={f.onChange}
+                    placeholder={f.placeholder}
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType={f.keyboardType as any}
+                    style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: colors.foreground, textAlign: "right" }}
+                  />
+                </View>
+              </View>
+            ))}
           </View>
 
           {/* ─── طريقة الدفع ─── */}
