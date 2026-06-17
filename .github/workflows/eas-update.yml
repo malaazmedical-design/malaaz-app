@@ -26,3 +26,6 @@ jobs:
 
       - name: Push OTA update
         run: eas update --auto --non-interactive
+
+      - name: Link preview channel to main branch
+        run: eas channel:edit preview --branch main --non-interactive
