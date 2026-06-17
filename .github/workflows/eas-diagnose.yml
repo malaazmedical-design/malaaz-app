@@ -1,7 +1,8 @@
 name: EAS Diagnose
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [claude/bold-darwin-ddq2ri]
 
 jobs:
   diagnose:
