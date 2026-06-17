@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -179,6 +180,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [client, setClient] = useState<DbClient | null>(null);
   const [addresses, setAddresses] = useState<DbClientAddress[]>([]);
   const [familyMembers, setFamilyMembers] = useState<DbFamilyMember[]>([]);
+
+  // بنتابع آخر نسخة من الحجوزات المعروفة محلياً (بدون ما نضيفها كـ dependency)
+  // عشان refreshBookings يقدر يجيب أي حجز اتعمل من الجهاز ده حتى لو الهاتف/الحساب اتغير
+  const bookingsRef = useRef<Booking[]>([]);
+  useEffect(() => {
+    bookingsRef.current = bookings;
+  }, [bookings]);
 
   // ─── Hydrate profile + local bookings from AsyncStorage ──────────────────
   useEffect(() => {
@@ -490,9 +498,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLoadingBookings(true);
     try {
       // العميل المسجّل بيشوف كل حجوزاته من السيرفر مباشرة (RLS بتسمح له)
+      // + بنضيف فلتر إضافي بمعرّفات الحجوزات المعروفة محلياً (id.in)، عشان أي حجز
+      // اتعمل من الجهاز ده يفضل يتحدّث حتى لو الهاتف اختلف أو الحساب تغيّر
+      const knownIds = bookingsRef.current.map((b) => b.id).filter(Boolean);
+      const idsFilter = knownIds.length ? `,id.in.(${knownIds.join(",")})` : "";
       const query = client
-        ? supabase.from("bookings").select("*").eq("client_id", client.id)
-        : supabase.from("bookings").select("*").eq("phone", profile.phone);
+        ? supabase.from("bookings").select("*").or(`client_id.eq.${client.id}${idsFilter}`)
+        : supabase.from("bookings").select("*").or(`phone.eq.${profile.phone}${idsFilter}`);
       const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) throw error;
