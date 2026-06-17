@@ -52,12 +52,12 @@ const SORT_OPTIONS: {
   { key: "price_desc", label: "السعر: الأعلى",  icon: "arrow-down" },
   { key: "experience", label: "الأكثر خبرة",    icon: "medal" },
 ];
-const MAX_PRICE_LIMIT = 700;
+const FALLBACK_MAX_PRICE = 700;
 
-function countActiveFilters(f: Filters) {
+function countActiveFilters(f: Filters, maxPriceLimit: number) {
   let n = 0;
   if (f.minRating > 0) n++;
-  if (f.maxPrice < MAX_PRICE_LIMIT) n++;
+  if (f.maxPrice < maxPriceLimit) n++;
   if (f.onlyAvailable) n++;
   if (f.sortBy !== "rating") n++;
   return n;
@@ -75,8 +75,28 @@ export default function HomeScreen() {
   const [pendingFilters, setPendingFilters] = useState<Filters>(DEFAULT_FILTERS);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
-  const activeCount = countActiveFilters(filters);
   const firstName = profile.name ? profile.name.split(" ")[0] : null;
+
+  // أعلى سعر فعلي بين خدمات مقدمي الخدمة الحاليين، مقرّب لأقرب 50 ج.م
+  const maxPriceLimit = useMemo(() => {
+    const prices = providers.flatMap((p) => p.services.map((s) => s.price));
+    if (!prices.length) return FALLBACK_MAX_PRICE;
+    return Math.ceil(Math.max(...prices) / 50) * 50;
+  }, [providers]);
+
+  // درجات سعر متوسطة موزعة على المدى الفعلي للأسعار + السعر الأقصى نفسه
+  const priceSteps = useMemo(() => {
+    const stepCount = 5;
+    const steps = new Set<number>();
+    for (let i = 1; i < stepCount; i++) {
+      const step = Math.round((maxPriceLimit * i) / stepCount / 50) * 50;
+      if (step > 0) steps.add(step);
+    }
+    steps.add(maxPriceLimit);
+    return Array.from(steps).sort((a, b) => a - b);
+  }, [maxPriceLimit]);
+
+  const activeCount = countActiveFilters(filters, maxPriceLimit);
 
   const filtered = useMemo(() => {
     let list: Provider[] = providers;
@@ -97,7 +117,7 @@ export default function HomeScreen() {
       );
     }
     if (filters.minRating > 0) list = list.filter((p) => p.rating >= filters.minRating);
-    if (filters.maxPrice < MAX_PRICE_LIMIT)
+    if (filters.maxPrice < maxPriceLimit)
       list = list.filter((p) =>
         Math.min(...p.services.map((s) => s.price)) <= filters.maxPrice
       );
@@ -111,7 +131,7 @@ export default function HomeScreen() {
         case "experience": return b.yearsExperience - a.yearsExperience;
       }
     });
-  }, [serviceFilter, cityFilter, search, filters, providers]);
+  }, [serviceFilter, cityFilter, search, filters, providers, maxPriceLimit]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -340,6 +360,8 @@ export default function HomeScreen() {
       <FilterPanel
         visible={showFilterPanel}
         pending={pendingFilters}
+        maxPriceLimit={maxPriceLimit}
+        priceSteps={priceSteps}
         onChange={setPendingFilters}
         onApply={() => { setFilters(pendingFilters); setShowFilterPanel(false); }}
         onClose={() => setShowFilterPanel(false)}
@@ -436,13 +458,12 @@ function ProviderCard({ provider }: { provider: Provider }) {
 }
 
 /* ─── Filter Panel ───────────────────────────────────────────────────────── */
-function FilterPanel({ visible, pending, onChange, onApply, onClose, onReset }: {
-  visible: boolean; pending: Filters; onChange: (f: Filters) => void;
+function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, onChange, onApply, onClose, onReset }: {
+  visible: boolean; pending: Filters; maxPriceLimit: number; priceSteps: number[]; onChange: (f: Filters) => void;
   onApply: () => void; onClose: () => void; onReset: () => void;
 }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const PRICE_STEPS = [100, 200, 300, 400, 500, MAX_PRICE_LIMIT];
   const RATING_OPTIONS = [0, 3, 3.5, 4, 4.5, 5];
 
   return (
@@ -491,15 +512,15 @@ function FilterPanel({ visible, pending, onChange, onApply, onClose, onReset }: 
           </View>
           <View>
             <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right", marginBottom: 12 }}>
-              الحد الأقصى للسعر {pending.maxPrice < MAX_PRICE_LIMIT ? `(${pending.maxPrice} ج.م)` : "(الكل)"}
+              الحد الأقصى للسعر {pending.maxPrice < maxPriceLimit ? `(${pending.maxPrice} ج.م)` : "(الكل)"}
             </Text>
             <View style={{ flexDirection: "row-reverse", gap: 8, flexWrap: "wrap" }}>
-              {PRICE_STEPS.map((p) => {
+              {priceSteps.map((p) => {
                 const isActive = pending.maxPrice === p;
                 return (
                   <Pressable key={p} onPress={() => onChange({ ...pending, maxPrice: p })}
                     style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C15" : colors.card }}>
-                    <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 13 }}>{p === MAX_PRICE_LIMIT ? "الكل" : `${p} ج.م`}</Text>
+                    <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 13 }}>{p === maxPriceLimit ? "الكل" : `${p} ج.م`}</Text>
                   </Pressable>
                 );
               })}
