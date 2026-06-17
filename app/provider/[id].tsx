@@ -60,6 +60,24 @@ export default function ProviderScreen() {
     );
   }
 
+  if (!provider.available) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <MaterialCommunityIcons name="account-clock-outline" size={48} color={colors.mutedForeground} />
+        <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, marginTop: 12, textAlign: "center" }}>
+          {provider.name} غير متاح حالياً
+        </Text>
+        <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13, marginTop: 6, textAlign: "center" }}>
+          يمكنك اختيار مقدم خدمة آخر متاح، أو طلب خدمة سريعة وسنحدد لك مقدماً مناسباً
+        </Text>
+        <View style={{ marginTop: 20, gap: 10, width: "100%" }}>
+          <PrimaryButton label="اختار مقدم آخر" icon="account-search" onPress={() => router.replace("/(tabs)")} />
+          <PrimaryButton label="طلب خدمة سريعة" icon="lightning-bolt" variant="outline" onPress={() => router.replace("/quick-request")} />
+        </View>
+      </View>
+    );
+  }
+
   const handleBook = async () => {
     if (!selectedService) { Alert.alert("تنبيه", "اختار الخدمة أولاً"); return; }
     if (!paymentMethod) { Alert.alert("تنبيه", "اختار طريقة الدفع"); return; }
