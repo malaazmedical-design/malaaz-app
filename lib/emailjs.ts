@@ -1,10 +1,5 @@
 import { supabase } from "@/lib/supabase";
 
-// نفس إعدادات EmailJS المستخدمة في موقع ملاذ (provider.html)
-const EMAILJS_SERVICE = "service_tv0w6ov";
-const EMAILJS_TEMPLATE = "template_3arzsvv";
-const EMAILJS_PUBLIC_KEY = "P2Xy0_OBIWdVXk1gE";
-
 export type MalaazEmailParams = {
   to_email: string;
   subject: string;
@@ -17,37 +12,14 @@ export type MalaazEmailParams = {
   button_color: string;
 };
 
-// إرسال إيميل عبر EmailJS REST API — fire and forget، الفشل لا يكسر العملية
-// لكن بنسجّل نتيجة كل محاولة (نجاح/فشل + رد EmailJS) في جدول تشخيصي
-// عشان نقدر نعرف سبب الفشل لو حصل، بدل ما يفضل صامت تماماً
+// إرسال إيميل عبر Edge Function (send-email) اللي بيكلّم EmailJS من السيرفر
+// — كده الـ Private Key بتاع EmailJS يفضل على السيرفر بس، ومش موجود في كود التطبيق
+// fire and forget، الفشل لا يكسر العملية؛ نتيجة كل محاولة بتُسجّل في email_send_logs على السيرفر
 export async function sendMalaazEmail(params: MalaazEmailParams): Promise<void> {
-  let ok = false;
-  let statusCode: number | null = null;
-  let responseBody = "";
   try {
-    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service_id: EMAILJS_SERVICE,
-        template_id: EMAILJS_TEMPLATE,
-        user_id: EMAILJS_PUBLIC_KEY,
-        template_params: params,
-      }),
-    });
-    ok = res.ok;
-    statusCode = res.status;
-    responseBody = await res.text();
-    if (!ok) console.warn("EmailJS send failed:", statusCode, responseBody);
+    const { error } = await supabase.functions.invoke("send-email", { body: params });
+    if (error) console.warn("send-email invoke error:", error);
   } catch (e) {
-    responseBody = e instanceof Error ? e.message : String(e);
-    console.warn("EmailJS error:", e);
+    console.warn("send-email invoke error:", e);
   }
-  supabase.from("email_send_logs").insert({
-    to_email: params.to_email,
-    subject: params.subject,
-    ok,
-    status_code: statusCode,
-    response_body: responseBody.slice(0, 2000),
-  }).then(() => {}, () => {});
 }
