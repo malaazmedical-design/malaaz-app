@@ -25,7 +25,7 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
     // Fade in the logo
     fadeIn.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.quad) });
 
-    // Gentle pulse: scale 1 → 1.06 → 1, repeat 3 times
+    // Gentle pulse: scale 1 → 1.06 → 1, repeat once
     pulse.value = withDelay(
       300,
       withRepeat(
@@ -33,7 +33,7 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
           withTiming(1.07, { duration: 550, easing: Easing.inOut(Easing.sin) }),
           withTiming(1.0, { duration: 550, easing: Easing.inOut(Easing.sin) })
         ),
-        3,
+        1,
         false
       )
     );
@@ -42,14 +42,14 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
     if (Platform.OS !== "web") {
       const t = setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 200);
       overlay.value = withDelay(
-        2400,
-        withTiming(0, { duration: 350 }, (f) => { if (f) runOnJS(onDone)(); })
+        1400,
+        withTiming(0, { duration: 300 }, (f) => { if (f) runOnJS(onDone)(); })
       );
       return () => clearTimeout(t);
     }
     overlay.value = withDelay(
-      2400,
-      withTiming(0, { duration: 350 }, (f) => { if (f) runOnJS(onDone)(); })
+      1400,
+      withTiming(0, { duration: 300 }, (f) => { if (f) runOnJS(onDone)(); })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
