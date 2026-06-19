@@ -5,7 +5,6 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -181,12 +180,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [addresses, setAddresses] = useState<DbClientAddress[]>([]);
   const [familyMembers, setFamilyMembers] = useState<DbFamilyMember[]>([]);
 
-  // بنتابع آخر نسخة من الحجوزات المعروفة محلياً (بدون ما نضيفها كـ dependency)
-  // عشان refreshBookings يقدر يجيب أي حجز اتعمل من الجهاز ده حتى لو الهاتف/الحساب اتغير
-  const bookingsRef = useRef<Booking[]>([]);
-  useEffect(() => {
-    bookingsRef.current = bookings;
-  }, [bookings]);
+  // الكاش المحلي ممكن يحتوي حجوزات اتعملت من نفس الجهاز بهويات مختلفة (أرقام مختلفة
+  // جُرّبت على نفس التليفون)؛ بنعرض بس اللي يطابق الهوية الحالية (رقم الهاتف أو الحساب المسجّل)
+  const visibleBookings = useMemo(
+    () =>
+      bookings.filter(
+        (b) =>
+          (!!client && b.client_id === client.id) ||
+          (!!profile.phone && b.phone === profile.phone)
+      ),
+    [bookings, profile.phone, client]
+  );
 
   // ─── Hydrate profile + local bookings from AsyncStorage ──────────────────
   useEffect(() => {
@@ -497,14 +501,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!profile.phone && !client) return;
     setLoadingBookings(true);
     try {
-      // العميل المسجّل بيشوف كل حجوزاته من السيرفر مباشرة (RLS بتسمح له)
-      // + بنضيف فلتر إضافي بمعرّفات الحجوزات المعروفة محلياً (id.in)، عشان أي حجز
-      // اتعمل من الجهاز ده يفضل يتحدّث حتى لو الهاتف اختلف أو الحساب تغيّر
-      const knownIds = bookingsRef.current.map((b) => b.id).filter(Boolean);
-      const idsFilter = knownIds.length ? `,id.in.(${knownIds.join(",")})` : "";
+      // العميل المسجّل بيشوف حجوزاته من السيرفر مباشرة (RLS بتسمح له) + أي حجز قديم
+      // اتعمل كزائر بنفس رقم هاتفه (قبل ما يربط حسابه عن طريق link_my_bookings)
       const query = client
-        ? supabase.from("bookings").select("*").or(`client_id.eq.${client.id}${idsFilter}`)
-        : supabase.from("bookings").select("*").or(`phone.eq.${profile.phone}${idsFilter}`);
+        ? supabase
+            .from("bookings")
+            .select("*")
+            .or(`client_id.eq.${client.id}${profile.phone ? `,phone.eq.${profile.phone}` : ""}`)
+        : supabase.from("bookings").select("*").eq("phone", profile.phone);
       const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -670,7 +674,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       subServices,
       coverageAreas,
       providerReviews,
-      bookings,
+      bookings: visibleBookings,
       loadingBookings,
       createBooking,
       cancelBooking,
@@ -691,7 +695,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateFamilyMember,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, bookings, loadingBookings, client, addresses, familyMembers]
+    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, visibleBookings, loadingBookings, client, addresses, familyMembers]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
