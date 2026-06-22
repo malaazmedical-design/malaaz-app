@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL ??
@@ -21,6 +21,18 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     detectSessionInUrl: false,
   },
 });
+
+// React Native بيوقف الـ timers وقت ما التطبيق في الخلفية، فالـ token مايتجددش
+// تلقائي — لازم نتحكم في الـ auto-refresh يدوي مع كل رجوع للتطبيق (توصية Supabase الرسمية)
+if (Platform.OS !== "web") {
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}
 
 // ─── Database Types (مطابقة لجداول Supabase بتاع ملاذ) ──────────────────────
 
