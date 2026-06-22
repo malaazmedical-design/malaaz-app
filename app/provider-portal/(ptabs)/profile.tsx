@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -36,7 +37,7 @@ const GRADES = [
 export default function ProviderProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { provider, areas, subServices, saveProfile } = useProvider();
+  const { provider, areas, subServices, saveProfile, logout } = useProvider();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -84,6 +85,16 @@ export default function ProviderProfileScreen() {
 
     setUploading(true);
     try {
+      // الجلسة ممكن تبقى انتهت/فقدت من غير ما تظهر في الواجهة — تحقق قبل الرفع
+      // لأن غيرها بيوصل خطأ RLS مش مفهوم بدل رسالة واضحة
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        Alert.alert("انتهت الجلسة", "سجّل دخولك تاني وحاول من جديد");
+        await logout();
+        router.replace("/provider-portal/login");
+        return;
+      }
+
       const asset = result.assets[0];
       const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
       const fileName = `${provider.id}-${Date.now()}.${ext}`;
