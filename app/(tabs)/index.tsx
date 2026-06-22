@@ -2,8 +2,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -97,6 +98,38 @@ export default function HomeScreen() {
   }, [maxPriceLimit]);
 
   const activeCount = countActiveFilters(filters, maxPriceLimit);
+
+  // أول ما البيانات تخلص تحميل: نحاول نحدد منطقة العميل تلقائياً ونرتب القائمة
+  // على أساسها — مرة واحدة بس، وبهدوء (لو رفض الصلاحية أو فشل التحديد، الفلتر يفضل "الكل")
+  const hasAutoLocatedRef = useRef(false);
+  useEffect(() => {
+    if (loadingProviders || hasAutoLocatedRef.current) return;
+    hasAutoLocatedRef.current = true;
+    (async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        const granted =
+          status === "granted" ||
+          (await Location.requestForegroundPermissionsAsync()).status === "granted";
+        if (!granted) return;
+
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        const [geo] = await Location.reverseGeocodeAsync(loc.coords);
+        const district = geo.district || geo.subregion || geo.city;
+        if (!district) return;
+
+        const match = coverageAreas.find(
+          (a) => district.includes(a.name) || a.name.includes(district)
+        );
+        if (match && ALL_CITIES.includes(match.city)) {
+          // ما نغيّرش الفلتر لو العميل غيّره يدوي وهو منتظر نتيجة تحديد الموقع
+          setCityFilter((prev) => (prev === "الكل" ? match.city : prev));
+        }
+      } catch {
+        // تعذّر تحديد الموقع — القائمة تفضل بدون فلتر مدينة (السلوك الافتراضي)
+      }
+    })();
+  }, [loadingProviders, coverageAreas]);
 
   const filtered = useMemo(() => {
     let list: Provider[] = providers;
