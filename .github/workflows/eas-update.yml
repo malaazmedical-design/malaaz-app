@@ -29,3 +29,6 @@ jobs:
 
       - name: Link preview channel to main branch
         run: eas channel:edit preview --branch main --non-interactive
+
+      - name: Link production channel to main branch
+        run: eas channel:edit production --branch main --non-interactive
