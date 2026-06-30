@@ -1,3 +1,4 @@
+import * as Location from "expo-location";
 import React, {
   createContext,
   useCallback,
@@ -14,11 +15,15 @@ import { clientHasPushToken, registerProviderPushToken } from "@/lib/push";
 import {
   supabase,
   DbBooking,
+  DbBookingOffer,
   DbProvider,
   DbSubService,
   DbCoverageArea,
   DbProviderService,
+  OfferDetails,
 } from "@/lib/supabase";
+
+export type ProviderOffer = DbBookingOffer & Partial<OfferDetails>;
 
 export const SITE_URL = "https://malaaz-plum.vercel.app";
 
@@ -53,6 +58,8 @@ type ProviderContextValue = {
   subServices: DbSubService[];
   areas: DbCoverageArea[];
   myServices: DbProviderService[];
+  offers: ProviderOffer[];
+  loadingOffers: boolean;
 
   login: (email: string, password: string) => Promise<void>;
   register: (input: ProviderRegisterInput) => Promise<string>;
@@ -60,6 +67,8 @@ type ProviderContextValue = {
   logout: () => Promise<void>;
 
   refreshAll: () => Promise<void>;
+  refreshOffers: () => Promise<void>;
+  respondToOffer: (offerId: string, action: "accept" | "decline") => Promise<boolean>;
   toggleAvailability: (value: boolean) => Promise<void>;
   updateBookingStatus: (
     id: string,
@@ -83,6 +92,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   const [subServices, setSubServices] = useState<DbSubService[]>([]);
   const [areas, setAreas] = useState<DbCoverageArea[]>([]);
   const [myServices, setMyServices] = useState<DbProviderService[]>([]);
+  const [offers, setOffers] = useState<ProviderOffer[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
 
   // ─── استرجاع الجلسة المحفوظة ──────────────────────────────────────────────
   useEffect(() => {
@@ -241,6 +252,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     setProvider(null);
     setBookings([]);
     setMyServices([]);
+    setOffers([]);
   };
 
   // ─── تحميل البيانات ───────────────────────────────────────────────────────
@@ -290,6 +302,97 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       refreshAll();
       // تسجيل توكن الإشعارات عشان توصله الحجوزات الجديدة
       registerProviderPushToken(provider.id).catch(() => {});
+      if (provider.is_available) updateMyLocation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider?.id]);
+
+  // ─── عروض الحجوزات القريبة ────────────────────────────────────────────────
+  const refreshOffers = useCallback(async () => {
+    if (!provider) return;
+    setLoadingOffers(true);
+    try {
+      const { data } = await supabase
+        .from("booking_offers")
+        .select("*")
+        .eq("provider_id", provider.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      const rows = (data ?? []) as DbBookingOffer[];
+      const enriched = await Promise.all(
+        rows.map(async (row) => {
+          const { data: details } = await supabase.rpc("get_offer_details", {
+            p_offer_id: row.id,
+          });
+          return { ...row, ...((details ?? null) as OfferDetails | null) };
+        })
+      );
+      setOffers(enriched);
+    } catch (err) {
+      console.error("Offers refresh error:", err);
+    } finally {
+      setLoadingOffers(false);
+    }
+  }, [provider?.id]);
+
+  // تحديث فوري + اشتراك Realtime على عروض المقدم — يلتقط أي عرض جديد أو تغيّر حالة لحظياً
+  useEffect(() => {
+    if (!provider?.id) return;
+    refreshOffers();
+    const channel = supabase
+      .channel(`booking_offers_${provider.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "booking_offers",
+          filter: `provider_id=eq.${provider.id}`,
+        },
+        () => refreshOffers()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider?.id]);
+
+  const respondToOffer = async (
+    offerId: string,
+    action: "accept" | "decline"
+  ): Promise<boolean> => {
+    const fn = action === "accept" ? "accept_booking_offer" : "decline_booking_offer";
+    const { data, error } = await supabase.rpc(fn, { p_offer_id: offerId });
+    if (error) throw new Error(error.message);
+    setOffers((prev) => prev.filter((o) => o.id !== offerId));
+    const result = data as { success?: boolean } | null;
+    if (action === "accept" && result?.success) await refreshAll();
+    return Boolean(result?.success);
+  };
+
+  // ─── تحديث موقع مقدم الخدمة — لازم لمطابقة الحجوزات القريبة ─────────────
+  const updateMyLocation = useCallback(async () => {
+    if (!provider) return;
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      const granted =
+        status === "granted" ||
+        (await Location.requestForegroundPermissionsAsync()).status === "granted";
+      if (!granted) return;
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      await supabase
+        .from("providers")
+        .update({
+          lat: loc.coords.latitude,
+          lng: loc.coords.longitude,
+          location_updated_at: new Date().toISOString(),
+        })
+        .eq("id", provider.id);
+    } catch {
+      // تجاهل — التوفر يفضل شغال حتى من غير تحديث الموقع
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider?.id]);
@@ -306,6 +409,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       setProvider({ ...provider, is_available: !value });
       throw new Error(error.message);
     }
+    if (value) updateMyLocation();
   };
 
   // ─── تحديث حالة الحجز + إشعارات العميل (نفس منطق الموقع) ────────────────
@@ -462,11 +566,15 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       subServices,
       areas,
       myServices,
+      offers,
+      loadingOffers,
       login,
       register,
       resetPassword,
       logout,
       refreshAll,
+      refreshOffers,
+      respondToOffer,
       toggleAvailability,
       updateBookingStatus,
       setOnWay,
@@ -474,7 +582,19 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       saveMyServices,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [initializing, provider, bookings, loadingBookings, subServices, areas, myServices, refreshAll]
+    [
+      initializing,
+      provider,
+      bookings,
+      loadingBookings,
+      subServices,
+      areas,
+      myServices,
+      offers,
+      loadingOffers,
+      refreshAll,
+      refreshOffers,
+    ]
   );
 
   return (

@@ -7,7 +7,7 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ProviderTabsLayout() {
   const colors = useColors();
-  const { initializing, provider, bookings } = useProvider();
+  const { initializing, provider, bookings, offers } = useProvider();
 
   if (!initializing && !provider) return <Redirect href="/provider-portal/login" />;
 
@@ -36,6 +36,14 @@ export default function ProviderTabsLayout() {
           title: "حجوزاتي",
           tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
           tabBarIcon: ({ color }) => <MaterialCommunityIcons name="calendar-check" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="offers"
+        options={{
+          title: "عروض جديدة",
+          tabBarBadge: offers.length > 0 ? offers.length : undefined,
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="bell-ring" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
