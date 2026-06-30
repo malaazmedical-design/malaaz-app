@@ -56,6 +56,9 @@ export type DbProvider = {
   is_available: boolean | null;
   photo_url: string | null;
   created_at: string;
+  lat: number | null;
+  lng: number | null;
+  location_updated_at: string | null;
 };
 
 export type DbBooking = {
@@ -72,6 +75,9 @@ export type DbBooking = {
   status: "pending" | "confirmed" | "completed" | "cancelled" | string;
   notes: string | null;
   provider_phone: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  escalation_level?: number | null;
   provider_id: string | null;
   price: number | string | null;
   patient_email: string | null;
@@ -178,6 +184,25 @@ export type DbCoverageArea = {
   name: string;
   is_active: boolean;
   created_at: string;
+};
+
+export type DbBookingOffer = {
+  id: string;
+  booking_id: string;
+  provider_id: string;
+  distance_km: number | null;
+  status: "pending" | "accepted" | "expired" | "declined";
+  created_at: string;
+  responded_at: string | null;
+};
+
+// نتيجة get_offer_details RPC — بيانات محدودة عن الحجز (من غير بيانات تواصل المريض) لحد ما المقدم يقبل العرض
+export type OfferDetails = {
+  service_type: string | null;
+  sub_option: string | null;
+  area: string | null;
+  appointment_time: string | null;
+  distance_km: number | null;
 };
 
 export type DbClient = {

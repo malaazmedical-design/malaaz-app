@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 import React, {
   createContext,
   useCallback,
@@ -102,6 +103,39 @@ function makeLocalId(): string {
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+}
+
+// إحداثيات الحجز — لازمة لنظام توزيع الحجوزات على أقرب مقدمي خدمة (create_booking_offers).
+// بنجرب موقع الجهاز الحالي الأول (أسرع وأدق)، ولو مش متاح بنحول العنوان المكتوب لإحداثيات.
+async function resolveBookingCoords(
+  address: string | null
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status === "granted") {
+      const loc = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      ]);
+      if (loc) return { lat: loc.coords.latitude, lng: loc.coords.longitude };
+    }
+  } catch {
+    // تجاهل — هنجرب تحويل العنوان بدل كده
+  }
+
+  if (address) {
+    try {
+      const { data, error } = await supabase.functions.invoke("geocode", {
+        body: { address },
+      });
+      if (!error && typeof data?.lat === "number" && typeof data?.lng === "number") {
+        return { lat: data.lat, lng: data.lng };
+      }
+    } catch {
+      // تجاهل — الحجز يكمّل من غير إحداثيات (هيتغطى لاحقاً عن طريق تصعيد الحجوزات)
+    }
+  }
+  return null;
 }
 
 const DEFAULT_PROFILE: CustomerProfile = {
@@ -592,6 +626,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       profile.city ||
       null;
 
+    const coords = await resolveBookingCoords(resolvedAddress);
+
     const bookingData = {
       id,
       patient_name: resolvedName,
@@ -609,11 +645,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       payment_status: "pending",
       notes: input.notes ?? null,
       appointment_time: appointmentTime,
+      lat: coords?.lat ?? null,
+      lng: coords?.lng ?? null,
     };
 
     const { error } = await supabase.from("bookings").insert(bookingData);
 
     if (error) throw error;
+
+    // لو الحجز من غير مقدم محدد ومعانا إحداثيات: ابعت عروض لأقرب مقدمي الخدمة المتاحين
+    // (fire-and-forget — الحجز نفسه ينجح بغض النظر عن نتيجة ده)
+    if (!bookingData.provider_id && coords) {
+      supabase.rpc("create_booking_offers", { p_booking_id: id }).then(
+        () => {},
+        () => {}
+      );
+    }
 
     const booking: Booking = {
       ...bookingData,
