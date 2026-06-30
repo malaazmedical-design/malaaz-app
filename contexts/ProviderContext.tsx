@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -60,6 +61,9 @@ type ProviderContextValue = {
   myServices: DbProviderService[];
   offers: ProviderOffer[];
   loadingOffers: boolean;
+  // عرض جديد لسه واصل دلوقت — لعرض popup فوري (زي بوابة الموقع)
+  incomingOffer: ProviderOffer | null;
+  dismissIncomingOffer: () => void;
 
   login: (email: string, password: string) => Promise<void>;
   register: (input: ProviderRegisterInput) => Promise<string>;
@@ -94,6 +98,11 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   const [myServices, setMyServices] = useState<DbProviderService[]>([]);
   const [offers, setOffers] = useState<ProviderOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
+  const [incomingOffer, setIncomingOffer] = useState<ProviderOffer | null>(null);
+  const providerRef = useRef<DbProvider | null>(null);
+  useEffect(() => {
+    providerRef.current = provider;
+  }, [provider]);
 
   // ─── استرجاع الجلسة المحفوظة ──────────────────────────────────────────────
   useEffect(() => {
@@ -253,6 +262,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     setBookings([]);
     setMyServices([]);
     setOffers([]);
+    setIncomingOffer(null);
   };
 
   // ─── تحميل البيانات ───────────────────────────────────────────────────────
@@ -349,7 +359,18 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
           table: "booking_offers",
           filter: `provider_id=eq.${provider.id}`,
         },
-        () => refreshOffers()
+        (payload) => {
+          refreshOffers();
+          // عرض جديد واصل — اعرض popup فوري لو المقدم متاح حالياً (زي بوابة الموقع)
+          if (payload.eventType === "INSERT" && providerRef.current?.is_available) {
+            const row = payload.new as DbBookingOffer;
+            supabase
+              .rpc("get_offer_details", { p_offer_id: row.id })
+              .then(({ data: details }) => {
+                if (details) setIncomingOffer({ ...row, ...(details as OfferDetails) });
+              });
+          }
+        }
       )
       .subscribe();
     return () => {
@@ -357,6 +378,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider?.id]);
+
+  const dismissIncomingOffer = useCallback(() => setIncomingOffer(null), []);
 
   const respondToOffer = async (
     offerId: string,
@@ -366,6 +389,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.rpc(fn, { p_offer_id: offerId });
     if (error) throw new Error(error.message);
     setOffers((prev) => prev.filter((o) => o.id !== offerId));
+    setIncomingOffer((prev) => (prev?.id === offerId ? null : prev));
     const result = data as { success?: boolean } | null;
     if (action === "accept" && result?.success) await refreshAll();
     return Boolean(result?.success);
@@ -568,6 +592,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       myServices,
       offers,
       loadingOffers,
+      incomingOffer,
+      dismissIncomingOffer,
       login,
       register,
       resetPassword,
@@ -592,6 +618,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       myServices,
       offers,
       loadingOffers,
+      incomingOffer,
+      dismissIncomingOffer,
       refreshAll,
       refreshOffers,
     ]
