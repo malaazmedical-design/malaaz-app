@@ -505,8 +505,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             // التقييم الحقيقي = متوسط آراء العملاء المعتمدة (زي الموقع)
             rating: st ? st.sum / st.count : p.rating,
             reviewsCount: st?.count ?? 0,
-            // لو المقدم محدد خدماته وأسعاره — نعرضها هي؛ وإلا الافتراضية
-            services: realServices.length ? realServices : p.services,
+            services: realServices,
           };
         });
 
