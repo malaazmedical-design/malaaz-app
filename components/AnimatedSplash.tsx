@@ -1,57 +1,67 @@
 import * as Haptics from "expo-haptics";
 import React, { useEffect } from "react";
-import { Image, Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import Animated, {
   Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
-  withSequence,
   withTiming,
 } from "react-native-reanimated";
 
 const GOLD = "#C9A84C";
 const DARK = "#1C2B2A";
-const TOTAL_MS = 5000;
 
-const mizoImage = require("../assets/images/mizo.webp");
+const LETTERS = ["M", "A", "L", "A", "A", "Z"];
+const GAP  = 90;   // ms between each letter
+const DUR  = 200;  // each letter fade+slide duration
+const HOLD = 420;  // hold after last letter before fade-out
+const FADE = 280;  // final overlay fade
 
-export function AnimatedSplash({ onDone }: { onDone: () => void }) {
-  const fadeIn    = useSharedValue(0);
-  const overlay   = useSharedValue(1);
-  const mizoScale = useSharedValue(0.75);
-  const mizoFloat = useSharedValue(0);
+// last letter finishes at: (5 × 90) + 200 = 650ms
+// line starts at: 650 + 60 = 710ms
+// overlay fade starts at: 650 + 420 = 1070ms
+// total: 1070 + 280 ≈ 1350ms
+
+function AnimLetter({ char, delay }: { char: string; delay: number }) {
+  const opacity = useSharedValue(0);
+  const ty      = useSharedValue(16);
 
   useEffect(() => {
-    // fade in
-    fadeIn.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) });
+    const ease = { duration: DUR, easing: Easing.out(Easing.quad) };
+    opacity.value = withDelay(delay, withTiming(1, ease));
+    ty.value      = withDelay(delay, withTiming(0, ease));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    // ميزو يطلع بـ bounce
-    mizoScale.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.back(1.4)) });
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: ty.value }],
+  }));
 
-    // floating خفيف طول ما الـ splash شغّال
-    mizoFloat.value = withDelay(
-      600,
-      withRepeat(
-        withSequence(
-          withTiming(-10, { duration: 900, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0,   { duration: 900, easing: Easing.inOut(Easing.sin) }),
-        ),
-        -1,
-        true
-      )
-    );
+  return <Animated.Text style={[styles.letter, style]}>{char}</Animated.Text>;
+}
 
+export function AnimatedSplash({ onDone }: { onDone: () => void }) {
+  const overlay = useSharedValue(1);
+  const lineW   = useSharedValue(0);
+
+  const lastDone = (LETTERS.length - 1) * GAP + DUR;
+
+  useEffect(() => {
     if (Platform.OS !== "web") {
-      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 200);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 80);
     }
 
-    // fade out
+    lineW.value = withDelay(
+      lastDone + 60,
+      withTiming(80, { duration: 260, easing: Easing.out(Easing.quad) })
+    );
+
     overlay.value = withDelay(
-      TOTAL_MS - 400,
-      withTiming(0, { duration: 400 }, (finished) => {
+      lastDone + HOLD,
+      withTiming(0, { duration: FADE }, (finished) => {
         if (finished) runOnJS(onDone)();
       })
     );
@@ -59,30 +69,19 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
   }, []);
 
   const overlayStyle = useAnimatedStyle(() => ({ opacity: overlay.value }));
-  const contentStyle = useAnimatedStyle(() => ({ opacity: fadeIn.value }));
-  const mizoStyle    = useAnimatedStyle(() => ({
-    transform: [
-      { scale: mizoScale.value },
-      { translateY: mizoFloat.value },
-    ],
-  }));
+  const lineStyle    = useAnimatedStyle(() => ({ width: lineW.value }));
 
   return (
     <Animated.View
       style={[StyleSheet.absoluteFillObject, styles.overlay, overlayStyle]}
       pointerEvents="none"
     >
-      <Animated.View style={[styles.center, contentStyle]}>
-        <Animated.View style={mizoStyle}>
-          <Image source={mizoImage} style={styles.mizoImg} resizeMode="contain" />
-        </Animated.View>
-
-        <Text style={styles.greeting}>أهلاً! أنا ميزو</Text>
-        <Text style={styles.sub}>مساعدك الطبي الذكي في ملاذ</Text>
-
-        <Text style={styles.brand}>MALAAZ</Text>
-        <View style={styles.goldLine} />
+      <Animated.View style={styles.row}>
+        {LETTERS.map((ch, i) => (
+          <AnimLetter key={i} char={ch} delay={i * GAP} />
+        ))}
       </Animated.View>
+      <Animated.View style={[styles.line, lineStyle]} />
     </Animated.View>
   );
 }
@@ -94,38 +93,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 999,
   },
-  center: {
-    alignItems: "center",
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-end",
   },
-  mizoImg: {
-    width: 200,
-    height: 200,
-    borderRadius: 24,
-    marginBottom: 8,
-  },
-  greeting: {
+  letter: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 26,
-    color: "#FFFFFF",
-    marginTop: 10,
-    textAlign: "center",
-  },
-  sub: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.45)",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  brand: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 13,
-    letterSpacing: 8,
+    fontSize: 52,
+    letterSpacing: 6,
     color: GOLD,
-    marginTop: 32,
   },
-  goldLine: {
-    width: 80,
+  line: {
     height: 2,
     backgroundColor: GOLD,
     borderRadius: 1,
