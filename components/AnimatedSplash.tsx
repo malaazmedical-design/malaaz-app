@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import React, { useEffect } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   runOnJS,
@@ -16,32 +16,31 @@ const GOLD = "#C9A84C";
 const DARK = "#1C2B2A";
 const TOTAL_MS = 5000;
 
+const mizoImage = require("../assets/images/mizo.webp");
+
 export function AnimatedSplash({ onDone }: { onDone: () => void }) {
-  const fadeIn   = useSharedValue(0);
-  const overlay  = useSharedValue(1);
-  const waveRot  = useSharedValue(0);
-  const botScale = useSharedValue(0.8);
+  const fadeIn    = useSharedValue(0);
+  const overlay   = useSharedValue(1);
+  const mizoScale = useSharedValue(0.75);
+  const mizoFloat = useSharedValue(0);
 
   useEffect(() => {
-    // fade in + robot pops in
-    fadeIn.value   = withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) });
-    botScale.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.back(1.5)) });
+    // fade in
+    fadeIn.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) });
 
-    // wave: 3 cycles, each = 5 flicks then rest
-    waveRot.value = withDelay(
-      350,
+    // ميزو يطلع بـ bounce
+    mizoScale.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.back(1.4)) });
+
+    // floating خفيف طول ما الـ splash شغّال
+    mizoFloat.value = withDelay(
+      600,
       withRepeat(
         withSequence(
-          withTiming(-28, { duration: 220, easing: Easing.inOut(Easing.sin) }),
-          withTiming(12,  { duration: 220, easing: Easing.inOut(Easing.sin) }),
-          withTiming(-28, { duration: 220, easing: Easing.inOut(Easing.sin) }),
-          withTiming(12,  { duration: 220, easing: Easing.inOut(Easing.sin) }),
-          withTiming(-28, { duration: 220, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0,   { duration: 350, easing: Easing.out(Easing.quad) }),
-          withDelay(700, withTiming(0)),   // استراحة بين كل تحية والتانية
+          withTiming(-10, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0,   { duration: 900, easing: Easing.inOut(Easing.sin) }),
         ),
-        3,
-        false
+        -1,
+        true
       )
     );
 
@@ -49,7 +48,7 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 200);
     }
 
-    // fade out بعد TOTAL_MS
+    // fade out
     overlay.value = withDelay(
       TOTAL_MS - 400,
       withTiming(0, { duration: 400 }, (finished) => {
@@ -61,14 +60,10 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
 
   const overlayStyle = useAnimatedStyle(() => ({ opacity: overlay.value }));
   const contentStyle = useAnimatedStyle(() => ({ opacity: fadeIn.value }));
-  const robotStyle   = useAnimatedStyle(() => ({
-    transform: [{ scale: botScale.value }],
-  }));
-  const waveStyle    = useAnimatedStyle(() => ({
+  const mizoStyle    = useAnimatedStyle(() => ({
     transform: [
-      { translateY: 10 },
-      { rotate: `${waveRot.value}deg` },
-      { translateY: -10 },
+      { scale: mizoScale.value },
+      { translateY: mizoFloat.value },
     ],
   }));
 
@@ -78,21 +73,13 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
       pointerEvents="none"
     >
       <Animated.View style={[styles.center, contentStyle]}>
-        {/* الروبوت + الإيد */}
-        <View style={styles.robotWrap}>
-          <Animated.View style={robotStyle}>
-            <Text style={styles.robot}>🤖</Text>
-          </Animated.View>
-          <Animated.View style={[styles.waveWrap, waveStyle]}>
-            <Text style={styles.wave}>👋</Text>
-          </Animated.View>
-        </View>
+        <Animated.View style={mizoStyle}>
+          <Image source={mizoImage} style={styles.mizoImg} resizeMode="contain" />
+        </Animated.View>
 
-        {/* التحية */}
         <Text style={styles.greeting}>أهلاً! أنا ميزو</Text>
         <Text style={styles.sub}>مساعدك الطبي الذكي في ملاذ</Text>
 
-        {/* الماركة */}
         <Text style={styles.brand}>MALAAZ</Text>
         <View style={styles.goldLine} />
       </Animated.View>
@@ -110,24 +97,11 @@ const styles = StyleSheet.create({
   center: {
     alignItems: "center",
   },
-  robotWrap: {
-    width: 140,
-    height: 140,
-    alignItems: "center",
-    justifyContent: "center",
+  mizoImg: {
+    width: 200,
+    height: 200,
+    borderRadius: 24,
     marginBottom: 8,
-  },
-  robot: {
-    fontSize: 100,
-    lineHeight: 120,
-  },
-  waveWrap: {
-    position: "absolute",
-    top: 6,
-    right: -2,
-  },
-  wave: {
-    fontSize: 38,
   },
   greeting: {
     fontFamily: "Cairo_700Bold",
