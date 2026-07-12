@@ -198,32 +198,67 @@ export default function ProviderScreen() {
           {/* ─── اختيار الخدمة ─── */}
           <View>
             <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>اختار الخدمة</Text>
-            <View style={{ gap: 8 }}>
-              {provider.services.map((svc) => {
-                const isActive = selectedService?.id === svc.id;
-                return (
-                  <Pressable key={svc.id} onPress={() => setSelectedService(svc)}
-                    style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 2, backgroundColor: isActive ? "#1C2B2A" : colors.card, borderColor: isActive ? "#C9A84C" : colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
-                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.10)", borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.35)", alignItems: "center", justifyContent: "center" }}>
-                      <MaterialCommunityIcons name={serviceIcon(svc.name) as any} size={24} color={isActive ? "#1C2B2A" : "#b8860b"} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>{svc.name}</Text>
-                      <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>{svc.description}</Text>
-                      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
-                        <Text style={{ color: isActive ? "#C9A84C" : "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>{svc.price} ج.م</Text>
-                        {svc.durationLabel ? (
-                          <Text style={{ color: isActive ? "#FFFFFF66" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>⏱ {svc.durationLabel}</Text>
-                        ) : null}
+            {provider.services.length === 0 ? (
+              <View style={{ gap: 12 }}>
+                <View style={{ backgroundColor: colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border, alignItems: "center", gap: 8 }}>
+                  <MaterialCommunityIcons name="clipboard-text-off-outline" size={30} color={colors.mutedForeground} />
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "center" }}>
+                    لم يحدد خدماته بعد
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setSelectedService({ id: "direct", name: "حجز مباشر", description: "سيتم تحديد تفاصيل الخدمة والسعر", price: 0, durationLabel: "" })}
+                  style={({ pressed }) => {
+                    const isActive = selectedService?.id === "direct";
+                    return { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 2, backgroundColor: isActive ? "#1C2B2A" : colors.card, borderColor: isActive ? "#C9A84C" : colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] };
+                  }}>
+                  {({ pressed: _p }) => {
+                    const isActive = selectedService?.id === "direct";
+                    return (
+                      <>
+                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.10)", borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.35)", alignItems: "center", justifyContent: "center" }}>
+                          <MaterialCommunityIcons name="calendar-check" size={22} color={isActive ? "#1C2B2A" : "#b8860b"} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>احجز مباشرًا</Text>
+                          <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>سيتم تحديد التفاصيل والسعر لاحقاً</Text>
+                        </View>
+                        <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C" : "transparent", alignItems: "center", justifyContent: "center" }}>
+                          {isActive ? <MaterialCommunityIcons name="check" size={13} color="#1C2B2A" /> : null}
+                        </View>
+                      </>
+                    );
+                  }}
+                </Pressable>
+              </View>
+            ) : (
+              <View style={{ gap: 8 }}>
+                {provider.services.map((svc) => {
+                  const isActive = selectedService?.id === svc.id;
+                  return (
+                    <Pressable key={svc.id} onPress={() => setSelectedService(svc)}
+                      style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 2, backgroundColor: isActive ? "#1C2B2A" : colors.card, borderColor: isActive ? "#C9A84C" : colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+                      <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.10)", borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.35)", alignItems: "center", justifyContent: "center" }}>
+                        <MaterialCommunityIcons name={serviceIcon(svc.name) as any} size={24} color={isActive ? "#1C2B2A" : "#b8860b"} />
                       </View>
-                    </View>
-                    <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C" : "transparent", alignItems: "center", justifyContent: "center" }}>
-                      {isActive ? <MaterialCommunityIcons name="check" size={13} color="#1C2B2A" /> : null}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>{svc.name}</Text>
+                        <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>{svc.description}</Text>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
+                          <Text style={{ color: isActive ? "#C9A84C" : "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>{svc.price} ج.م</Text>
+                          {svc.durationLabel ? (
+                            <Text style={{ color: isActive ? "#FFFFFF66" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>⏱ {svc.durationLabel}</Text>
+                          ) : null}
+                        </View>
+                      </View>
+                      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C" : "transparent", alignItems: "center", justifyContent: "center" }}>
+                        {isActive ? <MaterialCommunityIcons name="check" size={13} color="#1C2B2A" /> : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
           </View>
 
           {/* ─── الموعد ─── */}
@@ -274,7 +309,10 @@ export default function ProviderScreen() {
         {selectedService ? (
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13 }}>الإجمالي</Text>
-            <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 22 }}>{selectedService.price} ج.م</Text>
+            {selectedService.price > 0
+              ? <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 22 }}>{selectedService.price} ج.م</Text>
+              : <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13 }}>يحدد لاحقاً</Text>
+            }
           </View>
         ) : null}
         <PrimaryButton
