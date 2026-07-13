@@ -1,0 +1,39 @@
+name: EAS Build — Android AAB
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build profile'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - preview
+
+jobs:
+  build:
+    name: Build Android AAB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android AAB
+        run: eas build --platform android --profile ${{ github.event.inputs.profile }} --non-interactive
+
+      - name: Print download URL
+        run: echo "✅ Build complete — download from https://expo.dev/accounts/malaazapp/projects/malaaz/builds"
