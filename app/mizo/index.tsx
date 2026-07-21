@@ -145,15 +145,20 @@ export default function MizoScreen() {
             <Text style={styles.catTabText}>↩ رجوع</Text>
           </Pressable>
         )}
-        {MIZO_CATEGORIES.map((cat) => (
-          <Pressable
-            key={cat.id}
-            style={[styles.catTab, activeCat === cat.id && !subWords && styles.catTabActive]}
-            onPress={() => { setActiveCat(cat.id); setSubWords(null); }}
-          >
-            <Text style={styles.catTabText}>{cat.emoji} {cat.label}</Text>
-          </Pressable>
-        ))}
+        {MIZO_CATEGORIES.map((cat) => {
+          const isActive = activeCat === cat.id && !subWords;
+          return (
+            <Pressable
+              key={cat.id}
+              style={[styles.catTab, isActive && styles.catTabActive]}
+              onPress={() => { setActiveCat(cat.id); setSubWords(null); }}
+            >
+              <Text style={[styles.catTabText, isActive && styles.catTabTextActive]}>
+                {cat.emoji} {cat.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       {/* Words grid */}
@@ -280,6 +285,9 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_600SemiBold",
     fontSize: 13,
     color: "#1C2B2A",
+  },
+  catTabTextActive: {
+    color: "#FFFFFF",
   },
 
   grid: {
