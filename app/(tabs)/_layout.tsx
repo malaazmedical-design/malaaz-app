@@ -5,6 +5,7 @@ import React, { useEffect } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { supabase } from "@/lib/supabase";
+import { getProfile } from "@/lib/mizoStorage";
 
 export default function TabLayout() {
   const colors = useColors();
@@ -12,6 +13,16 @@ export default function TabLayout() {
 
   useEffect(() => {
     (async () => {
+      // وضع المريض — يحوّل لشاشة ميزو المقفلة فوراً بدون أي شاشات تانية
+      try {
+        const profile = await getProfile();
+        if (profile.patientMode) {
+          router.replace("/mizo/locked");
+          return;
+        }
+      } catch {}
+
+      // مقدم خدمة — يحوّله لبوابته
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) return;

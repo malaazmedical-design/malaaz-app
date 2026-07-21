@@ -12,6 +12,8 @@ export type VoiceType = "male" | "female" | "child";
 export type MizoProfile = {
   patientName: string;
   voiceType: VoiceType;
+  patientMode: boolean;
+  patientPin: string;
 };
 
 export type AacEvent = {
@@ -36,9 +38,9 @@ export type CustomWord = {
 export async function getProfile(): Promise<MizoProfile> {
   try {
     const raw = await AsyncStorage.getItem(KEYS.profile);
-    if (raw) return JSON.parse(raw);
+    if (raw) return { patientName: "المريض", voiceType: "male", patientMode: false, patientPin: "1234", ...JSON.parse(raw) };
   } catch {}
-  return { patientName: "المريض", voiceType: "male" };
+  return { patientName: "المريض", voiceType: "male", patientMode: false, patientPin: "1234" };
 }
 
 export async function saveProfile(profile: MizoProfile): Promise<void> {

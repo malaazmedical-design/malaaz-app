@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, TextInput, StyleSheet, SafeAreaView,
-  Pressable, ScrollView, Alert,
+  Pressable, ScrollView, Alert, Switch,
 } from "react-native";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -17,7 +17,7 @@ const VOICE_OPTIONS: { key: VoiceType; label: string; emoji: string; desc: strin
 ];
 
 export default function MizoSettingsScreen() {
-  const [profile, setProfile] = useState<MizoProfile>({ patientName: "", voiceType: "male" });
+  const [profile, setProfile] = useState<MizoProfile>({ patientName: "", voiceType: "male", patientMode: false, patientPin: "1234" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -83,6 +83,42 @@ export default function MizoSettingsScreen() {
             )}
           </Pressable>
         ))}
+
+        {/* وضع المريض */}
+        <View style={styles.sectionDivider} />
+        <Text style={[styles.label, { marginTop: 4 }]}>وضع المريض</Text>
+        <Text style={styles.modeDesc}>
+          لما تفعّله، التطبيق بيفتح على ميزو فقط وبيقفل باقي الشاشات.
+          الأهل يضغطوا على "ميزو" ٣ مرات ويدخلوا الرقم السري عشان يخرجوا.
+        </Text>
+        <View style={styles.switchRow}>
+          <Switch
+            value={profile.patientMode}
+            onValueChange={(v) => setProfile((p) => ({ ...p, patientMode: v }))}
+            trackColor={{ false: "#E0E8E7", true: "#1C2B2A" }}
+            thumbColor={profile.patientMode ? "#C9A84C" : "#7A8A89"}
+          />
+          <Text style={styles.switchLabel}>
+            {profile.patientMode ? "وضع المريض مفعّل" : "وضع المريض متفعّلش"}
+          </Text>
+        </View>
+
+        {profile.patientMode && (
+          <>
+            <Text style={[styles.label, { marginTop: 12 }]}>الرقم السري للأهل (4-6 أرقام)</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.patientPin}
+              onChangeText={(v) => setProfile((p) => ({ ...p, patientPin: v.replace(/[^0-9]/g, "") }))}
+              keyboardType="numeric"
+              maxLength={6}
+              secureTextEntry
+              placeholder="مثال: 1234"
+              placeholderTextColor="#9AABAA"
+              textAlign="right"
+            />
+          </>
+        )}
 
         {/* زرار الحفظ */}
         <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}>
@@ -161,4 +197,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   dangerText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#CC2200" },
+  sectionDivider: { height: 1, backgroundColor: "#E0E8E7", marginVertical: 20 },
+  modeDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#7A8A89", textAlign: "right", marginBottom: 12, lineHeight: 20 },
+  switchRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 8 },
+  switchLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#1C2B2A" },
 });
