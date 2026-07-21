@@ -1,22 +1,20 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Image,
-  SafeAreaView,
-  Dimensions,
-  Animated,
-  Platform,
+  View, Text, StyleSheet, ScrollView, Pressable, Image,
+  SafeAreaView, Dimensions, Animated, Platform, Modal,
+  TextInput, Alert,
 } from "react-native";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { MIZO_CATEGORIES, MizoWord } from "@/constants/mizoWords";
+import { MIZO_CATEGORIES, MizoWord, MizoCategory } from "@/constants/mizoWords";
 import { MIZO_IMAGES } from "@/constants/mizoImages";
+import {
+  getProfile, getVoiceOptions, logEvent,
+  getCustomWords, addCustomWord, deleteCustomWord,
+  CustomWord,
+} from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
 const COLS = 3;
@@ -29,7 +27,23 @@ export default function MizoScreen() {
   const [lastPhrase, setLastPhrase] = useState("اضغط على أي كلمة...");
   const [mizoState, setMizoState] = useState<MizoState>("neutral");
   const [subWords, setSubWords] = useState<MizoWord[] | null>(null);
+  const [voiceOpts, setVoiceOpts] = useState(getVoiceOptions("male"));
+  const [customWords, setCustomWords] = useState<CustomWord[]>([]);
+  const [patientName, setPatientName] = useState("المريض");
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newEmoji, setNewEmoji] = useState("⭐");
+  const [newPhrase, setNewPhrase] = useState("");
   const mizoScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    (async () => {
+      const profile = await getProfile();
+      setPatientName(profile.patientName || "المريض");
+      setVoiceOpts(getVoiceOptions(profile.voiceType));
+      setCustomWords(await getCustomWords());
+    })();
+  }, []);
 
   const bounceMizo = () => {
     Animated.sequence([
@@ -38,20 +52,19 @@ export default function MizoScreen() {
     ]).start();
   };
 
-  const speak = useCallback((phrase: string) => {
+  const speak = useCallback((phrase: string, wordId = "", category = "", isEmergency = false) => {
     Speech.stop();
     setLastPhrase(phrase);
     setMizoState("speaking");
     bounceMizo();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Speech.speak(phrase, {
-      language: "ar-EG",
-      rate: 0.82,
-      pitch: 1.05,
+      ...voiceOpts,
       onDone: () => setMizoState("neutral"),
       onError: () => setMizoState("neutral"),
     });
-  }, []);
+    logEvent({ word_id: wordId, phrase, category, is_emergency: isEmergency });
+  }, [voiceOpts]);
 
   const handleWordPress = (word: MizoWord) => {
     if (word.children && word.children.length > 0) {
@@ -59,26 +72,26 @@ export default function MizoScreen() {
       setMizoState("thinking");
     } else {
       setSubWords(null);
-      speak(word.phrase);
+      speak(word.phrase, word.id, activeCat);
     }
   };
 
   const handleEmergency = () => {
     setMizoState("alert");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    speak("النجدة! أنا محتاج مساعدة فوراً!");
+    speak("النجدة! أنا محتاج مساعدة فوراً!", "emergency", "emergency", true);
   };
 
   const handleYes = () => {
     setMizoState("success");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    speak("ايوه");
+    speak("ايوه", "yes_quick", "responses");
     setTimeout(() => setMizoState("neutral"), 1500);
   };
 
   const handleNo = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
-    speak("لأ");
+    speak("لأ", "no_quick", "responses");
   };
 
   const handleRepeat = () => {
@@ -87,25 +100,65 @@ export default function MizoScreen() {
     }
   };
 
+  const handleAddCustomWord = async () => {
+    if (!newLabel.trim() || !newPhrase.trim()) {
+      Alert.alert("تنبيه", "اكتب اسم الكلمة والجملة");
+      return;
+    }
+    const word = await addCustomWord({
+      label: newLabel.trim(),
+      emoji: newEmoji.trim() || "⭐",
+      phrase: newPhrase.trim(),
+      category_id: activeCat,
+    });
+    setCustomWords((prev) => [...prev, word]);
+    setNewLabel(""); setNewEmoji("⭐"); setNewPhrase("");
+    setAddModalVisible(false);
+  };
+
+  const handleDeleteCustomWord = (id: string) => {
+    Alert.alert("مسح الكلمة", "متأكد؟", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "امسح", style: "destructive",
+        onPress: async () => {
+          await deleteCustomWord(id);
+          setCustomWords((prev) => prev.filter((w) => w.id !== id));
+        },
+      },
+    ]);
+  };
+
   const currentCategory = MIZO_CATEGORIES.find((c) => c.id === activeCat);
-  const displayWords = subWords ?? currentCategory?.words ?? [];
-  const mizoImage = MIZO_IMAGES[mizoState === "neutral" ? "neutral"
-    : mizoState === "speaking" ? "speaking"
+  const activeCatCustomWords = customWords
+    .filter((w) => w.category_id === activeCat)
+    .map((w): MizoWord => ({ id: w.id, label: w.label, emoji: w.emoji, phrase: w.phrase }));
+  const displayWords = subWords ?? [...(currentCategory?.words ?? []), ...activeCatCustomWords];
+
+  const mizoImage = MIZO_IMAGES[
+    mizoState === "speaking" ? "speaking"
     : mizoState === "success" ? "success"
-    : mizoState === "alert" ? "alert"
-    : "thinking"];
+    : mizoState === "alert"   ? "alert"
+    : mizoState === "thinking"? "thinking"
+    : "neutral"
+  ];
 
   return (
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => router.back()} style={styles.headerBtn}>
           <MaterialCommunityIcons name="arrow-right" size={26} color="#C9A84C" />
         </Pressable>
         <Text style={styles.headerTitle}>ميزو</Text>
-        <Pressable style={styles.settingsBtn}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#7A8A89" />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={() => router.push("/mizo/history")} style={styles.headerBtn}>
+            <MaterialCommunityIcons name="history" size={22} color="#7A8A89" />
+          </Pressable>
+          <Pressable onPress={() => router.push("/mizo/settings")} style={styles.headerBtn}>
+            <MaterialCommunityIcons name="cog-outline" size={22} color="#7A8A89" />
+          </Pressable>
+        </View>
       </View>
 
       {/* Mizo mascot + last phrase */}
@@ -118,6 +171,7 @@ export default function MizoScreen() {
             <MaterialCommunityIcons name="volume-high" size={20} color="#C9A84C" />
             <Text style={styles.phraseText} numberOfLines={2}>{lastPhrase}</Text>
           </Pressable>
+          <Text style={styles.patientName}>{patientName}</Text>
         </View>
       </View>
 
@@ -132,16 +186,9 @@ export default function MizoScreen() {
       </View>
 
       {/* Category tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.catBar}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}>
         {subWords && (
-          <Pressable
-            style={[styles.catTab, styles.catTabBack]}
-            onPress={() => setSubWords(null)}
-          >
+          <Pressable style={[styles.catTab, styles.catTabBack]} onPress={() => setSubWords(null)}>
             <Text style={styles.catTabText}>↩ رجوع</Text>
           </Pressable>
         )}
@@ -168,14 +215,28 @@ export default function MizoScreen() {
             key={word.id}
             style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
             onPress={() => handleWordPress(word)}
+            onLongPress={() => word.id.startsWith("custom_") && handleDeleteCustomWord(word.id)}
           >
             <Text style={styles.cardEmoji}>{word.emoji}</Text>
             <Text style={styles.cardLabel}>{word.label}</Text>
             {word.children && word.children.length > 0 && (
               <Text style={styles.cardArrow}>›</Text>
             )}
+            {word.id.startsWith("custom_") && (
+              <View style={styles.customBadge}>
+                <Text style={styles.customBadgeText}>✦</Text>
+              </View>
+            )}
           </Pressable>
         ))}
+
+        {/* زرار إضافة كلمة مخصصة */}
+        {!subWords && (
+          <Pressable style={styles.addCard} onPress={() => setAddModalVisible(true)}>
+            <Text style={styles.addCardIcon}>＋</Text>
+            <Text style={styles.addCardLabel}>أضف كلمة</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       {/* Emergency */}
@@ -183,15 +244,46 @@ export default function MizoScreen() {
         <MaterialCommunityIcons name="alert-circle" size={22} color="#fff" />
         <Text style={styles.emergencyText}>🆘  النجدة</Text>
       </Pressable>
+
+      {/* Modal — إضافة كلمة مخصصة */}
+      <Modal visible={addModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>إضافة كلمة جديدة</Text>
+
+            <Text style={styles.modalLabel}>الإيموجي</Text>
+            <TextInput style={styles.modalInput} value={newEmoji} onChangeText={setNewEmoji} textAlign="center" />
+
+            <Text style={styles.modalLabel}>اسم الكلمة</Text>
+            <TextInput
+              style={styles.modalInput} value={newLabel} onChangeText={setNewLabel}
+              placeholder="مثال: عصير" textAlign="right" placeholderTextColor="#9AABAA"
+            />
+
+            <Text style={styles.modalLabel}>الجملة الكاملة</Text>
+            <TextInput
+              style={styles.modalInput} value={newPhrase} onChangeText={setNewPhrase}
+              placeholder="مثال: أنا عايز عصير" textAlign="right" placeholderTextColor="#9AABAA"
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalCancel} onPress={() => setAddModalVisible(false)}>
+                <Text style={styles.modalCancelText}>إلغاء</Text>
+              </Pressable>
+              <Pressable style={styles.modalSave} onPress={handleAddCustomWord}>
+                <Text style={styles.modalSaveText}>أضف</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#F5F7F6",
-  },
+  safe: { flex: 1, backgroundColor: "#F5F7F6" },
+
   header: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -200,13 +292,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: "#1C2B2A",
   },
-  headerTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 20,
-    color: "#C9A84C",
-  },
-  backBtn: { padding: 4 },
-  settingsBtn: { padding: 4 },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#C9A84C" },
+  headerBtn: { padding: 4 },
+  headerActions: { flexDirection: "row-reverse", gap: 8 },
 
   mizoRow: {
     flexDirection: "row-reverse",
@@ -216,140 +304,71 @@ const styles = StyleSheet.create({
     backgroundColor: "#1C2B2A",
     gap: 12,
   },
-  mizoImg: {
-    width: 80,
-    height: 80,
-  },
-  phraseBox: {
-    flex: 1,
-    backgroundColor: "#253D3B",
-    borderRadius: 14,
-    padding: 2,
-  },
-  phraseInner: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 8,
-    padding: 10,
-  },
-  phraseText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 16,
-    color: "#FFFFFF",
-    textAlign: "right",
-    flex: 1,
+  mizoImg: { width: 80, height: 80 },
+  phraseBox: { flex: 1, backgroundColor: "#253D3B", borderRadius: 14, padding: 2 },
+  phraseInner: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 10 },
+  phraseText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#FFFFFF", textAlign: "right", flex: 1 },
+  patientName: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: "#C9A84C88",
+    textAlign: "right", paddingHorizontal: 10, paddingBottom: 6,
   },
 
-  yesNoRow: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  yesNoBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  yesNoRow: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  yesNoBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   yesBtn: { backgroundColor: "#1C6B3A" },
-  noBtn:  { backgroundColor: "#8B1A1A" },
-  yesNoText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: "#FFFFFF",
-  },
+  noBtn: { backgroundColor: "#8B1A1A" },
+  yesNoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF" },
 
-  catBar: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 8,
-    flexDirection: "row-reverse",
-  },
-  catTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: "#E8EDEC",
-  },
-  catTabActive: {
-    backgroundColor: "#1C2B2A",
-  },
-  catTabBack: {
-    backgroundColor: "#C9A84C22",
-    borderWidth: 1,
-    borderColor: "#C9A84C",
-  },
-  catTabText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: "#1C2B2A",
-  },
-  catTabTextActive: {
-    color: "#FFFFFF",
-  },
+  catBar: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, flexDirection: "row-reverse" },
+  catTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: "#E8EDEC" },
+  catTabActive: { backgroundColor: "#1C2B2A" },
+  catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 1, borderColor: "#C9A84C" },
+  catTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A" },
+  catTabTextActive: { color: "#FFFFFF" },
 
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    gap: 8,
-    justifyContent: "flex-end",
-  },
+  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingBottom: 12, gap: 8, justifyContent: "flex-end" },
   card: {
-    width: CARD_SIZE,
-    height: CARD_SIZE,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    borderWidth: 1.5,
-    borderColor: "#E0E8E7",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    width: CARD_SIZE, height: CARD_SIZE, backgroundColor: "#FFFFFF", borderRadius: 16,
+    alignItems: "center", justifyContent: "center", gap: 4,
+    borderWidth: 1.5, borderColor: "#E0E8E7",
+    elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
-  cardPressed: {
-    backgroundColor: "#EDF5F4",
-    transform: [{ scale: 0.95 }],
+  cardPressed: { backgroundColor: "#EDF5F4", transform: [{ scale: 0.95 }] },
+  cardEmoji: { fontSize: 34 },
+  cardLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A", textAlign: "center" },
+  cardArrow: { position: "absolute", top: 6, left: 8, fontSize: 18, color: "#C9A84C", fontWeight: "700" },
+  customBadge: { position: "absolute", top: 6, right: 8 },
+  customBadgeText: { fontSize: 10, color: "#C9A84C" },
+
+  addCard: {
+    width: CARD_SIZE, height: CARD_SIZE, borderRadius: 16,
+    alignItems: "center", justifyContent: "center", gap: 4,
+    borderWidth: 2, borderColor: "#C9A84C55", borderStyle: "dashed",
+    backgroundColor: "#FDFAF3",
   },
-  cardEmoji: {
-    fontSize: 34,
-  },
-  cardLabel: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 13,
-    color: "#1C2B2A",
-    textAlign: "center",
-  },
-  cardArrow: {
-    position: "absolute",
-    top: 6,
-    left: 8,
-    fontSize: 18,
-    color: "#C9A84C",
-    fontWeight: "700",
-  },
+  addCardIcon: { fontSize: 28, color: "#C9A84C" },
+  addCardLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C9A84C" },
 
   emergencyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#CC2200",
-    marginHorizontal: 12,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: "#CC2200", marginHorizontal: 12,
     marginBottom: Platform.OS === "ios" ? 8 : 12,
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 16, borderRadius: 16,
   },
-  emergencyText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 20,
-    color: "#FFFFFF",
+  emergencyText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#FFFFFF" },
+
+  modalOverlay: { flex: 1, backgroundColor: "#00000066", justifyContent: "flex-end" },
+  modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#1C2B2A", textAlign: "right", marginBottom: 16 },
+  modalLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A", textAlign: "right", marginBottom: 6 },
+  modalInput: {
+    backgroundColor: "#F5F7F6", borderRadius: 10, paddingHorizontal: 14,
+    paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14,
+    color: "#1C2B2A", borderWidth: 1, borderColor: "#E0E8E7", marginBottom: 12,
   },
+  modalActions: { flexDirection: "row", gap: 10, marginTop: 8 },
+  modalCancel: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center", backgroundColor: "#E8EDEC" },
+  modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#1C2B2A" },
+  modalSave: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center", backgroundColor: "#1C2B2A" },
+  modalSaveText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#C9A84C" },
 });
