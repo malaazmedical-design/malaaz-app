@@ -1,6 +1,8 @@
 import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
+import { Image } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MIZO_IMAGES } from "@/constants/mizoImages";
 import React, { useEffect } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
@@ -71,6 +73,11 @@ export default function TabLayout() {
           title: "حسابي",
           tabBarIcon: ({ color }) => <MaterialCommunityIcons name="account-circle" size={24} color={color} />,
         }}
+      />
+      {/* ميزو — مخفي من التاب بار لحد ما يكتمل */}
+      <Tabs.Screen
+        name="mizo-hidden"
+        options={{ href: null }}
       />
     </Tabs>
   );
