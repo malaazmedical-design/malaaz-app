@@ -45,8 +45,9 @@ export default function MizoScreen() {
     bounceMizo();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Speech.speak(phrase, {
-      language: "ar",
-      rate: 0.85,
+      language: "ar-EG",
+      rate: 0.82,
+      pitch: 1.05,
       onDone: () => setMizoState("neutral"),
       onError: () => setMizoState("neutral"),
     });

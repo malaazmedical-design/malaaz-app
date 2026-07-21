@@ -1,10 +1,8 @@
 import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
-import { Image } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { MIZO_IMAGES } from "@/constants/mizoImages";
 import React, { useEffect } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { supabase } from "@/lib/supabase";
 
@@ -12,7 +10,6 @@ export default function TabLayout() {
   const colors = useColors();
   const isIOS = Platform.OS === "ios";
 
-  // لو فيه جلسة مقدم خدمة محفوظة — نحوّله لبوابته تلقائياً
   useEffect(() => {
     (async () => {
       try {
@@ -27,7 +24,7 @@ export default function TabLayout() {
           router.replace("/provider-portal");
         }
       } catch {
-        // ignore — يفضل في صفحة العميل
+        // ignore
       }
     })();
   }, []);
@@ -68,16 +65,30 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="mizo-entry"
+        options={{
+          title: "ميزو",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="robot-happy-outline" size={24} color={color} />
+          ),
+          tabBarButton: (props) => (
+            <Pressable
+              style={props.style}
+              onPress={() => router.push("/mizo")}
+              accessibilityRole="button"
+              accessibilityLabel="ميزو"
+            >
+              {props.children}
+            </Pressable>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "حسابي",
           tabBarIcon: ({ color }) => <MaterialCommunityIcons name="account-circle" size={24} color={color} />,
         }}
-      />
-      {/* ميزو — مخفي من التاب بار لحد ما يكتمل */}
-      <Tabs.Screen
-        name="mizo-hidden"
-        options={{ href: null }}
       />
     </Tabs>
   );
