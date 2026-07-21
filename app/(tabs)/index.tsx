@@ -206,6 +206,38 @@ export default function HomeScreen() {
             </View>
           </Animated.View>
 
+          {/* ─── ميزو — مساعد التواصل (مؤقت للتجربة) ─── */}
+          <Animated.View entering={FadeInDown.delay(60).springify()}>
+            <Pressable
+              onPress={() => router.push("/mizo")}
+              style={({ pressed }) => ({
+                backgroundColor: "#253D3B",
+                borderRadius: 18,
+                padding: 14,
+                flexDirection: "row-reverse",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 10,
+                borderWidth: 1.5,
+                borderColor: "#C9A84C55",
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              })}
+            >
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#C9A84C22", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 24 }}>🐻</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 15 }}>
+                  ميزو — مساعد التواصل
+                </Text>
+                <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 1 }}>
+                  للمرضى الذين يحتاجون مساعدة في التعبير
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-left" size={22} color="#C9A84C" />
+            </Pressable>
+          </Animated.View>
+
           {/* ─── Flow 1: طلب سريع ─── */}
           <Animated.View entering={FadeInDown.delay(120).springify()}>
           <Pressable
