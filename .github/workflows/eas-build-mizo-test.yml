@@ -1,0 +1,37 @@
+name: EAS Build — Mizo Test APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'الـ branch'
+        required: true
+        default: 'feature/mizo-aac'
+
+jobs:
+  build:
+    name: Build Mizo Test APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK (mizo-test profile)
+        run: eas build --platform android --profile mizo-test --non-interactive
+
+      - name: Done
+        run: echo "✅ APK جاهز — حمّله من https://expo.dev/accounts/malaazapp/projects/malaaz/builds"
