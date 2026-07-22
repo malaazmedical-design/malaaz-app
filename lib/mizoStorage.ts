@@ -7,7 +7,11 @@ const KEYS = {
   customWords: "mizo_custom_words",
 };
 
-export type VoiceType = "male" | "female" | "child";
+export type VoiceType =
+  | "male_1" | "male_2" | "male_3"
+  | "female_1" | "female_2" | "female_3"
+  | "child_1" | "child_2" | "child_3"
+  | "male" | "female" | "child"; // backward compat
 
 export type MizoProfile = {
   patientName: string;
@@ -51,9 +55,19 @@ export async function saveProfile(profile: MizoProfile): Promise<void> {
 
 export function getVoiceOptions(voiceType: VoiceType) {
   switch (voiceType) {
-    case "female": return { language: "ar-EG", rate: 0.82, pitch: 1.25 };
-    case "child":  return { language: "ar-EG", rate: 0.78, pitch: 1.55 };
-    default:       return { language: "ar-EG", rate: 0.82, pitch: 1.0  };
+    case "male_1":   return { language: "ar-EG", rate: 0.75, pitch: 0.80 };
+    case "male_2":
+    case "male":     return { language: "ar-EG", rate: 0.82, pitch: 1.00 };
+    case "male_3":   return { language: "ar-EG", rate: 0.88, pitch: 1.18 };
+    case "female_1": return { language: "ar-EG", rate: 0.78, pitch: 1.20 };
+    case "female_2":
+    case "female":   return { language: "ar-EG", rate: 0.82, pitch: 1.38 };
+    case "female_3": return { language: "ar-EG", rate: 0.87, pitch: 1.55 };
+    case "child_1":  return { language: "ar-EG", rate: 0.75, pitch: 1.45 };
+    case "child_2":
+    case "child":    return { language: "ar-EG", rate: 0.80, pitch: 1.65 };
+    case "child_3":  return { language: "ar-EG", rate: 0.88, pitch: 1.85 };
+    default:         return { language: "ar-EG", rate: 0.82, pitch: 1.00 };
   }
 }
 

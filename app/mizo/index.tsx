@@ -2,8 +2,17 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Image,
   SafeAreaView, Dimensions, Animated, Platform, Modal,
-  TextInput, Alert,
+  TextInput, Alert, FlatList,
 } from "react-native";
+
+const EMOJI_LIST = [
+  "🍎","🥛","💧","🍞","🍗","🍕","🍦","☕","🧃","🍌","🍊","🍋",
+  "💊","🌡️","🏥","😷","🤒","🩺","💉","🩹",
+  "😊","😢","😡","😴","😰","❤️","🙏","😃","😔","🥱",
+  "🚽","🛁","🛏️","📺","📱","🔊","🚪","💡","🌙","☀️",
+  "✅","❌","❓","⚠️","🆘","🔔","👍","👎","🤝","✋",
+  "👨","👩","👦","👧","👴","👵","🧑‍⚕️","👮",
+];
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -252,7 +261,24 @@ export default function MizoScreen() {
             <Text style={styles.modalTitle}>إضافة كلمة جديدة</Text>
 
             <Text style={styles.modalLabel}>الإيموجي</Text>
-            <TextInput style={styles.modalInput} value={newEmoji} onChangeText={setNewEmoji} textAlign="center" />
+            <View style={styles.emojiSelected}>
+              <Text style={styles.emojiSelectedText}>{newEmoji}</Text>
+            </View>
+            <FlatList
+              data={EMOJI_LIST}
+              keyExtractor={(e) => e}
+              numColumns={8}
+              scrollEnabled={false}
+              style={styles.emojiGrid}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[styles.emojiCell, newEmoji === item && styles.emojiCellActive]}
+                  onPress={() => setNewEmoji(item)}
+                >
+                  <Text style={styles.emojiCellText}>{item}</Text>
+                </Pressable>
+              )}
+            />
 
             <Text style={styles.modalLabel}>اسم الكلمة</Text>
             <TextInput
@@ -358,14 +384,24 @@ const styles = StyleSheet.create({
   emergencyText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#FFFFFF" },
 
   modalOverlay: { flex: 1, backgroundColor: "#00000066", justifyContent: "flex-end" },
-  modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#1C2B2A", textAlign: "right", marginBottom: 16 },
+  modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "92%" },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#1C2B2A", textAlign: "right", marginBottom: 14 },
   modalLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A", textAlign: "right", marginBottom: 6 },
   modalInput: {
     backgroundColor: "#F5F7F6", borderRadius: 10, paddingHorizontal: 14,
     paddingVertical: 10, fontFamily: "Cairo_400Regular", fontSize: 14,
     color: "#1C2B2A", borderWidth: 1, borderColor: "#E0E8E7", marginBottom: 12,
   },
+  emojiSelected: {
+    alignSelf: "center", width: 56, height: 56, borderRadius: 14,
+    backgroundColor: "#F5F7F6", borderWidth: 2, borderColor: "#C9A84C",
+    alignItems: "center", justifyContent: "center", marginBottom: 8,
+  },
+  emojiSelectedText: { fontSize: 32 },
+  emojiGrid: { marginBottom: 10 },
+  emojiCell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 8, margin: 2 },
+  emojiCellActive: { backgroundColor: "#C9A84C33" },
+  emojiCellText: { fontSize: 22 },
   modalActions: { flexDirection: "row", gap: 10, marginTop: 8 },
   modalCancel: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center", backgroundColor: "#E8EDEC" },
   modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#1C2B2A" },

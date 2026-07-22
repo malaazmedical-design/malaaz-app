@@ -3,17 +3,41 @@ import {
   View, Text, TextInput, StyleSheet, SafeAreaView,
   Pressable, ScrollView, Alert, Switch,
 } from "react-native";
+import * as Speech from "expo-speech";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
-  getProfile, saveProfile, clearLocalEvents,
+  getProfile, saveProfile, clearLocalEvents, getVoiceOptions,
   MizoProfile, VoiceType,
 } from "@/lib/mizoStorage";
 
-const VOICE_OPTIONS: { key: VoiceType; label: string; emoji: string; desc: string }[] = [
-  { key: "male",   label: "صوت راجل",  emoji: "👨", desc: "حدة طبيعية — مناسب للرجال" },
-  { key: "female", label: "صوت ست",    emoji: "👩", desc: "حدة أعلى — مناسب للسيدات" },
-  { key: "child",  label: "صوت طفل",   emoji: "👦", desc: "حدة مرتفعة — مناسب للأطفال" },
+type VoiceOption = { key: VoiceType; label: string; emoji: string; desc: string };
+
+const VOICE_GROUPS: { title: string; emoji: string; options: VoiceOption[] }[] = [
+  {
+    title: "راجل", emoji: "👨",
+    options: [
+      { key: "male_1", label: "راجل ١", emoji: "👨", desc: "صوت عميق وهادي" },
+      { key: "male_2", label: "راجل ٢", emoji: "👨", desc: "صوت طبيعي متوسط" },
+      { key: "male_3", label: "راجل ٣", emoji: "👨", desc: "صوت خفيف وسريع" },
+    ],
+  },
+  {
+    title: "ست", emoji: "👩",
+    options: [
+      { key: "female_1", label: "ست ١", emoji: "👩", desc: "صوت هادي ومريح" },
+      { key: "female_2", label: "ست ٢", emoji: "👩", desc: "صوت طبيعي متوسط" },
+      { key: "female_3", label: "ست ٣", emoji: "👩", desc: "صوت مرتفع وحيوي" },
+    ],
+  },
+  {
+    title: "طفل", emoji: "👦",
+    options: [
+      { key: "child_1", label: "طفل ١", emoji: "👦", desc: "صوت هادي ومريح" },
+      { key: "child_2", label: "طفل ٢", emoji: "👦", desc: "صوت طبيعي متوسط" },
+      { key: "child_3", label: "طفل ٣", emoji: "👦", desc: "صوت حيوي ومبهج" },
+    ],
+  },
 ];
 
 export default function MizoSettingsScreen() {
@@ -65,23 +89,39 @@ export default function MizoSettingsScreen() {
 
         {/* اختيار الصوت */}
         <Text style={[styles.label, { marginTop: 24 }]}>نوع الصوت</Text>
-        {VOICE_OPTIONS.map((opt) => (
-          <Pressable
-            key={opt.key}
-            style={[styles.voiceCard, profile.voiceType === opt.key && styles.voiceCardActive]}
-            onPress={() => setProfile((p) => ({ ...p, voiceType: opt.key }))}
-          >
-            <Text style={styles.voiceEmoji}>{opt.emoji}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.voiceLabel, profile.voiceType === opt.key && styles.voiceLabelActive]}>
-                {opt.label}
-              </Text>
-              <Text style={styles.voiceDesc}>{opt.desc}</Text>
-            </View>
-            {profile.voiceType === opt.key && (
-              <MaterialCommunityIcons name="check-circle" size={22} color="#C9A84C" />
-            )}
-          </Pressable>
+        <Text style={styles.voiceHint}>اضغط على "جرّب" عشان تسمع كل صوت قبل ما تختار</Text>
+        {VOICE_GROUPS.map((group) => (
+          <View key={group.title}>
+            <Text style={styles.voiceGroupTitle}>{group.emoji} صوت {group.title}</Text>
+            {group.options.map((opt) => (
+              <Pressable
+                key={opt.key}
+                style={[styles.voiceCard, profile.voiceType === opt.key && styles.voiceCardActive]}
+                onPress={() => setProfile((p) => ({ ...p, voiceType: opt.key }))}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.voiceLabel, profile.voiceType === opt.key && styles.voiceLabelActive]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.voiceDesc}>{opt.desc}</Text>
+                </View>
+                <Pressable
+                  style={styles.tryBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    Speech.stop();
+                    const { language, rate, pitch } = getVoiceOptions(opt.key);
+                    Speech.speak("أنا عايز مية", { language, rate, pitch });
+                  }}
+                >
+                  <Text style={styles.tryBtnText}>جرّب</Text>
+                </Pressable>
+                {profile.voiceType === opt.key && (
+                  <MaterialCommunityIcons name="check-circle" size={22} color="#C9A84C" />
+                )}
+              </Pressable>
+            ))}
+          </View>
         ))}
 
         {/* وضع المريض */}
@@ -162,22 +202,25 @@ const styles = StyleSheet.create({
     borderColor: "#E0E8E7",
   },
 
+  voiceHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A8A89", textAlign: "right", marginBottom: 8 },
+  voiceGroupTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A", textAlign: "right", marginTop: 14, marginBottom: 6 },
   voiceCard: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     backgroundColor: "#fff",
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1.5,
     borderColor: "#E0E8E7",
   },
   voiceCardActive: { borderColor: "#C9A84C", backgroundColor: "#FDFAF3" },
-  voiceEmoji: { fontSize: 28 },
-  voiceLabel: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1C2B2A", textAlign: "right" },
+  voiceLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A", textAlign: "right" },
   voiceLabelActive: { color: "#C9A84C" },
-  voiceDesc: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A8A89", textAlign: "right" },
+  voiceDesc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#7A8A89", textAlign: "right" },
+  tryBtn: { backgroundColor: "#E8EDEC", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  tryBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#1C2B2A" },
 
   saveBtn: {
     backgroundColor: "#1C2B2A",
