@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
 
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" },
   partCard: {
-    width: "30%", aspectRatio: 1, backgroundColor: "#fff", borderRadius: 14,
+    width: "22%", aspectRatio: 1, backgroundColor: "#fff", borderRadius: 14,
     alignItems: "center", justifyContent: "center", gap: 4,
     borderWidth: 2, borderColor: "#E0E8E7",
   },

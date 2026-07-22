@@ -16,7 +16,8 @@ import {
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
-const CARD_SIZE = (width - 48) / 3;
+const isTablet = width >= 768;
+const CARD_SIZE = (width - 48) / (isTablet ? 5 : 3);
 type MizoState = "neutral" | "speaking" | "success" | "alert" | "thinking";
 
 export default function MizoLockedScreen() {

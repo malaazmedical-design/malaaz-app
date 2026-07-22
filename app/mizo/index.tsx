@@ -27,6 +27,7 @@ import {
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
+const isTablet = width >= 768;
 
 type MizoState = "neutral" | "speaking" | "success" | "alert" | "thinking";
 
@@ -65,7 +66,7 @@ export default function MizoScreen() {
     })();
   }, []);
 
-  const cols = profile?.oneHandedMode ? 2 : 3;
+  const cols = profile?.oneHandedMode ? (isTablet ? 3 : 2) : (isTablet ? 5 : 3);
   const CARD_SIZE = (width - 48) / cols;
 
   const bounceMizo = () => {

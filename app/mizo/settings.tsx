@@ -71,7 +71,12 @@ export default function MizoSettingsScreen() {
     setSaving(true);
     await saveProfile(profile);
     setSaving(false);
-    router.back();
+    // If patient mode was disabled, replace the whole mizo stack so we land on the normal screen
+    if (!profile.patientMode) {
+      router.replace("/mizo");
+    } else {
+      router.back();
+    }
   };
 
   const handleClearHistory = () => {
