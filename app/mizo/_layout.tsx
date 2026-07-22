@@ -10,6 +10,7 @@ export default function MizoLayout() {
       <Stack.Screen name="care-report" />
       <Stack.Screen name="family" />
       <Stack.Screen name="pain" />
+      <Stack.Screen name="contacts" />
     </Stack>
   );
 }

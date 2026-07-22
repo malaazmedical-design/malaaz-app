@@ -6,6 +6,7 @@ const KEYS = {
   localEvents: "mizo_local_events",
   customWords: "mizo_custom_words",
   familyLinks: "mizo_family_links",
+  contacts: "mizo_contacts",
 };
 
 export type VoiceType =
@@ -64,6 +65,15 @@ export type CustomWord = {
   emoji: string;
   phrase: string;
   category_id: string;
+};
+
+export type MizoContact = {
+  id: string;
+  name: string;       // "بابا محمد"
+  relation: string;   // "بابا"
+  photo: string | null; // "data:image/jpeg;base64,..."
+  phrase: string;     // "نادوا على بابا محمد"
+  color: string;      // fallback background color
 };
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -291,4 +301,40 @@ export async function deleteCustomWord(id: string): Promise<void> {
   const existing = await getCustomWords();
   const filtered = existing.filter((w) => w.id !== id);
   await AsyncStorage.setItem(KEYS.customWords, JSON.stringify(filtered));
+}
+
+// ─── Family contacts (AAC photo cards) ───────────────────────────────────────
+
+const CONTACT_COLORS = ["#2E7D6B", "#1C5C8A", "#7B3F8C", "#B85C1A", "#1A6B4A", "#8C3A3A"];
+
+export async function getContacts(): Promise<MizoContact[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.contacts);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function addContact(contact: Omit<MizoContact, "id" | "color">): Promise<MizoContact> {
+  const existing = await getContacts();
+  const color = CONTACT_COLORS[existing.length % CONTACT_COLORS.length];
+  const newContact: MizoContact = { ...contact, id: `contact_${Date.now()}`, color };
+  existing.push(newContact);
+  await AsyncStorage.setItem(KEYS.contacts, JSON.stringify(existing));
+  return newContact;
+}
+
+export async function updateContact(id: string, patch: Partial<Omit<MizoContact, "id">>): Promise<void> {
+  const existing = await getContacts();
+  const idx = existing.findIndex((c) => c.id === id);
+  if (idx >= 0) {
+    existing[idx] = { ...existing[idx], ...patch };
+    await AsyncStorage.setItem(KEYS.contacts, JSON.stringify(existing));
+  }
+}
+
+export async function deleteContact(id: string): Promise<void> {
+  const existing = await getContacts();
+  await AsyncStorage.setItem(KEYS.contacts, JSON.stringify(existing.filter((c) => c.id !== id)));
 }

@@ -22,8 +22,8 @@ import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, addCustomWord, deleteCustomWord,
-  sendFamilyNotification,
-  CustomWord, MizoProfile,
+  sendFamilyNotification, getContacts,
+  CustomWord, MizoProfile, MizoContact,
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
@@ -39,6 +39,7 @@ export default function MizoScreen() {
   const [subWords, setSubWords] = useState<MizoWord[] | null>(null);
   const [voiceOpts, setVoiceOpts] = useState(getVoiceOptions("male"));
   const [customWords, setCustomWords] = useState<CustomWord[]>([]);
+  const [contacts, setContacts] = useState<MizoContact[]>([]);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newEmoji, setNewEmoji] = useState("⭐");
@@ -63,6 +64,7 @@ export default function MizoScreen() {
       setProfile(p);
       setVoiceOpts(getVoiceOptions(p.voiceType));
       setCustomWords(await getCustomWords());
+      setContacts(await getContacts());
     })();
   }, []);
 
@@ -302,6 +304,43 @@ export default function MizoScreen() {
 
       {/* Words grid */}
       <ScrollView contentContainerStyle={[styles.grid, { paddingBottom: 8 }]} showsVerticalScrollIndicator={false}>
+        {/* Contact photo cards — shown in عيلة category */}
+        {activeCat === "family" && !subWords && contacts.map((c) => (
+          <Pressable
+            key={c.id}
+            style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed]}
+            onPress={profile?.dwellTime === 0 ? () => speak(c.phrase, c.id, "family") : undefined}
+            onPressIn={() => {
+              if (!profile || profile.dwellTime === 0) return;
+              dwellTimerRef.current = setTimeout(() => {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                speak(c.phrase, c.id, "family");
+              }, profile.dwellTime);
+            }}
+            onPressOut={handlePressOut}
+          >
+            {c.photo ? (
+              <Image source={{ uri: c.photo }} style={styles.contactAvatar} />
+            ) : (
+              <View style={[styles.contactAvatarPlaceholder, { backgroundColor: c.color }]}>
+                <Text style={styles.contactInitial}>{c.name[0]}</Text>
+              </View>
+            )}
+            <Text style={[styles.cardLabel, { marginTop: 2 }]} numberOfLines={2}>{c.name}</Text>
+          </Pressable>
+        ))}
+
+        {/* Manage contacts shortcut in عيلة */}
+        {activeCat === "family" && !subWords && (
+          <Pressable
+            style={[styles.addCard, { width: CARD_SIZE, height: CARD_SIZE }]}
+            onPress={() => router.push("/mizo/contacts")}
+          >
+            <MaterialCommunityIcons name="account-edit-outline" size={28} color="#C9A84C" />
+            <Text style={styles.addCardLabel}>عدّل العيلة</Text>
+          </Pressable>
+        )}
+
         {displayWords.map((word) => (
           <Pressable
             key={word.id}
@@ -456,12 +495,15 @@ const styles = StyleSheet.create({
   noBtn: { backgroundColor: "#8B1A1A" },
   yesNoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF" },
 
-  catBar: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, flexDirection: "row-reverse" },
-  catTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: "#E8EDEC" },
-  catTabActive: { backgroundColor: "#1C2B2A" },
-  catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 1, borderColor: "#C9A84C" },
-  catTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A" },
-  catTabTextActive: { color: "#FFFFFF" },
+  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: "row-reverse" },
+  catTab: {
+    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 22,
+    backgroundColor: "#D8E3E2", borderWidth: 1.5, borderColor: "#C0CECA",
+  },
+  catTabActive: { backgroundColor: "#1C2B2A", borderColor: "#1C2B2A" },
+  catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 1.5, borderColor: "#C9A84C" },
+  catTabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A" },
+  catTabTextActive: { color: "#C9A84C" },
 
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 8, gap: 8, justifyContent: "flex-end" },
   card: {
@@ -487,6 +529,10 @@ const styles = StyleSheet.create({
   },
   addCardIcon: { fontSize: 28, color: "#C9A84C" },
   addCardLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C9A84C" },
+
+  contactAvatar: { width: 52, height: 52, borderRadius: 26 },
+  contactAvatarPlaceholder: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
+  contactInitial: { fontSize: 22, fontFamily: "Cairo_700Bold", color: "#fff" },
 
   emergencyBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
