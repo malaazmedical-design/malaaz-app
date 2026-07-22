@@ -23,7 +23,8 @@ import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, addCustomWord, deleteCustomWord,
-  sendFamilyNotification, getContacts, getWordCustomizations,
+  sendFamilyNotification, sendContactDirectNotification,
+  getContacts, getWordCustomizations,
   setWordCustomization, clearWordCustomization,
   CustomWord, MizoProfile, MizoContact, WordCustomization,
 } from "@/lib/mizoStorage";
@@ -315,8 +316,13 @@ export default function MizoScreen() {
         {activeCat === "family" && !subWords && contacts.map((c, idx) => (
           <Pressable
             key={c.id}
-            style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed]}
-            onPress={profile?.dwellTime === 0 ? () => speak(c.phrase, c.id, "family") : undefined}
+            style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed, !!c.push_token && styles.cardWithNotify]}
+            onPress={() => {
+              if (!profile || profile.dwellTime === 0) {
+                speak(c.phrase, c.id, "family");
+                if (c.push_token) sendContactDirectNotification(c, profile?.patientName ?? "المريض");
+              }
+            }}
             onPressIn={() => handlePressIn({ id: c.id, label: c.name, emoji: "👤", phrase: c.phrase })}
             onPressOut={handlePressOut}
             onLongPress={() => router.push("/mizo/contacts")}
@@ -331,6 +337,11 @@ export default function MizoScreen() {
             )}
             <Text style={styles.cardLabel} numberOfLines={2}>{c.name}</Text>
             <Text style={styles.cardRelation}>{c.relation}</Text>
+            {c.push_token && (
+              <View style={styles.notifyDot}>
+                <MaterialCommunityIcons name="bell-outline" size={10} color="#1C6B3A" />
+              </View>
+            )}
           </Pressable>
         ))}
 
@@ -345,7 +356,7 @@ export default function MizoScreen() {
             <Pressable
               key={word.id}
               style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed, isCustomized && styles.cardCustomized]}
-              onPress={profile?.dwellTime === 0 ? () => handleWordPress(word) : undefined}
+              onPress={() => { if (!profile || profile.dwellTime === 0) handleWordPress(word); }}
               onPressIn={() => handlePressIn(word)}
               onPressOut={handlePressOut}
               onLongPress={() => {
@@ -564,6 +575,8 @@ const styles = StyleSheet.create({
   contactAvatar: { width: 52, height: 52, borderRadius: 26 },
   contactAvatarPlaceholder: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
   contactInitial: { fontSize: 22, fontFamily: "Cairo_700Bold", color: "#fff" },
+  cardWithNotify: { borderColor: "#1C6B3A44" },
+  notifyDot: { position: "absolute", top: 6, right: 8, backgroundColor: "#E8F5EF", borderRadius: 8, padding: 2 },
 
   painCard: { borderColor: "#CC220033", backgroundColor: "#FFF5F5" },
   addCard: { borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 2, borderColor: "#C9A84C55", borderStyle: "dashed", backgroundColor: "#FDFAF3" },

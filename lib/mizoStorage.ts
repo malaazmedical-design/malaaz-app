@@ -68,13 +68,17 @@ export type CustomWord = {
   category_id: string;
 };
 
+export type ContactNotifyMode = "all" | "direct_only" | "emergency_only";
+
 export type MizoContact = {
   id: string;
-  name: string;       // "بابا محمد"
-  relation: string;   // "بابا"
-  photo: string | null; // "data:image/jpeg;base64,..."
-  phrase: string;     // "نادوا على بابا محمد"
-  color: string;      // fallback background color
+  name: string;
+  relation: string;
+  photo: string | null;
+  phrase: string;
+  color: string;
+  push_token?: string;
+  notify_mode?: ContactNotifyMode;
 };
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -183,6 +187,20 @@ export async function deleteFamilyLink(id: string): Promise<void> {
   } catch {}
 }
 
+async function pushSend(token: string, title: string, body: string, isEmergency: boolean, extra?: object) {
+  try {
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "Accept-Encoding": "gzip, deflate" },
+      body: JSON.stringify({
+        to: token, title, body, sound: "default",
+        priority: isEmergency ? "high" : "normal",
+        data: { type: "mizo_request", is_emergency: isEmergency, ...extra },
+      }),
+    });
+  } catch {}
+}
+
 export async function sendFamilyNotification(
   patientName: string,
   phrase: string,
@@ -199,30 +217,38 @@ export async function sendFamilyNotification(
     if (inQuiet) return;
   }
 
-  const links = await getFamilyLinks();
-  const targets = links.filter((l) => !l.notify_emergency_only || isEmergency);
+  const title = `ميزو — ${patientName}`;
 
-  for (const link of targets) {
-    if (!link.push_token) continue;
-    try {
-      await fetch("https://exp.host/--/api/v2/push/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Accept-Encoding": "gzip, deflate",
-        },
-        body: JSON.stringify({
-          to: link.push_token,
-          title: `ميزو — ${patientName}`,
-          body: phrase,
-          sound: "default",
-          priority: isEmergency ? "high" : "normal",
-          data: { type: "mizo_request", is_emergency: isEmergency },
-        }),
-      });
-    } catch {}
+  // Family links (existing)
+  const links = await getFamilyLinks();
+  for (const link of links.filter((l) => !l.notify_emergency_only || isEmergency)) {
+    if (link.push_token) await pushSend(link.push_token, title, phrase, isEmergency);
   }
+
+  // Contacts with push tokens: "all" mode always, "emergency_only" on emergency
+  const contacts = await getContacts();
+  for (const c of contacts) {
+    if (!c.push_token) continue;
+    const mode = c.notify_mode ?? "direct_only";
+    if (mode === "all" || (mode === "emergency_only" && isEmergency)) {
+      await pushSend(c.push_token, title, phrase, isEmergency);
+    }
+  }
+}
+
+// Send notification directly to one contact when their card is pressed
+export async function sendContactDirectNotification(
+  contact: MizoContact,
+  patientName: string,
+): Promise<void> {
+  if (!contact.push_token) return;
+  await pushSend(
+    contact.push_token,
+    `ميزو — ${patientName}`,
+    contact.phrase,
+    false,
+    { contact_id: contact.id, direct: true },
+  );
 }
 
 // ─── Events ──────────────────────────────────────────────────────────────────
