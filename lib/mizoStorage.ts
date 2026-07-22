@@ -7,6 +7,7 @@ const KEYS = {
   customWords: "mizo_custom_words",
   familyLinks: "mizo_family_links",
   contacts: "mizo_contacts",
+  wordCustomizations: "mizo_word_customizations",
 };
 
 export type VoiceType =
@@ -337,4 +338,31 @@ export async function updateContact(id: string, patch: Partial<Omit<MizoContact,
 export async function deleteContact(id: string): Promise<void> {
   const existing = await getContacts();
   await AsyncStorage.setItem(KEYS.contacts, JSON.stringify(existing.filter((c) => c.id !== id)));
+}
+
+// ─── Word customizations (personalize hardcoded cards) ────────────────────────
+
+export type WordCustomization = {
+  label?: string;
+  photo?: string | null;
+  color?: string;
+};
+
+export async function getWordCustomizations(): Promise<Record<string, WordCustomization>> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.wordCustomizations);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+export async function setWordCustomization(wordId: string, custom: WordCustomization): Promise<void> {
+  const existing = await getWordCustomizations();
+  existing[wordId] = { ...existing[wordId], ...custom };
+  await AsyncStorage.setItem(KEYS.wordCustomizations, JSON.stringify(existing));
+}
+
+export async function clearWordCustomization(wordId: string): Promise<void> {
+  const existing = await getWordCustomizations();
+  delete existing[wordId];
+  await AsyncStorage.setItem(KEYS.wordCustomizations, JSON.stringify(existing));
 }

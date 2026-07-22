@@ -177,7 +177,7 @@ export default function MizoLockedScreen() {
             <Text style={styles.catTabText}>↩ رجوع</Text>
           </Pressable>
         )}
-        {MIZO_CATEGORIES.map((cat) => {
+        {[...MIZO_CATEGORIES].reverse().map((cat) => {
           const isActive = activeCat === cat.id && !subWords;
           return (
             <Pressable
@@ -186,7 +186,7 @@ export default function MizoLockedScreen() {
               onPress={() => { setActiveCat(cat.id); setSubWords(null); }}
             >
               <Text style={[styles.catTabText, isActive && styles.catTabTextActive]}>
-                {cat.emoji} {cat.label}
+                {cat.emoji}{"  "}{cat.label}
               </Text>
             </Pressable>
           );
@@ -274,13 +274,13 @@ const styles = StyleSheet.create({
   yesBtn: { backgroundColor: "#1C6B3A" },
   noBtn: { backgroundColor: "#8B1A1A" },
   yesNoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF" },
-  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, flexDirection: "row-reverse" },
+  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   catTab: {
-    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 22,
-    backgroundColor: "#D8E3E2", borderWidth: 1.5, borderColor: "#C0CECA",
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
+    backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C9D6D4",
   },
   catTabActive: { backgroundColor: "#1C2B2A", borderColor: "#1C2B2A" },
-  catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 1.5, borderColor: "#C9A84C" },
+  catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 2, borderColor: "#C9A84C" },
   catTabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A" },
   catTabTextActive: { color: "#C9A84C" },
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingBottom: 12, gap: 8, justifyContent: "flex-end" },
