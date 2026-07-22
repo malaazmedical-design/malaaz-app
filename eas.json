@@ -27,7 +27,8 @@
       "distribution": "internal",
       "channel": "mizo-test",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "package": "com.malaaz.homecare.mizotest"
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://omsictbrqlsohrmxeuym.supabase.co",
