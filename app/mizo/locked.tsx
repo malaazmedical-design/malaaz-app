@@ -131,7 +131,9 @@ export default function MizoLockedScreen() {
     <SafeAreaView style={styles.safe}>
       {/* Header — بدون أي أزرار تنقل */}
       <View style={styles.header}>
-        <View style={{ width: 34 }} />
+        <Pressable onPress={handleTitleTap} style={styles.exitHint}>
+          <MaterialCommunityIcons name="lock" size={13} color="#C9A84C44" />
+        </Pressable>
         <Pressable onPress={handleTitleTap}>
           <Text style={styles.headerTitle}>ميزو</Text>
         </Pressable>
@@ -253,6 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1C2B2A",
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#C9A84C" },
+  exitHint: { width: 34, alignItems: "center", justifyContent: "center" },
   mizoRow: {
     flexDirection: "row-reverse",
     alignItems: "center",
