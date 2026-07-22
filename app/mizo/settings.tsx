@@ -40,8 +40,27 @@ const VOICE_GROUPS: { title: string; emoji: string; options: VoiceOption[] }[] =
   },
 ];
 
+const DWELL_OPTIONS = [
+  { value: 0,    label: "متفعّل", desc: "يشتغل فور الضغطة" },
+  { value: 500,  label: "٠.٥ ث", desc: "استنى نص ثانية" },
+  { value: 1000, label: "١ ث",   desc: "استنى ثانية" },
+  { value: 1500, label: "١.٥ ث", desc: "استنى ثانية ونص" },
+];
+
+const USER_TYPES = [
+  { id: "stroke",    label: "إصابة دماغية",   emoji: "🧠" },
+  { id: "deaf",      label: "ضعف سمع",         emoji: "👂" },
+  { id: "child",     label: "طفل",              emoji: "👦" },
+  { id: "nonverbal", label: "غير لفظي",         emoji: "🤐" },
+  { id: "",          label: "عام",              emoji: "👤" },
+];
+
 export default function MizoSettingsScreen() {
-  const [profile, setProfile] = useState<MizoProfile>({ patientName: "", voiceType: "male", patientMode: false, patientPin: "1234" });
+  const [profile, setProfile] = useState<MizoProfile>({
+    patientName: "", voiceType: "male", patientMode: false, patientPin: "1234",
+    dwellTime: 0, quietHoursEnabled: false, quietHoursStart: 22, quietHoursEnd: 7,
+    oneHandedMode: false, userType: "",
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -76,8 +95,24 @@ export default function MizoSettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
-        {/* اسم المريض */}
-        <Text style={styles.label}>اسم المريض</Text>
+
+        {/* ── نوع المستخدم ── */}
+        <Text style={styles.label}>نوع المستخدم</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+          {USER_TYPES.map((u) => (
+            <Pressable
+              key={u.id}
+              style={[styles.chip, profile.userType === u.id && styles.chipActive]}
+              onPress={() => setProfile((p) => ({ ...p, userType: u.id }))}
+            >
+              <Text style={styles.chipEmoji}>{u.emoji}</Text>
+              <Text style={[styles.chipText, profile.userType === u.id && styles.chipTextActive]}>{u.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        {/* ── اسم المريض ── */}
+        <Text style={[styles.label, { marginTop: 20 }]}>اسم المريض</Text>
         <TextInput
           style={styles.input}
           value={profile.patientName}
@@ -87,8 +122,8 @@ export default function MizoSettingsScreen() {
           textAlign="right"
         />
 
-        {/* اختيار الصوت */}
-        <Text style={[styles.label, { marginTop: 24 }]}>نوع الصوت</Text>
+        {/* ── اختيار الصوت ── */}
+        <Text style={[styles.label, { marginTop: 20 }]}>نوع الصوت</Text>
         <Text style={styles.voiceHint}>اضغط على "جرّب" عشان تسمع كل صوت قبل ما تختار</Text>
         {VOICE_GROUPS.map((group) => (
           <View key={group.title}>
@@ -124,9 +159,89 @@ export default function MizoSettingsScreen() {
           </View>
         ))}
 
-        {/* وضع المريض */}
+        {/* ── وقت الإمساك (dwell) ── */}
         <View style={styles.sectionDivider} />
-        <Text style={[styles.label, { marginTop: 4 }]}>وضع المريض</Text>
+        <Text style={styles.label}>وقت الإمساك (منع الضغط الغلط)</Text>
+        <Text style={styles.modeDesc}>
+          لو فعّلته، الكلمة بتتقال بس لو ضغطت وأمسكت الزرار للوقت المحدد.
+          مفيد لو المريض بيلمس الشاشة بالغلط.
+        </Text>
+        <View style={styles.dwellRow}>
+          {DWELL_OPTIONS.map((opt) => (
+            <Pressable
+              key={opt.value}
+              style={[styles.dwellBtn, profile.dwellTime === opt.value && styles.dwellBtnActive]}
+              onPress={() => setProfile((p) => ({ ...p, dwellTime: opt.value }))}
+            >
+              <Text style={[styles.dwellLabel, profile.dwellTime === opt.value && styles.dwellLabelActive]}>
+                {opt.label}
+              </Text>
+              <Text style={styles.dwellDesc}>{opt.desc}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* ── وضع اليد الواحدة ── */}
+        <View style={styles.sectionDivider} />
+        <Text style={styles.label}>وضع اليد الواحدة</Text>
+        <Text style={styles.modeDesc}>يكبّر البطاقات ويقللها لعمودين بدل تلاتة.</Text>
+        <View style={styles.switchRow}>
+          <Switch
+            value={profile.oneHandedMode}
+            onValueChange={(v) => setProfile((p) => ({ ...p, oneHandedMode: v }))}
+            trackColor={{ false: "#E0E8E7", true: "#1C2B2A" }}
+            thumbColor={profile.oneHandedMode ? "#C9A84C" : "#7A8A89"}
+          />
+          <Text style={styles.switchLabel}>
+            {profile.oneHandedMode ? "وضع اليد الواحدة مفعّل" : "وضع اليد الواحدة متفعّلش"}
+          </Text>
+        </View>
+
+        {/* ── ساعات الهدوء ── */}
+        <View style={styles.sectionDivider} />
+        <Text style={styles.label}>ساعات الهدوء</Text>
+        <Text style={styles.modeDesc}>
+          في الساعات دي، الإشعارات العادية للأهل بتتوقف. الطوارئ بتوصل دايماً.
+        </Text>
+        <View style={styles.switchRow}>
+          <Switch
+            value={profile.quietHoursEnabled}
+            onValueChange={(v) => setProfile((p) => ({ ...p, quietHoursEnabled: v }))}
+            trackColor={{ false: "#E0E8E7", true: "#1C2B2A" }}
+            thumbColor={profile.quietHoursEnabled ? "#C9A84C" : "#7A8A89"}
+          />
+          <Text style={styles.switchLabel}>
+            {profile.quietHoursEnabled ? "ساعات الهدوء مفعّلة" : "ساعات الهدوء متفعّلاش"}
+          </Text>
+        </View>
+        {profile.quietHoursEnabled && (
+          <View style={styles.quietRow}>
+            <View style={styles.quietField}>
+              <Text style={styles.quietFieldLabel}>بتبدأ الساعة</Text>
+              <TextInput
+                style={styles.quietInput}
+                value={String(profile.quietHoursStart)}
+                onChangeText={(v) => setProfile((p) => ({ ...p, quietHoursStart: Math.min(23, Math.max(0, parseInt(v) || 0)) }))}
+                keyboardType="numeric" maxLength={2} textAlign="center"
+              />
+              <Text style={styles.quietFieldLabel}>مساءً</Text>
+            </View>
+            <View style={styles.quietField}>
+              <Text style={styles.quietFieldLabel}>بتخلص الساعة</Text>
+              <TextInput
+                style={styles.quietInput}
+                value={String(profile.quietHoursEnd)}
+                onChangeText={(v) => setProfile((p) => ({ ...p, quietHoursEnd: Math.min(23, Math.max(0, parseInt(v) || 0)) }))}
+                keyboardType="numeric" maxLength={2} textAlign="center"
+              />
+              <Text style={styles.quietFieldLabel}>صباحاً</Text>
+            </View>
+          </View>
+        )}
+
+        {/* ── وضع المريض ── */}
+        <View style={styles.sectionDivider} />
+        <Text style={styles.label}>وضع المريض</Text>
         <Text style={styles.modeDesc}>
           لما تفعّله، التطبيق بيفتح على ميزو فقط وبيقفل باقي الشاشات.
           الأهل يضغطوا على "ميزو" ٣ مرات ويدخلوا الرقم السري عشان يخرجوا.
@@ -142,7 +257,6 @@ export default function MizoSettingsScreen() {
             {profile.patientMode ? "وضع المريض مفعّل" : "وضع المريض متفعّلش"}
           </Text>
         </View>
-
         {profile.patientMode && (
           <>
             <Text style={[styles.label, { marginTop: 12 }]}>الرقم السري للأهل (4-6 أرقام)</Text>
@@ -160,12 +274,12 @@ export default function MizoSettingsScreen() {
           </>
         )}
 
-        {/* زرار الحفظ */}
+        {/* ── حفظ ── */}
         <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}>
           <Text style={styles.saveBtnText}>{saving ? "جاري الحفظ..." : "حفظ الإعدادات"}</Text>
         </Pressable>
 
-        {/* مسح السجل */}
+        {/* ── مسح السجل ── */}
         <Pressable style={styles.dangerBtn} onPress={handleClearHistory}>
           <MaterialCommunityIcons name="delete-outline" size={18} color="#CC2200" />
           <Text style={styles.dangerText}>مسح سجل الكلام</Text>
@@ -178,12 +292,8 @@ export default function MizoSettingsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F5F7F6" },
   header: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#1C2B2A",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#1C2B2A",
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#C9A84C" },
   backBtn: { padding: 4 },
@@ -191,29 +301,27 @@ const styles = StyleSheet.create({
 
   label: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A", textAlign: "right", marginBottom: 8 },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 16,
-    color: "#1C2B2A",
-    borderWidth: 1.5,
-    borderColor: "#E0E8E7",
+    backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12,
+    fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#1C2B2A",
+    borderWidth: 1.5, borderColor: "#E0E8E7",
   },
+
+  chipRow: { marginBottom: 4 },
+  chip: {
+    flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 20, backgroundColor: "#E8EDEC", marginLeft: 8, borderWidth: 1.5, borderColor: "transparent",
+  },
+  chipActive: { backgroundColor: "#FDFAF3", borderColor: "#C9A84C" },
+  chipEmoji: { fontSize: 16 },
+  chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A" },
+  chipTextActive: { color: "#C9A84C" },
 
   voiceHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A8A89", textAlign: "right", marginBottom: 8 },
   voiceGroupTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A", textAlign: "right", marginTop: 14, marginBottom: 6 },
   voiceCard: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1.5,
-    borderColor: "#E0E8E7",
+    flexDirection: "row-reverse", alignItems: "center", gap: 10,
+    backgroundColor: "#fff", borderRadius: 14, padding: 12, marginBottom: 8,
+    borderWidth: 1.5, borderColor: "#E0E8E7",
   },
   voiceCardActive: { borderColor: "#C9A84C", backgroundColor: "#FDFAF3" },
   voiceLabel: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A", textAlign: "right" },
@@ -222,26 +330,38 @@ const styles = StyleSheet.create({
   tryBtn: { backgroundColor: "#E8EDEC", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   tryBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#1C2B2A" },
 
-  saveBtn: {
-    backgroundColor: "#1C2B2A",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#C9A84C" },
-
-  dangerBtn: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 14,
-  },
-  dangerText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#CC2200" },
   sectionDivider: { height: 1, backgroundColor: "#E0E8E7", marginVertical: 20 },
   modeDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#7A8A89", textAlign: "right", marginBottom: 12, lineHeight: 20 },
   switchRow: { flexDirection: "row-reverse", alignItems: "center", gap: 12, marginBottom: 8 },
   switchLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#1C2B2A" },
+
+  dwellRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  dwellBtn: {
+    flex: 1, minWidth: "45%", alignItems: "center", paddingVertical: 12, borderRadius: 12,
+    backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#E0E8E7",
+  },
+  dwellBtnActive: { borderColor: "#C9A84C", backgroundColor: "#FDFAF3" },
+  dwellLabel: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#1C2B2A" },
+  dwellLabelActive: { color: "#C9A84C" },
+  dwellDesc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#7A8A89", marginTop: 2 },
+
+  quietRow: { flexDirection: "row", gap: 16, marginTop: 8 },
+  quietField: { flex: 1, alignItems: "center", gap: 4 },
+  quietFieldLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A8A89" },
+  quietInput: {
+    backgroundColor: "#fff", borderRadius: 10, width: 64, paddingVertical: 8,
+    fontFamily: "Cairo_700Bold", fontSize: 20, color: "#1C2B2A",
+    borderWidth: 1.5, borderColor: "#E0E8E7", textAlign: "center",
+  },
+
+  saveBtn: {
+    backgroundColor: "#1C2B2A", borderRadius: 14, paddingVertical: 16,
+    alignItems: "center", marginTop: 24, marginBottom: 12,
+  },
+  saveBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#C9A84C" },
+  dangerBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 14,
+  },
+  dangerText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#CC2200" },
 });

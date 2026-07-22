@@ -8,6 +8,8 @@ export default function MizoLayout() {
       <Stack.Screen name="settings" />
       <Stack.Screen name="history" />
       <Stack.Screen name="care-report" />
+      <Stack.Screen name="family" />
+      <Stack.Screen name="pain" />
     </Stack>
   );
 }

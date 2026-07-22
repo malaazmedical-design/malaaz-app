@@ -17,42 +17,56 @@ import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { MIZO_CATEGORIES, MizoWord, MizoCategory } from "@/constants/mizoWords";
+import { MIZO_CATEGORIES, MizoWord } from "@/constants/mizoWords";
 import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, addCustomWord, deleteCustomWord,
-  CustomWord,
+  sendFamilyNotification,
+  CustomWord, MizoProfile,
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
-const COLS = 3;
-const CARD_SIZE = (width - 48) / COLS;
 
 type MizoState = "neutral" | "speaking" | "success" | "alert" | "thinking";
 
 export default function MizoScreen() {
+  const [profile, setProfile] = useState<MizoProfile | null>(null);
   const [activeCat, setActiveCat] = useState(MIZO_CATEGORIES[0].id);
   const [lastPhrase, setLastPhrase] = useState("اضغط على أي كلمة...");
   const [mizoState, setMizoState] = useState<MizoState>("neutral");
   const [subWords, setSubWords] = useState<MizoWord[] | null>(null);
   const [voiceOpts, setVoiceOpts] = useState(getVoiceOptions("male"));
   const [customWords, setCustomWords] = useState<CustomWord[]>([]);
-  const [patientName, setPatientName] = useState("المريض");
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newEmoji, setNewEmoji] = useState("⭐");
   const [newPhrase, setNewPhrase] = useState("");
+
+  // SOS countdown
+  const [sosModal, setSosModal] = useState(false);
+  const [sosCount, setSosCount] = useState(3);
+  const sosTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Dwell time press tracking
+  const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Animated values
   const mizoScale = useRef(new Animated.Value(1)).current;
+  const flashAnim = useRef(new Animated.Value(0)).current;
+  const sosScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     (async () => {
-      const profile = await getProfile();
-      setPatientName(profile.patientName || "المريض");
-      setVoiceOpts(getVoiceOptions(profile.voiceType));
+      const p = await getProfile();
+      setProfile(p);
+      setVoiceOpts(getVoiceOptions(p.voiceType));
       setCustomWords(await getCustomWords());
     })();
   }, []);
+
+  const cols = profile?.oneHandedMode ? 2 : 3;
+  const CARD_SIZE = (width - 48) / cols;
 
   const bounceMizo = () => {
     Animated.sequence([
@@ -61,21 +75,36 @@ export default function MizoScreen() {
     ]).start();
   };
 
+  const flashSuccess = (isEmergency = false) => {
+    Animated.sequence([
+      Animated.timing(flashAnim, { toValue: isEmergency ? 0.5 : 0.3, duration: 80, useNativeDriver: true }),
+      Animated.timing(flashAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start();
+  };
+
   const speak = useCallback((phrase: string, wordId = "", category = "", isEmergency = false) => {
     Speech.stop();
     setLastPhrase(phrase);
     setMizoState("speaking");
     bounceMizo();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    flashSuccess(isEmergency);
+    Haptics.impactAsync(isEmergency ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Light);
     Speech.speak(phrase, {
       ...voiceOpts,
       onDone: () => setMizoState("neutral"),
       onError: () => setMizoState("neutral"),
     });
     logEvent({ word_id: wordId, phrase, category, is_emergency: isEmergency });
-  }, [voiceOpts]);
 
-  const handleWordPress = (word: MizoWord) => {
+    if (profile) {
+      sendFamilyNotification(
+        profile.patientName || "المريض", phrase, isEmergency,
+        profile.quietHoursEnabled, profile.quietHoursStart, profile.quietHoursEnd,
+      );
+    }
+  }, [voiceOpts, profile]);
+
+  const handleWordPress = useCallback((word: MizoWord) => {
     if (word.children && word.children.length > 0) {
       setSubWords(word.children);
       setMizoState("thinking");
@@ -83,9 +112,51 @@ export default function MizoScreen() {
       setSubWords(null);
       speak(word.phrase, word.id, activeCat);
     }
+  }, [speak, activeCat]);
+
+  // ─── Dwell time handlers ───────────────────────────────────────────────────
+
+  const handlePressIn = useCallback((word: MizoWord) => {
+    if (!profile || profile.dwellTime === 0) return;
+    dwellTimerRef.current = setTimeout(() => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      handleWordPress(word);
+    }, profile.dwellTime);
+  }, [profile, handleWordPress]);
+
+  const handlePressOut = useCallback(() => {
+    if (dwellTimerRef.current) {
+      clearTimeout(dwellTimerRef.current);
+      dwellTimerRef.current = null;
+    }
+  }, []);
+
+  // ─── SOS ──────────────────────────────────────────────────────────────────
+
+  const handleEmergencyPress = () => {
+    setSosModal(true);
+    setSosCount(3);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+    let count = 3;
+    sosTimerRef.current = setInterval(() => {
+      count -= 1;
+      setSosCount(count);
+      if (count <= 0) {
+        clearInterval(sosTimerRef.current!);
+        setSosModal(false);
+        fireSOS();
+      }
+    }, 1000);
   };
 
-  const handleEmergency = () => {
+  const cancelSOS = () => {
+    if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+    setSosModal(false);
+    setSosCount(3);
+  };
+
+  const fireSOS = () => {
     setMizoState("alert");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     speak("النجدة! أنا محتاج مساعدة فوراً!", "emergency", "emergency", true);
@@ -152,8 +223,16 @@ export default function MizoScreen() {
     : "neutral"
   ];
 
+  const flashColor = mizoState === "alert" ? "#CC2200" : "#1C6B3A";
+
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Green/red flash overlay */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.flashOverlay, { opacity: flashAnim, backgroundColor: flashColor }]}
+      />
+
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.headerBtn}>
@@ -161,6 +240,9 @@ export default function MizoScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>ميزو</Text>
         <View style={styles.headerActions}>
+          <Pressable onPress={() => router.push("/mizo/family")} style={styles.headerBtn}>
+            <MaterialCommunityIcons name="bell-outline" size={22} color="#7A8A89" />
+          </Pressable>
           <Pressable onPress={() => router.push("/mizo/history")} style={styles.headerBtn}>
             <MaterialCommunityIcons name="history" size={22} color="#7A8A89" />
           </Pressable>
@@ -180,7 +262,7 @@ export default function MizoScreen() {
             <MaterialCommunityIcons name="volume-high" size={20} color="#C9A84C" />
             <Text style={styles.phraseText} numberOfLines={2}>{lastPhrase}</Text>
           </Pressable>
-          <Text style={styles.patientName}>{patientName}</Text>
+          <Text style={styles.patientName}>{profile?.patientName || "المريض"}</Text>
         </View>
       </View>
 
@@ -218,43 +300,75 @@ export default function MizoScreen() {
       </ScrollView>
 
       {/* Words grid */}
-      <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.grid, { paddingBottom: 8 }]} showsVerticalScrollIndicator={false}>
         {displayWords.map((word) => (
           <Pressable
             key={word.id}
-            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-            onPress={() => handleWordPress(word)}
+            style={({ pressed }) => [
+              styles.card,
+              { width: CARD_SIZE, height: CARD_SIZE },
+              pressed && styles.cardPressed,
+            ]}
+            onPress={profile?.dwellTime === 0 ? () => handleWordPress(word) : undefined}
+            onPressIn={() => handlePressIn(word)}
+            onPressOut={handlePressOut}
             onLongPress={() => word.id.startsWith("custom_") && handleDeleteCustomWord(word.id)}
+            delayLongPress={1500}
           >
-            <Text style={styles.cardEmoji}>{word.emoji}</Text>
-            <Text style={styles.cardLabel}>{word.label}</Text>
+            <Text style={[styles.cardEmoji, profile?.oneHandedMode && styles.cardEmojiLarge]}>{word.emoji}</Text>
+            <Text style={[styles.cardLabel, profile?.oneHandedMode && styles.cardLabelLarge]}>{word.label}</Text>
             {word.children && word.children.length > 0 && (
               <Text style={styles.cardArrow}>›</Text>
             )}
             {word.id.startsWith("custom_") && (
-              <View style={styles.customBadge}>
-                <Text style={styles.customBadgeText}>✦</Text>
-              </View>
+              <View style={styles.customBadge}><Text style={styles.customBadgeText}>✦</Text></View>
             )}
           </Pressable>
         ))}
 
-        {/* زرار إضافة كلمة مخصصة */}
+        {/* Pain shortcut card */}
+        {!subWords && activeCat === "health" && (
+          <Pressable
+            style={[styles.card, styles.painCard, { width: CARD_SIZE, height: CARD_SIZE }]}
+            onPress={() => router.push("/mizo/pain")}
+          >
+            <Text style={styles.cardEmoji}>🗺️</Text>
+            <Text style={[styles.cardLabel, { color: "#CC2200" }]}>خريطة الوجع</Text>
+          </Pressable>
+        )}
+
         {!subWords && (
-          <Pressable style={styles.addCard} onPress={() => setAddModalVisible(true)}>
+          <Pressable
+            style={[styles.addCard, { width: CARD_SIZE, height: CARD_SIZE }]}
+            onPress={() => setAddModalVisible(true)}
+          >
             <Text style={styles.addCardIcon}>＋</Text>
             <Text style={styles.addCardLabel}>أضف كلمة</Text>
           </Pressable>
         )}
       </ScrollView>
 
-      {/* Emergency */}
-      <Pressable style={styles.emergencyBtn} onPress={handleEmergency}>
+      {/* Emergency SOS button */}
+      <Pressable style={styles.emergencyBtn} onPress={handleEmergencyPress}>
         <MaterialCommunityIcons name="alert-circle" size={22} color="#fff" />
         <Text style={styles.emergencyText}>🆘  النجدة</Text>
       </Pressable>
 
-      {/* Modal — إضافة كلمة مخصصة */}
+      {/* SOS countdown modal */}
+      <Modal visible={sosModal} transparent animationType="fade">
+        <View style={styles.sosOverlay}>
+          <View style={styles.sosBox}>
+            <Text style={styles.sosTitle}>🚨 جاري إرسال النجدة</Text>
+            <Animated.Text style={styles.sosCount}>{sosCount}</Animated.Text>
+            <Text style={styles.sosHint}>بيتبعت بعد {sosCount} ثواني</Text>
+            <Pressable style={styles.sosCancelBtn} onPress={cancelSOS}>
+              <Text style={styles.sosCancelText}>إلغاء</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add custom word modal */}
       <Modal visible={addModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -310,25 +424,21 @@ export default function MizoScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F5F7F6" },
 
+  flashOverlay: {
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99, pointerEvents: "none",
+  },
+
   header: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#1C2B2A",
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#1C2B2A",
   },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#C9A84C" },
   headerBtn: { padding: 4 },
   headerActions: { flexDirection: "row-reverse", gap: 8 },
 
   mizoRow: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#1C2B2A",
-    gap: 12,
+    flexDirection: "row-reverse", alignItems: "center",
+    paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#1C2B2A", gap: 12,
   },
   mizoImg: { width: 80, height: 80 },
   phraseBox: { flex: 1, backgroundColor: "#253D3B", borderRadius: 14, padding: 2 },
@@ -352,25 +462,27 @@ const styles = StyleSheet.create({
   catTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A" },
   catTabTextActive: { color: "#FFFFFF" },
 
-  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingBottom: 12, gap: 8, justifyContent: "flex-end" },
+  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 8, gap: 8, justifyContent: "flex-end" },
   card: {
-    width: CARD_SIZE, height: CARD_SIZE, backgroundColor: "#FFFFFF", borderRadius: 16,
+    backgroundColor: "#FFFFFF", borderRadius: 16,
     alignItems: "center", justifyContent: "center", gap: 4,
     borderWidth: 1.5, borderColor: "#E0E8E7",
     elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
   cardPressed: { backgroundColor: "#EDF5F4", transform: [{ scale: 0.95 }] },
   cardEmoji: { fontSize: 34 },
+  cardEmojiLarge: { fontSize: 42 },
   cardLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A", textAlign: "center" },
+  cardLabelLarge: { fontSize: 15 },
   cardArrow: { position: "absolute", top: 6, left: 8, fontSize: 18, color: "#C9A84C", fontWeight: "700" },
   customBadge: { position: "absolute", top: 6, right: 8 },
   customBadgeText: { fontSize: 10, color: "#C9A84C" },
 
+  painCard: { borderColor: "#CC220033", backgroundColor: "#FFF5F5" },
+
   addCard: {
-    width: CARD_SIZE, height: CARD_SIZE, borderRadius: 16,
-    alignItems: "center", justifyContent: "center", gap: 4,
-    borderWidth: 2, borderColor: "#C9A84C55", borderStyle: "dashed",
-    backgroundColor: "#FDFAF3",
+    borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 4,
+    borderWidth: 2, borderColor: "#C9A84C55", borderStyle: "dashed", backgroundColor: "#FDFAF3",
   },
   addCardIcon: { fontSize: 28, color: "#C9A84C" },
   addCardLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C9A84C" },
@@ -383,6 +495,16 @@ const styles = StyleSheet.create({
   },
   emergencyText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#FFFFFF" },
 
+  // SOS countdown modal
+  sosOverlay: { flex: 1, backgroundColor: "#CC220099", alignItems: "center", justifyContent: "center" },
+  sosBox: { backgroundColor: "#fff", borderRadius: 24, padding: 32, alignItems: "center", width: 280 },
+  sosTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#CC2200", textAlign: "center", marginBottom: 16 },
+  sosCount: { fontFamily: "Cairo_700Bold", fontSize: 80, color: "#CC2200", lineHeight: 90 },
+  sosHint: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#7A8A89", textAlign: "center", marginBottom: 24 },
+  sosCancelBtn: { backgroundColor: "#1C2B2A", paddingHorizontal: 40, paddingVertical: 14, borderRadius: 14 },
+  sosCancelText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#C9A84C" },
+
+  // Add word modal
   modalOverlay: { flex: 1, backgroundColor: "#00000066", justifyContent: "flex-end" },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "92%" },
   modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#1C2B2A", textAlign: "right", marginBottom: 14 },
