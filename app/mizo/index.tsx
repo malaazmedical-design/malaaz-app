@@ -89,8 +89,9 @@ export default function MizoScreen() {
       setContacts(await getContacts());
       setWordCustoms(await getWordCustomizations());
       setSmartWords(await getSmartSuggestions(new Date().getHours()));
-      setPinnedWords(await getTopWords(6));
-      setQuickPinIds(await getQuickPins());
+      const pins = await getQuickPins();
+      setQuickPinIds(pins);
+      setPinnedWords(await getTopWords(6, pins));
     })();
   }, []);
 
