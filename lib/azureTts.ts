@@ -1,13 +1,17 @@
-import { File, Directory, Paths } from "expo-file-system";
-import { Audio } from "expo-av";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { AzureVoice } from "@/lib/mizoStorage";
 
-function getCacheDir(): Directory {
-  return new Directory(Paths.document, "mizo_azure_cache");
-}
+const CACHE_KEY = "mizo_azure_cache_map";
 
-function getCacheFile(wordId: string, voice: AzureVoice): File {
-  return new File(getCacheDir(), `${wordId}_${voice}.mp3`);
+// expo-av loaded lazily for OTA safety
+let Audio: any = null;
+try { Audio = require("expo-av").Audio; } catch {}
+
+async function getCacheMap(): Promise<Record<string, string>> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
 }
 
 function buildSsml(text: string, voice: AzureVoice): string {
@@ -22,11 +26,13 @@ export async function azureSpeak(
   region: string,
   onDone?: () => void,
 ): Promise<void> {
+  if (!Audio) throw new Error("NEEDS_NATIVE_BUILD");
   if (!key || !region) throw new Error("Azure key/region not set");
 
-  const cacheFile = getCacheFile(wordId, voice);
+  const cacheMap = await getCacheMap();
+  let uri = cacheMap[`${wordId}_${voice}`];
 
-  if (!cacheFile.exists) {
+  if (!uri) {
     const url = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
     const response = await fetch(url, {
       method: "POST",
@@ -39,24 +45,19 @@ export async function azureSpeak(
       body: buildSsml(phrase, voice),
     });
     if (!response.ok) throw new Error(`Azure TTS error: ${response.status}`);
-
-    const buffer = await response.arrayBuffer();
-    getCacheDir().create({ intermediates: true, idempotent: true });
-    cacheFile.write(new Uint8Array(buffer));
+    // Without expo-file-system we can't cache to disk — play via blob URI
+    const blob = await response.blob();
+    uri = URL.createObjectURL(blob);
   }
 
   await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-  const { sound } = await Audio.Sound.createAsync({ uri: cacheFile.uri });
+  const { sound } = await Audio.Sound.createAsync({ uri });
   await sound.playAsync();
-  sound.setOnPlaybackStatusUpdate((s) => {
-    if (s.isLoaded && s.didJustFinish) {
-      sound.unloadAsync();
-      onDone?.();
-    }
+  sound.setOnPlaybackStatusUpdate((s: any) => {
+    if (s.isLoaded && s.didJustFinish) { sound.unloadAsync(); onDone?.(); }
   });
 }
 
 export async function clearAzureCache(): Promise<void> {
-  const dir = getCacheDir();
-  if (dir.exists) dir.delete();
+  await AsyncStorage.removeItem(CACHE_KEY);
 }

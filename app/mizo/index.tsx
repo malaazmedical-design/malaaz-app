@@ -31,6 +31,10 @@ import {
   CustomWord, MizoProfile, MizoContact, WordCustomization, SmartSuggestion,
 } from "@/lib/mizoStorage";
 import { mizoSpeak } from "@/lib/mizoTts";
+import {
+  hasRecording, startRecording, stopAndSaveRecording,
+  cancelRecording, playRecording, deleteRecording,
+} from "@/lib/mizoRecording";
 
 const AVATAR_COLORS = ["#2E7D6B","#1C5C8A","#7B3F8C","#B85C1A","#1A6B4A","#8C3A3A","#5A6B1A","#6B1A5A"];
 
@@ -70,6 +74,13 @@ export default function MizoScreen() {
   const [sosCount, setSosCount] = useState(3);
   const sosTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Recording modal
+  const [recModal, setRecModal] = useState(false);
+  const [recWordId, setRecWordId] = useState("");
+  const [recWordLabel, setRecWordLabel] = useState("");
+  const [recState, setRecState] = useState<"idle" | "recording" | "done">("idle");
+  const [recHasExisting, setRecHasExisting] = useState(false);
 
   // Soft buzzer
   const [buzzerSent, setBuzzerSent] = useState(false);
@@ -527,15 +538,31 @@ export default function MizoScreen() {
               onPressOut={handlePressOut}
               onLongPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                if (word.id.startsWith("custom_")) {
-                  handleDeleteCustomWord(word.id);
-                  return;
-                }
-                if (!isFamily) {
-                  const { pinned, pins } = await toggleQuickPin(word.id);
-                  setQuickPinIds(pins);
-                  Speech.speak(pinned ? "تم التثبيت" : "تم الإزالة", { language: "ar-EG" });
-                }
+                if (word.id.startsWith("custom_")) { handleDeleteCustomWord(word.id); return; }
+                const recExists = await hasRecording(word.id);
+                const isPinned = quickPinIds.includes(word.id);
+                Alert.alert(displayLabel, "", [
+                  {
+                    text: recExists ? "🔄 سجّل من جديد" : "🎙️ سجّل صوت المريض",
+                    onPress: () => {
+                      setRecWordId(word.id); setRecWordLabel(displayLabel);
+                      setRecHasExisting(recExists); setRecState("idle"); setRecModal(true);
+                    },
+                  },
+                  recExists ? {
+                    text: "🗑️ امسح التسجيل", style: "destructive" as const,
+                    onPress: () => deleteRecording(word.id),
+                  } : null,
+                  !isFamily ? {
+                    text: isPinned ? "📌 إزالة من الشريط السريع" : "📌 أضف للشريط السريع",
+                    onPress: async () => {
+                      const { pinned, pins } = await toggleQuickPin(word.id);
+                      setQuickPinIds(pins);
+                      Speech.speak(pinned ? "تم التثبيت" : "تم الإزالة", { language: "ar-EG" });
+                    },
+                  } : null,
+                  { text: "إلغاء", style: "cancel" as const },
+                ].filter(Boolean) as any[]);
               }}
               delayLongPress={800}
             >
@@ -650,6 +677,63 @@ export default function MizoScreen() {
               </Pressable>
               <Pressable style={styles.modalSave} onPress={savePersonalize}>
                 <Text style={styles.modalSaveText}>احفظ</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Recording modal */}
+      <Modal visible={recModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { alignItems: "center" }]}>
+            <Text style={styles.modalTitle}>🎙️ سجّل صوت "{recWordLabel}"</Text>
+            {recHasExisting && recState === "idle" && (
+              <Pressable style={styles.recPreviewBtn} onPress={() => playRecording(recWordId)}>
+                <MaterialCommunityIcons name="play-circle-outline" size={20} color="#1C2B2A" />
+                <Text style={styles.recPreviewText}>استمع للتسجيل الحالي</Text>
+              </Pressable>
+            )}
+            {recState === "idle" && <Text style={styles.recHint}>اضغط على الميكرفون واطلب من المريض يقول الكلمة</Text>}
+            {recState === "recording" && <Text style={[styles.recHint, { color: "#CC2200" }]}>جاري التسجيل... اضغط مرة تانية لإيقاف</Text>}
+            {recState === "done" && <Text style={[styles.recHint, { color: "#2E7D6B" }]}>تم التسجيل! اضغط «تم الحفظ» أو سجّل من جديد</Text>}
+            <Pressable
+              style={[styles.recMicBtn, recState === "recording" && styles.recMicBtnActive]}
+              onPress={async () => {
+                if (recState === "idle" || recState === "done") {
+                  try { await startRecording(); setRecState("recording"); }
+                  catch (e: any) {
+                    if (e?.message === "NEEDS_NATIVE_BUILD") Alert.alert("تنبيه", "خاصية التسجيل محتاجة تحديث التطبيق الأصلي");
+                    else Alert.alert("خطأ", "مش قادر يفتح المايك");
+                  }
+                } else if (recState === "recording") {
+                  try { await stopAndSaveRecording(recWordId); setRecState("done"); }
+                  catch { Alert.alert("خطأ", "حصل مشكلة في الحفظ"); setRecState("idle"); }
+                }
+              }}
+            >
+              <MaterialCommunityIcons
+                name={recState === "recording" ? "stop-circle" : "microphone"}
+                size={48}
+                color={recState === "recording" ? "#CC2200" : "#fff"}
+              />
+            </Pressable>
+            {recState === "done" && (
+              <Pressable style={styles.recPreviewBtn} onPress={() => playRecording(recWordId)}>
+                <MaterialCommunityIcons name="play-circle-outline" size={20} color="#1C2B2A" />
+                <Text style={styles.recPreviewText}>استمع قبل الحفظ</Text>
+              </Pressable>
+            )}
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalCancel} onPress={async () => { await cancelRecording(); setRecModal(false); setRecState("idle"); }}>
+                <Text style={styles.modalCancelText}>إلغاء</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalSave, recState !== "done" && { opacity: 0.4 }]}
+                disabled={recState !== "done"}
+                onPress={() => { setRecModal(false); setRecState("idle"); }}
+              >
+                <Text style={styles.modalSaveText}>تم الحفظ</Text>
               </Pressable>
             </View>
           </View>
@@ -866,4 +950,14 @@ const styles = StyleSheet.create({
   emojiCell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 8, margin: 2 },
   emojiCellActive: { backgroundColor: "#C9A84C33" },
   emojiCellText: { fontSize: 22 },
+
+  recMicBtn: {
+    width: 96, height: 96, borderRadius: 48, backgroundColor: "#1C2B2A",
+    alignItems: "center", justifyContent: "center", marginVertical: 16,
+    elevation: 4, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+  },
+  recMicBtnActive: { backgroundColor: "#FFF0EE", borderWidth: 3, borderColor: "#CC2200" },
+  recHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#7A8A89", textAlign: "center", marginBottom: 4, paddingHorizontal: 8 },
+  recPreviewBtn: { flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: "#F5F7F6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: "#E0E8E7", marginBottom: 8 },
+  recPreviewText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A" },
 });

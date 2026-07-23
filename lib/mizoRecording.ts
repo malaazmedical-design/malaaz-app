@@ -1,73 +1,73 @@
-import { File, Directory, Paths } from "expo-file-system";
-import { Audio } from "expo-av";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-function getRecDir(): Directory {
-  return new Directory(Paths.document, "mizo_recordings");
+const RECORDINGS_KEY = "mizo_word_recordings";
+
+// expo-av is loaded lazily so old native binaries fail gracefully
+let Audio: any = null;
+try { Audio = require("expo-av").Audio; } catch {}
+
+async function getMap(): Promise<Record<string, string>> {
+  try {
+    const raw = await AsyncStorage.getItem(RECORDINGS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
 }
 
-function getRecFile(wordId: string): File {
-  return new File(getRecDir(), `${wordId}.m4a`);
+async function saveMap(map: Record<string, string>): Promise<void> {
+  await AsyncStorage.setItem(RECORDINGS_KEY, JSON.stringify(map));
 }
 
-export function hasRecording(wordId: string): boolean {
-  return getRecFile(wordId).exists;
+export async function hasRecording(wordId: string): Promise<boolean> {
+  const map = await getMap();
+  return !!map[wordId];
 }
 
-let activeRecording: Audio.Recording | null = null;
+let activeRecording: any = null;
 
 export async function startRecording(): Promise<void> {
+  if (!Audio) throw new Error("NEEDS_NATIVE_BUILD");
   await Audio.requestPermissionsAsync();
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: true,
-    playsInSilentModeIOS: true,
-  });
+  await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
   const { recording } = await Audio.Recording.createAsync(
     Audio.RecordingOptionsPresets.HIGH_QUALITY,
   );
   activeRecording = recording;
 }
 
-export async function stopAndSaveRecording(wordId: string): Promise<string> {
+export async function stopAndSaveRecording(wordId: string): Promise<void> {
   if (!activeRecording) throw new Error("No active recording");
   await activeRecording.stopAndUnloadAsync();
   const uri = activeRecording.getURI();
   activeRecording = null;
   await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-
   if (!uri) throw new Error("Recording URI is null");
-
-  getRecDir().create({ intermediates: true, idempotent: true });
-  const dest = getRecFile(wordId);
-  await new File(uri).move(dest, { overwrite: true });
-  return dest.uri;
+  const map = await getMap();
+  map[wordId] = uri;
+  await saveMap(map);
 }
 
 export async function cancelRecording(): Promise<void> {
   if (!activeRecording) return;
   try { await activeRecording.stopAndUnloadAsync(); } catch {}
   activeRecording = null;
-  await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+  if (Audio) await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
 }
 
 export async function playRecording(wordId: string, onDone?: () => void): Promise<void> {
-  const file = getRecFile(wordId);
-  if (!file.exists) throw new Error("No recording for this word");
-
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
-  });
-  const { sound } = await Audio.Sound.createAsync({ uri: file.uri });
+  if (!Audio) throw new Error("NEEDS_NATIVE_BUILD");
+  const map = await getMap();
+  const uri = map[wordId];
+  if (!uri) throw new Error("No recording for this word");
+  await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+  const { sound } = await Audio.Sound.createAsync({ uri });
   await sound.playAsync();
-  sound.setOnPlaybackStatusUpdate((s) => {
-    if (s.isLoaded && s.didJustFinish) {
-      sound.unloadAsync();
-      onDone?.();
-    }
+  sound.setOnPlaybackStatusUpdate((s: any) => {
+    if (s.isLoaded && s.didJustFinish) { sound.unloadAsync(); onDone?.(); }
   });
 }
 
-export function deleteRecording(wordId: string): void {
-  const file = getRecFile(wordId);
-  if (file.exists) file.delete();
+export async function deleteRecording(wordId: string): Promise<void> {
+  const map = await getMap();
+  delete map[wordId];
+  await saveMap(map);
 }
