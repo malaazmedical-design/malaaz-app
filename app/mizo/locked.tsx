@@ -62,7 +62,7 @@ export default function MizoLockedScreen() {
       setQuietEnd(profile.quietHoursEnd);
       setCustomWords(await getCustomWords());
       setSmartWords(await getSmartSuggestions(new Date().getHours()));
-      setPinnedWords(await getTopWords(4));
+      setPinnedWords(await getTopWords(6));
       setQuickPinIds(await getQuickPins());
     })();
   }, []);
