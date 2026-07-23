@@ -79,6 +79,7 @@ export type MizoContact = {
   color: string;
   push_token?: string;
   notify_mode?: ContactNotifyMode;
+  is_primary?: boolean;
 };
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -234,6 +235,34 @@ export async function sendFamilyNotification(
       await pushSend(c.push_token, title, phrase, isEmergency);
     }
   }
+}
+
+// Mark one contact as primary (clears is_primary on all others)
+export async function setPrimaryContact(contactId: string): Promise<void> {
+  const contacts = await getContacts();
+  const updated = contacts.map((c) => ({ ...c, is_primary: c.id === contactId }));
+  await AsyncStorage.setItem(KEYS.contacts, JSON.stringify(updated));
+}
+
+// Send buzzer notification only to the designated primary contact
+export async function notifyPrimaryContact(
+  patientName: string,
+  phrase: string,
+  quietEnabled: boolean,
+  quietStart: number,
+  quietEnd: number,
+): Promise<void> {
+  if (quietEnabled) {
+    const hour = new Date().getHours();
+    const inQuiet = quietStart > quietEnd
+      ? (hour >= quietStart || hour < quietEnd)
+      : (hour >= quietStart && hour < quietEnd);
+    if (inQuiet) return;
+  }
+  const contacts = await getContacts();
+  const primary = contacts.find((c) => c.is_primary && c.push_token);
+  if (!primary) return;
+  await pushSend(primary.push_token!, `ميزو — ${patientName}`, phrase, false, { type: "buzzer" });
 }
 
 // Send notification directly to one contact when their card is pressed

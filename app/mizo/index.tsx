@@ -23,7 +23,7 @@ import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, addCustomWord, deleteCustomWord,
-  sendFamilyNotification, sendContactDirectNotification,
+  sendFamilyNotification, sendContactDirectNotification, notifyPrimaryContact,
   getContacts, getWordCustomizations,
   setWordCustomization, clearWordCustomization,
   CustomWord, MizoProfile, MizoContact, WordCustomization,
@@ -226,10 +226,10 @@ export default function MizoScreen() {
     Vibration.vibrate([0, 500, 150, 500, 150, 500]);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
-    // Speak on device speaker so whoever is in the room hears it
+    // Speak loud in the room — calls for anyone nearby, not the patient themselves
     Speech.stop();
     const name = profile?.patientName || "المريض";
-    Speech.speak(`نادوا على ${name}`, { ...voiceOpts });
+    Speech.speak("لو سمحتم! في حد هنا؟ محتاج مساعدة", { ...voiceOpts });
 
     // Button pulse animation
     Animated.sequence([
@@ -237,10 +237,10 @@ export default function MizoScreen() {
       Animated.spring(buzzerScale, { toValue: 1, useNativeDriver: true, speed: 18 }),
     ]).start();
 
-    // Send gentle notification to family
-    const phrase = `${name} بينادي عليك`;
+    // Push notification goes only to the designated primary contact
+    const phrase = `${name} بينادي عليك — روح شوفه`;
     if (profile) {
-      sendFamilyNotification(name, phrase, false, profile.quietHoursEnabled, profile.quietHoursStart, profile.quietHoursEnd);
+      notifyPrimaryContact(name, phrase, profile.quietHoursEnabled, profile.quietHoursStart, profile.quietHoursEnd);
     }
     logEvent({ word_id: "buzzer", phrase, category: "buzzer", is_emergency: false });
 

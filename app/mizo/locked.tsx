@@ -12,7 +12,7 @@ import { MIZO_CATEGORIES, MizoWord } from "@/constants/mizoWords";
 import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
-  getCustomWords, CustomWord, sendFamilyNotification,
+  getCustomWords, CustomWord, notifyPrimaryContact,
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
@@ -108,15 +108,16 @@ export default function MizoLockedScreen() {
     Vibration.vibrate([0, 500, 150, 500, 150, 500]);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Speech.stop();
-    Speech.speak(`نادوا على ${patientName}`, { ...voiceOpts });
+    Speech.speak("لو سمحتم! في حد هنا؟ محتاج مساعدة", { ...voiceOpts });
 
     Animated.sequence([
       Animated.spring(buzzerScale, { toValue: 1.06, useNativeDriver: true, speed: 25 }),
       Animated.spring(buzzerScale, { toValue: 1, useNativeDriver: true, speed: 18 }),
     ]).start();
 
-    sendFamilyNotification(patientName, `${patientName} بينادي عليك`, false, quietEnabled, quietStart, quietEnd);
-    logEvent({ word_id: "buzzer", phrase: `${patientName} بينادي عليك`, category: "buzzer", is_emergency: false });
+    const phrase = `${patientName} بينادي عليك — روح شوفه`;
+    notifyPrimaryContact(patientName, phrase, quietEnabled, quietStart, quietEnd);
+    logEvent({ word_id: "buzzer", phrase, category: "buzzer", is_emergency: false });
 
     setTimeout(() => { setBuzzerSent(false); buzzerCooldown.current = false; }, 5000);
   };
