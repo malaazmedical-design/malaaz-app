@@ -1,9 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Image,
-  SafeAreaView, Dimensions, Animated, Platform, BackHandler,
-  Modal, TextInput, Alert, Vibration,
+  SafeAreaView, Animated, Platform, BackHandler,
+  Modal, TextInput, Alert, Vibration, useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -16,9 +17,6 @@ import {
   getSmartSuggestions, getTopWords, getQuickPins, SmartSuggestion,
 } from "@/lib/mizoStorage";
 
-const { width } = Dimensions.get("window");
-const isTablet = width >= 768;
-const CARD_SIZE = (width - 48) / (isTablet ? 5 : 3);
 type MizoState = "neutral" | "speaking" | "success" | "alert" | "thinking";
 
 export default function MizoLockedScreen() {
@@ -42,6 +40,12 @@ export default function MizoLockedScreen() {
   const [titleTaps, setTitleTaps] = useState(0);
   const titleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mizoScale = useRef(new Animated.Value(1)).current;
+  const { width, height } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isLandscape = width > height;
+  const insets = useSafeAreaInsets();
+  const cols = isTablet ? (isLandscape ? 6 : 5) : (isLandscape ? 4 : 3);
+  const CARD_SIZE = (width - 48) / cols;
 
   // Soft buzzer
   const [buzzerSent, setBuzzerSent] = useState(false);
@@ -199,7 +203,7 @@ export default function MizoLockedScreen() {
       {/* Mizo mascot + last phrase */}
       <View style={[styles.mizoRow, isNight && { backgroundColor: "#0A1614" }]}>
         <Animated.View style={{ transform: [{ scale: mizoScale }] }}>
-          <Image source={mizoImage} style={styles.mizoImg} resizeMode="contain" />
+          <Image source={mizoImage} style={[styles.mizoImg, isTablet && { width: 110, height: 110 }]} resizeMode="contain" />
         </Animated.View>
         <View style={[styles.phraseBox, isNight && { backgroundColor: "#0A1614" }]}>
           <Pressable
@@ -356,7 +360,7 @@ export default function MizoLockedScreen() {
       </ScrollView>
 
       {/* Emergency */}
-      <Pressable style={styles.emergencyBtn} onPress={handleEmergency}>
+      <Pressable style={[styles.emergencyBtn, { marginBottom: Math.max(insets.bottom, 8) + 4 }]} onPress={handleEmergency}>
         <MaterialCommunityIcons name="alert-circle" size={22} color="#fff" />
         <Text style={styles.emergencyText}>🆘  النجدة</Text>
       </Pressable>
@@ -464,7 +468,7 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
-  catBarWrap: { height: 38 },
+  catBarWrap: { minHeight: 38 },
   catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 6 },
   catTabEmoji: { fontSize: 13 },
   catTab: {
@@ -478,7 +482,7 @@ const styles = StyleSheet.create({
   catTabTextActive: { color: "#C9A84C" },
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 2, paddingBottom: 12, gap: 8, justifyContent: "flex-start" },
   card: {
-    width: CARD_SIZE, height: CARD_SIZE, backgroundColor: "#FFFFFF", borderRadius: 16,
+    backgroundColor: "#FFFFFF", borderRadius: 16,
     alignItems: "center", justifyContent: "center", gap: 4,
     borderWidth: 1.5, borderColor: "#E0E8E7",
     elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
@@ -509,7 +513,7 @@ const styles = StyleSheet.create({
   emergencyText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#FFFFFF" },
   pinOverlay: { flex: 1, backgroundColor: "#00000088", alignItems: "center", justifyContent: "center" },
   pinBox: {
-    backgroundColor: "#fff", borderRadius: 24, padding: 28, width: 280,
+    backgroundColor: "#fff", borderRadius: 24, padding: 28, width: "85%", maxWidth: 380,
     alignItems: "center", gap: 16,
   },
   pinTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#1C2B2A", textAlign: "center" },

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Image,
-  SafeAreaView, Dimensions, Animated, Platform, Modal,
-  TextInput, Alert, FlatList, Vibration,
+  SafeAreaView, Animated, Platform, Modal,
+  TextInput, Alert, FlatList, Vibration, useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const EMOJI_LIST = [
   "🍎","🥛","💧","🍞","🍗","🍕","🍦","☕","🧃","🍌","🍊","🍋",
@@ -29,9 +30,6 @@ import {
   setWordCustomization, clearWordCustomization,
   CustomWord, MizoProfile, MizoContact, WordCustomization, SmartSuggestion,
 } from "@/lib/mizoStorage";
-
-const { width } = Dimensions.get("window");
-const isTablet = width >= 768;
 
 const AVATAR_COLORS = ["#2E7D6B","#1C5C8A","#7B3F8C","#B85C1A","#1A6B4A","#8C3A3A","#5A6B1A","#6B1A5A"];
 
@@ -79,6 +77,10 @@ export default function MizoScreen() {
 
   const mizoScale = useRef(new Animated.Value(1)).current;
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const { width, height } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isLandscape = width > height;
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     (async () => {
@@ -95,7 +97,9 @@ export default function MizoScreen() {
     })();
   }, []);
 
-  const cols = profile?.oneHandedMode ? (isTablet ? 3 : 2) : (isTablet ? 5 : 3);
+  const cols = profile?.oneHandedMode
+    ? (isTablet ? 3 : isLandscape ? 3 : 2)
+    : (isTablet ? (isLandscape ? 6 : 5) : (isLandscape ? 4 : 3));
   const CARD_SIZE = (width - 48) / cols;
 
   const bounceMizo = () => {
@@ -331,7 +335,7 @@ export default function MizoScreen() {
       {/* Mizo mascot + phrase */}
       <View style={[styles.mizoRow, isNight && { backgroundColor: "#0A1614" }]}>
         <Animated.View style={{ transform: [{ scale: mizoScale }] }}>
-          <Image source={mizoImage} style={styles.mizoImg} resizeMode="contain" />
+          <Image source={mizoImage} style={[styles.mizoImg, isTablet && { width: 110, height: 110 }]} resizeMode="contain" />
         </Animated.View>
         <View style={[styles.phraseBox, isNight && { backgroundColor: "#0A1614" }]}>
           <Pressable onPress={handleRepeat} style={styles.phraseInner}>
@@ -574,7 +578,7 @@ export default function MizoScreen() {
       </ScrollView>
 
       {/* Emergency */}
-      <Pressable style={styles.emergencyBtn} onPress={handleEmergencyPress}>
+      <Pressable style={[styles.emergencyBtn, { marginBottom: Math.max(insets.bottom, 8) + 4 }]} onPress={handleEmergencyPress}>
         <MaterialCommunityIcons name="alert-circle" size={22} color="#fff" />
         <Text style={styles.emergencyText}>🆘  النجدة</Text>
       </Pressable>
@@ -763,7 +767,7 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
-  catBarWrap: { height: 38 },
+  catBarWrap: { minHeight: 38 },
   catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 6 },
   catTabEmoji: { fontSize: 13 },
   catTab: {
@@ -826,7 +830,7 @@ const styles = StyleSheet.create({
   emergencyText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#FFFFFF" },
 
   sosOverlay: { flex: 1, backgroundColor: "#CC220099", alignItems: "center", justifyContent: "center" },
-  sosBox: { backgroundColor: "#fff", borderRadius: 24, padding: 32, alignItems: "center", width: 280 },
+  sosBox: { backgroundColor: "#fff", borderRadius: 24, padding: 32, alignItems: "center", width: "85%", maxWidth: 380, alignSelf: "center" },
   sosTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#CC2200", textAlign: "center", marginBottom: 16 },
   sosCount: { fontFamily: "Cairo_700Bold", fontSize: 80, color: "#CC2200", lineHeight: 90 },
   sosHint: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#7A8A89", textAlign: "center", marginBottom: 24 },
