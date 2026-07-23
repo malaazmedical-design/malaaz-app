@@ -193,7 +193,8 @@ export default function MizoLockedScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}>
         {subWords && (
           <Pressable style={[styles.catTab, styles.catTabBack]} onPress={() => setSubWords(null)}>
-            <Text style={styles.catTabText}>↩ رجوع</Text>
+            <Text style={styles.catTabText}>↩</Text>
+            <Text style={styles.catTabText}>رجوع</Text>
           </Pressable>
         )}
         {[...MIZO_CATEGORIES].reverse().map((cat) => {
@@ -204,9 +205,8 @@ export default function MizoLockedScreen() {
               style={[styles.catTab, isActive && styles.catTabActive]}
               onPress={() => { setActiveCat(cat.id); setSubWords(null); }}
             >
-              <Text style={[styles.catTabText, isActive && styles.catTabTextActive]}>
-                {cat.emoji}{"  "}{cat.label}
-              </Text>
+              <Text style={styles.catTabEmoji}>{cat.emoji}</Text>
+              <Text style={[styles.catTabText, isActive && styles.catTabTextActive]}>{cat.label}</Text>
             </Pressable>
           );
         })}
@@ -309,13 +309,15 @@ const styles = StyleSheet.create({
   quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A" },
   quickLabelPain: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#CC2200" },
 
-  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
+  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "center" },
   catTab: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 22,
     backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C9D6D4",
   },
   catTabActive: { backgroundColor: "#1C2B2A", borderColor: "#1C2B2A" },
   catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 2, borderColor: "#C9A84C" },
+  catTabEmoji: { fontSize: 15 },
   catTabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A" },
   catTabTextActive: { color: "#C9A84C" },
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingBottom: 12, gap: 8, justifyContent: "flex-end" },

@@ -34,8 +34,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Push OTA update to preview channel
-        run: eas update --channel preview --message "${{ github.event.inputs.message }}" --non-interactive
+      - name: Push OTA update to mizo-test channel
+        run: eas update --channel mizo-test --message "${{ github.event.inputs.message }}" --non-interactive
 
       - name: Done
         run: echo "✅ Update pushed — افتح Expo Go وافتح المشروع من expo.dev"
