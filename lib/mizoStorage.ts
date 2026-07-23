@@ -310,6 +310,39 @@ export async function logEvent(event: Omit<AacEvent, "id" | "created_at">): Prom
   } catch {}
 }
 
+export type SmartSuggestion = {
+  word_id: string;
+  phrase: string;
+  count: number;
+};
+
+// Returns top N words used most often within ±windowHours of currentHour
+export async function getSmartSuggestions(
+  currentHour: number,
+  windowHours = 2,
+  topN = 5,
+): Promise<SmartSuggestion[]> {
+  const events = await getLocalEvents();
+  if (events.length < 3) return [];
+
+  const counts = new Map<string, { phrase: string; count: number }>();
+  for (const ev of events) {
+    if (ev.word_id === "buzzer" || ev.is_emergency) continue;
+    const evHour = new Date(ev.created_at).getHours();
+    const diff = Math.abs(evHour - currentHour);
+    if (Math.min(diff, 24 - diff) <= windowHours) {
+      const entry = counts.get(ev.word_id);
+      if (entry) entry.count++;
+      else counts.set(ev.word_id, { phrase: ev.phrase, count: 1 });
+    }
+  }
+
+  return [...counts.entries()]
+    .map(([word_id, { phrase, count }]) => ({ word_id, phrase, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, topN);
+}
+
 export async function getLocalEvents(): Promise<AacEvent[]> {
   try {
     const raw = await AsyncStorage.getItem(KEYS.localEvents);

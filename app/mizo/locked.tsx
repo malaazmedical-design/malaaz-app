@@ -13,6 +13,7 @@ import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, CustomWord, notifyPrimaryContact,
+  getSmartSuggestions, SmartSuggestion,
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
@@ -27,6 +28,7 @@ export default function MizoLockedScreen() {
   const [subWords, setSubWords] = useState<MizoWord[] | null>(null);
   const [voiceOpts, setVoiceOpts] = useState(getVoiceOptions("male"));
   const [customWords, setCustomWords] = useState<CustomWord[]>([]);
+  const [smartWords, setSmartWords] = useState<SmartSuggestion[]>([]);
   const [patientName, setPatientName] = useState("المريض");
   const [pinModal, setPinModal] = useState(false);
   const [pinInput, setPinInput] = useState("");
@@ -53,6 +55,7 @@ export default function MizoLockedScreen() {
       setQuietStart(profile.quietHoursStart);
       setQuietEnd(profile.quietHoursEnd);
       setCustomWords(await getCustomWords());
+      setSmartWords(await getSmartSuggestions(new Date().getHours()));
     })();
   }, []);
 
@@ -144,6 +147,15 @@ export default function MizoLockedScreen() {
       Alert.alert("رقم سري غلط", "حاول تاني");
       setPinInput("");
     }
+  };
+
+  const findWord = (id: string, words?: MizoWord[]): MizoWord | null => {
+    const list = words ?? MIZO_CATEGORIES.flatMap((c) => c.words);
+    for (const w of list) {
+      if (w.id === id) return w;
+      if (w.children?.length) { const f = findWord(id, w.children); if (f) return f; }
+    }
+    return null;
   };
 
   const currentCategory = MIZO_CATEGORIES.find((c) => c.id === activeCat);
@@ -266,6 +278,30 @@ export default function MizoLockedScreen() {
         })}
       </ScrollView>
 
+      {/* Smart Suggestions — based on usage history at this hour */}
+      {smartWords.length >= 2 && !subWords && (
+        <View style={styles.smartBar}>
+          <Text style={styles.smartBarTitle}>الأكثر استخداماً دلوقتي ✦</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.smartBarScroll}>
+            {smartWords.map((sw) => {
+              const word = findWord(sw.word_id);
+              return (
+                <Pressable
+                  key={sw.word_id}
+                  style={({ pressed }) => [styles.smartChip, pressed && styles.smartChipPressed]}
+                  onPress={() => speak(sw.phrase, sw.word_id, "smart")}
+                >
+                  <Text style={styles.smartChipEmoji}>{word?.emoji ?? "💬"}</Text>
+                  <Text style={styles.smartChipLabel} numberOfLines={1}>
+                    {word?.label ?? sw.phrase.slice(0, 10)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Words grid */}
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
         {displayWords.map((word) => (
@@ -373,6 +409,26 @@ const styles = StyleSheet.create({
   quickEmoji: { fontSize: 17 },
   quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A" },
   quickLabelPain: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#CC2200" },
+
+  smartBar: {
+    backgroundColor: "#EEF3FF", borderBottomWidth: 1, borderBottomColor: "#D0DAF5",
+    paddingTop: 7, paddingBottom: 5,
+  },
+  smartBarTitle: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#4A6BA8",
+    textAlign: "right", paddingHorizontal: 14, marginBottom: 5,
+  },
+  smartBarScroll: { paddingHorizontal: 12, gap: 8, alignItems: "center" },
+  smartChip: {
+    alignItems: "center", justifyContent: "center", gap: 3,
+    backgroundColor: "#FFFFFF", borderRadius: 14, paddingVertical: 7, paddingHorizontal: 11,
+    borderWidth: 1.5, borderColor: "#C0D0F0",
+    elevation: 1, shadowColor: "#4A6BA8", shadowOpacity: 0.10, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
+    minWidth: 62,
+  },
+  smartChipPressed: { opacity: 0.75, transform: [{ scale: 0.94 }] },
+  smartChipEmoji: { fontSize: 26 },
+  smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
   catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "center" },
   catTab: {
