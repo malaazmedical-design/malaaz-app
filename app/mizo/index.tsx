@@ -422,29 +422,6 @@ export default function MizoScreen() {
       </ScrollView>
       </View>
 
-      {/* Smart Suggestions — based on usage history at this hour */}
-      {smartWords.length >= 2 && !subWords && (
-        <View style={[styles.smartBar, isNight && { backgroundColor: "#0E1F1D", borderBottomColor: "#1A3230" }]}>
-          <Text style={styles.smartBarTitle}>الأكثر استخداماً دلوقتي ✦</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.smartBarScroll}>
-            {smartWords.map((sw) => {
-              const word = findWord(sw.word_id);
-              return (
-                <Pressable
-                  key={sw.word_id}
-                  style={({ pressed }) => [styles.smartChip, pressed && styles.smartChipPressed]}
-                  onPress={() => speak(sw.phrase, sw.word_id, "smart")}
-                >
-                  <Text style={styles.smartChipEmoji}>{word?.emoji ?? "💬"}</Text>
-                  <Text style={styles.smartChipLabel} numberOfLines={1}>
-                    {word?.label ?? sw.phrase.slice(0, 10)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
 
       {/* Words grid */}
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}
@@ -778,16 +755,17 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
-  catBarWrap: { flexGrow: 0, flexShrink: 0 },
-  catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 8 },
-  catTabEmoji: { fontSize: 15 },
+  catBarWrap: { height: 38 },
+  catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 6 },
+  catTabEmoji: { fontSize: 13 },
   catTab: {
-    paddingHorizontal: 16, paddingVertical: 6, borderRadius: 22,
-    backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C9D6D4",
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 14,
+    backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#C9D6D4",
   },
   catTabActive: { backgroundColor: "#1C2B2A", borderColor: "#1C2B2A" },
-  catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 2, borderColor: "#C9A84C" },
-  catTabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A" },
+  catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 1.5, borderColor: "#C9A84C" },
+  catTabText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#1C2B2A" },
   catTabTextActive: { color: "#C9A84C" },
 
   grid: { flexDirection: "row-reverse", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 2, paddingBottom: 8, gap: 8, justifyContent: "flex-start" },
