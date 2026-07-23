@@ -391,8 +391,8 @@ export default function MizoScreen() {
 
 
       {/* Category tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}
-        style={[{ flexShrink: 0 }, isNight && { backgroundColor: "#0D1A19" }]}>
+      <View style={[styles.catBarWrap, isNight && { backgroundColor: "#0D1A19" }]}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}>
         {subWords && (
           <Pressable style={[styles.catTab, styles.catTabBack]} onPress={() => setSubWords(null)}>
             <Text style={styles.catTabText}>↩ رجوع</Text>
@@ -420,6 +420,7 @@ export default function MizoScreen() {
           );
         })}
       </ScrollView>
+      </View>
 
       {/* Smart Suggestions — based on usage history at this hour */}
       {smartWords.length >= 2 && !subWords && (
@@ -777,6 +778,7 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
+  catBarWrap: { flexGrow: 0, flexShrink: 0 },
   catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 8 },
   catTabEmoji: { fontSize: 15 },
   catTab: {
