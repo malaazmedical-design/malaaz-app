@@ -47,12 +47,67 @@ const DWELL_OPTIONS = [
   { value: 1500, label: "١.٥ ث", desc: "استنى ثانية ونص" },
 ];
 
-const USER_TYPES = [
-  { id: "stroke",    label: "إصابة دماغية",   emoji: "🧠" },
-  { id: "deaf",      label: "ضعف سمع",         emoji: "👂" },
-  { id: "child",     label: "طفل",              emoji: "👦" },
-  { id: "nonverbal", label: "غير لفظي",         emoji: "🤐" },
-  { id: "",          label: "عام",              emoji: "👤" },
+const USER_TYPES: { id: string; emoji: string; label: string; desc: string }[] = [
+  {
+    id: "stroke",
+    emoji: "🧠",
+    label: "سكتة دماغية",
+    desc: "حبسة كلامية أو صعوبة في النطق بعد السكتة",
+  },
+  {
+    id: "tbi",
+    emoji: "🤕",
+    label: "إصابة دماغية رضية",
+    desc: "صعوبة في التواصل بعد حادثة أو رضة دماغية",
+  },
+  {
+    id: "als",
+    emoji: "💪",
+    label: "التصلب الجانبي (ALS)",
+    desc: "تراجع تدريجي في القدرة على الكلام",
+  },
+  {
+    id: "quadriplegia",
+    emoji: "♿",
+    label: "شلل رباعي / حركي",
+    desc: "يستخدم الشاشة أو وسيلة إدخال مساعدة",
+  },
+  {
+    id: "laryngeal",
+    emoji: "🔇",
+    label: "فقدان الصوت",
+    desc: "سرطان الحنجرة أو فقدان الصوت بعد جراحة",
+  },
+  {
+    id: "elderly",
+    emoji: "👴",
+    label: "كبار السن",
+    desc: "ضعف في النطق أو الحركة أو الإدراك",
+  },
+  {
+    id: "alzheimer",
+    emoji: "🌀",
+    label: "الزهايمر / الخرف",
+    desc: "المراحل المبكرة — لتحسين التواصل مع الأسرة",
+  },
+  {
+    id: "parkinson",
+    emoji: "🫳",
+    label: "الشلل الرعاش",
+    desc: "ضعف الصوت أو بطء الكلام",
+  },
+  {
+    id: "child_aac",
+    emoji: "🧒",
+    label: "طفل — تواصل",
+    desc: "توحد أو تأخر اللغة، بواجهة مخصصة",
+  },
+  {
+    id: "",
+    emoji: "👤",
+    label: "عام",
+    desc: "حالة أخرى أو غير محددة",
+  },
 ];
 
 export default function MizoSettingsScreen() {
@@ -101,20 +156,39 @@ export default function MizoSettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.body}>
 
-        {/* ── نوع المستخدم ── */}
-        <Text style={styles.label}>نوع المستخدم</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-          {USER_TYPES.map((u) => (
-            <Pressable
-              key={u.id}
-              style={[styles.chip, profile.userType === u.id && styles.chipActive]}
-              onPress={() => setProfile((p) => ({ ...p, userType: u.id }))}
-            >
-              <Text style={styles.chipEmoji}>{u.emoji}</Text>
-              <Text style={[styles.chipText, profile.userType === u.id && styles.chipTextActive]}>{u.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        {/* ── نوع المستخدم / الحالة الصحية ── */}
+        <Text style={styles.label}>الحالة الصحية للمريض</Text>
+        <Text style={styles.modeDesc}>اختار الحالة الأقرب — بتساعدنا نظبط ميزو عشانه</Text>
+        <View style={styles.conditionGrid}>
+          {USER_TYPES.map((u) => {
+            const active = profile.userType === u.id;
+            return (
+              <Pressable
+                key={u.id}
+                style={[
+                  styles.conditionCard,
+                  u.id === "" && styles.conditionCardFull,
+                  active && styles.conditionCardActive,
+                ]}
+                onPress={() => setProfile((p) => ({ ...p, userType: u.id }))}
+              >
+                <Text style={styles.conditionEmoji}>{u.emoji}</Text>
+                <Text style={[styles.conditionLabel, active && styles.conditionLabelActive]}>
+                  {u.label}
+                </Text>
+                <Text style={styles.conditionDesc}>{u.desc}</Text>
+                {active && (
+                  <MaterialCommunityIcons
+                    name="check-circle"
+                    size={16}
+                    color="#C9A84C"
+                    style={styles.conditionCheck}
+                  />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
 
         {/* ── اسم المريض ── */}
         <Text style={[styles.label, { marginTop: 20 }]}>اسم المريض</Text>
@@ -311,15 +385,27 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: "#E0E8E7",
   },
 
-  chipRow: { marginBottom: 4 },
-  chip: {
-    flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 20, backgroundColor: "#E8EDEC", marginLeft: 8, borderWidth: 1.5, borderColor: "transparent",
+  conditionGrid: {
+    flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 4,
   },
-  chipActive: { backgroundColor: "#FDFAF3", borderColor: "#C9A84C" },
-  chipEmoji: { fontSize: 16 },
-  chipText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A" },
-  chipTextActive: { color: "#C9A84C" },
+  conditionCard: {
+    width: "47.5%", backgroundColor: "#fff", borderRadius: 14,
+    padding: 12, borderWidth: 1.5, borderColor: "#E0E8E7",
+    alignItems: "flex-end",
+  },
+  conditionCardFull: { width: "100%" },
+  conditionCardActive: { borderColor: "#C9A84C", backgroundColor: "#FDFAF3" },
+  conditionEmoji: { fontSize: 26, marginBottom: 6, alignSelf: "flex-end" },
+  conditionLabel: {
+    fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A",
+    textAlign: "right", marginBottom: 3,
+  },
+  conditionLabelActive: { color: "#C9A84C" },
+  conditionDesc: {
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: "#7A8A89",
+    textAlign: "right", lineHeight: 16,
+  },
+  conditionCheck: { position: "absolute", top: 8, left: 8 },
 
   voiceHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#7A8A89", textAlign: "right", marginBottom: 8 },
   voiceGroupTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A", textAlign: "right", marginTop: 14, marginBottom: 6 },
