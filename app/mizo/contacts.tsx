@@ -7,7 +7,7 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
-  getContacts, addContact, updateContact, deleteContact,
+  getContacts, addContact, updateContact, deleteContact, setPrimaryContact,
   MizoContact, ContactNotifyMode,
 } from "@/lib/mizoStorage";
 
@@ -100,6 +100,11 @@ export default function MizoContactsScreen() {
     setModalVisible(false);
   };
 
+  const handleSetPrimary = async (id: string) => {
+    await setPrimaryContact(id);
+    setContacts((prev) => prev.map((c) => ({ ...c, is_primary: c.id === id })));
+  };
+
   const handleDelete = (id: string, cname: string) => {
     Alert.alert("مسح", `هتمسح ${cname}؟`, [
       { text: "إلغاء", style: "cancel" },
@@ -130,7 +135,9 @@ export default function MizoContactsScreen() {
 
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.hint}>
-          البطاقات دي بتظهر في قائمة "العيلة" في ميزو — لو ضيفت توكن الجهاز هيوصله إشعار على طول
+          البطاقات دي بتظهر في قائمة "العيلة" — اضغط على التاج{" "}
+          <Text style={{ color: "#C9A84C" }}>👑</Text>{" "}
+          على أي بطاقة عشان يبقي هو الشخص الرئيسي اللي بيوصله إشعار الجرس
         </Text>
 
         {contacts.length === 0 ? (
@@ -146,7 +153,7 @@ export default function MizoContactsScreen() {
             {contacts.map((c) => {
               const nb = notifyLabel(c);
               return (
-                <Pressable key={c.id} style={styles.card} onPress={() => openEdit(c)} onLongPress={() => handleDelete(c.id, c.name)}>
+                <Pressable key={c.id} style={[styles.card, c.is_primary && styles.cardPrimary]} onPress={() => openEdit(c)} onLongPress={() => handleDelete(c.id, c.name)}>
                   {c.photo ? (
                     <Image source={{ uri: c.photo }} style={styles.avatar} />
                   ) : (
@@ -162,6 +169,18 @@ export default function MizoContactsScreen() {
                       <Text style={styles.notifyBadgeText}>{nb}</Text>
                     </View>
                   )}
+                  {/* Crown = primary contact (buzzer notifications go to them) */}
+                  <Pressable
+                    style={[styles.crownBtn, c.is_primary && styles.crownBtnActive]}
+                    onPress={() => handleSetPrimary(c.id)}
+                    hitSlop={8}
+                  >
+                    <MaterialCommunityIcons
+                      name={c.is_primary ? "crown" : "crown-outline"}
+                      size={14}
+                      color={c.is_primary ? "#C9A84C" : "#CCCCCC"}
+                    />
+                  </Pressable>
                   <Pressable style={styles.editIcon} onPress={() => openEdit(c)}>
                     <MaterialCommunityIcons name="pencil" size={14} color="#7A8A89" />
                   </Pressable>
@@ -315,6 +334,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: "#E0E8E7",
     elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
+  cardPrimary: { borderColor: "#C9A84C", borderWidth: 2, backgroundColor: "#FDFAF3" },
   avatar: { width: 64, height: 64, borderRadius: 32 },
   avatarPlaceholder: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
   avatarInitial: { fontSize: 28, fontFamily: "Cairo_700Bold", color: "#fff" },
@@ -326,6 +346,8 @@ const styles = StyleSheet.create({
   },
   notifyBadgeText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#1C6B3A" },
   editIcon: { position: "absolute", top: 6, left: 6 },
+  crownBtn: { position: "absolute", top: 6, right: 6 },
+  crownBtnActive: {},
 
   addCard: {
     width: 106, alignItems: "center", justifyContent: "center",
