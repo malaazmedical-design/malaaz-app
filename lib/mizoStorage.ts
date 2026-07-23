@@ -318,11 +318,11 @@ export type SmartSuggestion = {
 };
 
 // Returns top N most-used words across ALL time (for Auto-Pin)
-export async function getTopWords(topN = 4): Promise<SmartSuggestion[]> {
+export async function getTopWords(topN = 4, exclude: string[] = []): Promise<SmartSuggestion[]> {
   const events = await getLocalEvents();
   if (events.length < 5) return [];
 
-  const SKIP = new Set(["buzzer", "qw", "qb", "qm", "qp"]);
+  const SKIP = new Set(["buzzer", "qw", "qb", "qm", "qp", "yes_quick", "no_quick", ...exclude]);
   const counts = new Map<string, { phrase: string; count: number }>();
   for (const ev of events) {
     if (ev.is_emergency || SKIP.has(ev.word_id)) continue;
