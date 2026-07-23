@@ -22,7 +22,11 @@ const CARD_SIZE = (width - 48) / (isTablet ? 5 : 3);
 type MizoState = "neutral" | "speaking" | "success" | "alert" | "thinking";
 
 export default function MizoLockedScreen() {
-  const [activeCat, setActiveCat] = useState(MIZO_CATEGORIES[0].id);
+  const isNight = (() => { const h = new Date().getHours(); return h >= 22 || h < 7; })();
+  const [activeCat, setActiveCat] = useState(() => {
+    const h = new Date().getHours();
+    return (h >= 22 || h < 7) ? "comfort" : MIZO_CATEGORIES[0].id;
+  });
   const [lastPhrase, setLastPhrase] = useState("اضغط على أي كلمة...");
   const [mizoState, setMizoState] = useState<MizoState>("neutral");
   const [subWords, setSubWords] = useState<MizoWord[] | null>(null);
@@ -175,24 +179,26 @@ export default function MizoLockedScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, isNight && { backgroundColor: "#0D1A19" }]}>
       {/* Header — بدون أي أزرار تنقل */}
-      <View style={styles.header}>
+      <View style={[styles.header, isNight && { backgroundColor: "#071210" }]}>
         <Pressable onPress={handleTitleTap} style={styles.exitHint}>
           <MaterialCommunityIcons name="lock" size={13} color="#C9A84C44" />
         </Pressable>
         <Pressable onPress={handleTitleTap}>
-          <Text style={styles.headerTitle}>ميزو</Text>
+          <Text style={[styles.headerTitle, isNight && { color: "#B89038" }]}>
+            {isNight ? "ميزو 🌙" : "ميزو"}
+          </Text>
         </Pressable>
         <View style={{ width: 34 }} />
       </View>
 
       {/* Mizo mascot + last phrase */}
-      <View style={styles.mizoRow}>
+      <View style={[styles.mizoRow, isNight && { backgroundColor: "#0A1614" }]}>
         <Animated.View style={{ transform: [{ scale: mizoScale }] }}>
           <Image source={mizoImage} style={styles.mizoImg} resizeMode="contain" />
         </Animated.View>
-        <View style={styles.phraseBox}>
+        <View style={[styles.phraseBox, isNight && { backgroundColor: "#0A1614" }]}>
           <Pressable
             onPress={() => lastPhrase !== "اضغط على أي كلمة..." && speak(lastPhrase)}
             style={styles.phraseInner}
@@ -205,7 +211,7 @@ export default function MizoLockedScreen() {
       </View>
 
       {/* Yes / No */}
-      <View style={styles.yesNoRow}>
+      <View style={[styles.yesNoRow, isNight && { backgroundColor: "#0D1A19" }]}>
         <Pressable style={[styles.yesNoBtn, styles.noBtn]} onPress={() => speak("لأ", "no_quick", "responses")}>
           <Text style={styles.yesNoText}>❌  لأ</Text>
         </Pressable>
@@ -218,7 +224,7 @@ export default function MizoLockedScreen() {
       </View>
 
       {/* Quick Access Bar */}
-      <View style={styles.quickBar}>
+      <View style={[styles.quickBar, isNight && { backgroundColor: "#0A1412", borderBottomColor: "#1A2E2C" }]}>
         {([
           { emoji: "💧", label: "مية",  phrase: "أنا عايز مية",  id: "qw" },
           { emoji: "🚽", label: "حمام", phrase: "محتاج الحمام",  id: "qb" },
@@ -237,7 +243,7 @@ export default function MizoLockedScreen() {
       </View>
 
       {/* Soft Buzzer */}
-      <View style={styles.buzzerWrap}>
+      <View style={[styles.buzzerWrap, isNight && { backgroundColor: "#0D1A19" }]}>
         <Animated.View style={{ transform: [{ scale: buzzerScale }], flex: 1 }}>
           <Pressable
             style={[styles.buzzerBtn, buzzerSent && styles.buzzerBtnSent]}
@@ -257,7 +263,8 @@ export default function MizoLockedScreen() {
       </View>
 
       {/* Category tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}
+        style={isNight ? { backgroundColor: "#0D1A19" } : undefined}>
         {subWords && (
           <Pressable style={[styles.catTab, styles.catTabBack]} onPress={() => setSubWords(null)}>
             <Text style={styles.catTabText}>↩</Text>
@@ -269,11 +276,21 @@ export default function MizoLockedScreen() {
           return (
             <Pressable
               key={cat.id}
-              style={[styles.catTab, isActive && styles.catTabActive]}
+              style={[
+                styles.catTab,
+                isActive && styles.catTabActive,
+                isNight && !isActive && { backgroundColor: "#1A2E2E", borderColor: "#2A4040" },
+                isNight && isActive && { backgroundColor: "#C9A84C", borderColor: "#C9A84C" },
+              ]}
               onPress={() => { setActiveCat(cat.id); setSubWords(null); }}
             >
               <Text style={styles.catTabEmoji}>{cat.emoji}</Text>
-              <Text style={[styles.catTabText, isActive && styles.catTabTextActive]}>{cat.label}</Text>
+              <Text style={[
+                styles.catTabText,
+                isActive && styles.catTabTextActive,
+                isNight && !isActive && { color: "#8ABAB7" },
+                isNight && isActive && { color: "#0D1A19" },
+              ]}>{cat.label}</Text>
             </Pressable>
           );
         })}
@@ -281,7 +298,7 @@ export default function MizoLockedScreen() {
 
       {/* Smart Suggestions — based on usage history at this hour */}
       {smartWords.length >= 2 && !subWords && (
-        <View style={styles.smartBar}>
+        <View style={[styles.smartBar, isNight && { backgroundColor: "#0E1F1D", borderBottomColor: "#1A3230" }]}>
           <Text style={styles.smartBarTitle}>الأكثر استخداماً دلوقتي ✦</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.smartBarScroll}>
             {smartWords.map((sw) => {
@@ -304,7 +321,8 @@ export default function MizoLockedScreen() {
       )}
 
       {/* Words grid */}
-      <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}
+        style={isNight ? { flex: 1, backgroundColor: "#0D1A19" } : { flex: 1 }}>
         {/* Auto-pinned: top words by all-time usage */}
         {pinnedWords.length >= 2 && !subWords && (
           <>

@@ -38,7 +38,11 @@ type MizoState = "neutral" | "speaking" | "success" | "alert" | "thinking";
 
 export default function MizoScreen() {
   const [profile, setProfile] = useState<MizoProfile | null>(null);
-  const [activeCat, setActiveCat] = useState(MIZO_CATEGORIES[0].id);
+  const isNight = (() => { const h = new Date().getHours(); return h >= 22 || h < 7; })();
+  const [activeCat, setActiveCat] = useState(() => {
+    const h = new Date().getHours();
+    return (h >= 22 || h < 7) ? "comfort" : MIZO_CATEGORIES[0].id;
+  });
   const [lastPhrase, setLastPhrase] = useState("اضغط على أي كلمة...");
   const [mizoState, setMizoState] = useState<MizoState>("neutral");
   const [subWords, setSubWords] = useState<MizoWord[] | null>(null);
@@ -296,15 +300,17 @@ export default function MizoScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, isNight && { backgroundColor: "#0D1A19" }]}>
       <Animated.View pointerEvents="none" style={[styles.flashOverlay, { opacity: flashAnim, backgroundColor: flashColor }]} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isNight && { backgroundColor: "#071210" }]}>
         <Pressable onPress={() => router.back()} style={styles.headerBtn}>
           <MaterialCommunityIcons name="arrow-right" size={26} color="#C9A84C" />
         </Pressable>
-        <Text style={styles.headerTitle}>ميزو</Text>
+        <Text style={[styles.headerTitle, isNight && { color: "#B89038" }]}>
+          {isNight ? "ميزو 🌙" : "ميزو"}
+        </Text>
         <View style={styles.headerActions}>
           <Pressable onPress={() => router.push("/mizo/family")} style={styles.headerBtn}>
             <MaterialCommunityIcons name="bell-outline" size={22} color="#7A8A89" />
@@ -319,11 +325,11 @@ export default function MizoScreen() {
       </View>
 
       {/* Mizo mascot + phrase */}
-      <View style={styles.mizoRow}>
+      <View style={[styles.mizoRow, isNight && { backgroundColor: "#0A1614" }]}>
         <Animated.View style={{ transform: [{ scale: mizoScale }] }}>
           <Image source={mizoImage} style={styles.mizoImg} resizeMode="contain" />
         </Animated.View>
-        <View style={styles.phraseBox}>
+        <View style={[styles.phraseBox, isNight && { backgroundColor: "#0A1614" }]}>
           <Pressable onPress={handleRepeat} style={styles.phraseInner}>
             <MaterialCommunityIcons name="volume-high" size={20} color="#C9A84C" />
             <Text style={styles.phraseText} numberOfLines={2}>{lastPhrase}</Text>
@@ -333,7 +339,7 @@ export default function MizoScreen() {
       </View>
 
       {/* Yes / No */}
-      <View style={styles.yesNoRow}>
+      <View style={[styles.yesNoRow, isNight && { backgroundColor: "#0D1A19" }]}>
         <Pressable style={[styles.yesNoBtn, styles.noBtn]} onPress={handleNo}>
           <Text style={styles.yesNoText}>❌  لأ</Text>
         </Pressable>
@@ -343,7 +349,7 @@ export default function MizoScreen() {
       </View>
 
       {/* Quick Access Bar */}
-      <View style={styles.quickBar}>
+      <View style={[styles.quickBar, isNight && { backgroundColor: "#0A1412", borderBottomColor: "#1A2E2C" }]}>
         {([
           { emoji: "💧", label: "مية",  phrase: "أنا عايز مية",    id: "qw" },
           { emoji: "🚽", label: "حمام", phrase: "محتاج الحمام",    id: "qb" },
@@ -362,7 +368,7 @@ export default function MizoScreen() {
       </View>
 
       {/* Soft Buzzer */}
-      <View style={styles.buzzerWrap}>
+      <View style={[styles.buzzerWrap, isNight && { backgroundColor: "#0D1A19" }]}>
         <Animated.View style={{ transform: [{ scale: buzzerScale }], flex: 1 }}>
           <Pressable
             style={[styles.buzzerBtn, buzzerSent && styles.buzzerBtnSent]}
@@ -382,7 +388,8 @@ export default function MizoScreen() {
       </View>
 
       {/* Category tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}
+        style={isNight ? { backgroundColor: "#0D1A19" } : undefined}>
         {subWords && (
           <Pressable style={[styles.catTab, styles.catTabBack]} onPress={() => setSubWords(null)}>
             <Text style={styles.catTabText}>↩</Text>
@@ -392,10 +399,21 @@ export default function MizoScreen() {
         {[...MIZO_CATEGORIES].reverse().map((cat) => {
           const isActive = activeCat === cat.id && !subWords;
           return (
-            <Pressable key={cat.id} style={[styles.catTab, isActive && styles.catTabActive]}
+            <Pressable key={cat.id}
+              style={[
+                styles.catTab,
+                isActive && styles.catTabActive,
+                isNight && !isActive && { backgroundColor: "#1A2E2E", borderColor: "#2A4040" },
+                isNight && isActive && { backgroundColor: "#C9A84C", borderColor: "#C9A84C" },
+              ]}
               onPress={() => { setActiveCat(cat.id); setSubWords(null); }}>
               <Text style={styles.catTabEmoji}>{cat.emoji}</Text>
-              <Text style={[styles.catTabText, isActive && styles.catTabTextActive]}>{cat.label}</Text>
+              <Text style={[
+                styles.catTabText,
+                isActive && styles.catTabTextActive,
+                isNight && !isActive && { color: "#8ABAB7" },
+                isNight && isActive && { color: "#0D1A19" },
+              ]}>{cat.label}</Text>
             </Pressable>
           );
         })}
@@ -403,7 +421,7 @@ export default function MizoScreen() {
 
       {/* Smart Suggestions — based on usage history at this hour */}
       {smartWords.length >= 2 && !subWords && (
-        <View style={styles.smartBar}>
+        <View style={[styles.smartBar, isNight && { backgroundColor: "#0E1F1D", borderBottomColor: "#1A3230" }]}>
           <Text style={styles.smartBarTitle}>الأكثر استخداماً دلوقتي ✦</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.smartBarScroll}>
             {smartWords.map((sw) => {
@@ -426,7 +444,8 @@ export default function MizoScreen() {
       )}
 
       {/* Words grid */}
-      <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}
+        style={isNight ? { flex: 1, backgroundColor: "#0D1A19" } : { flex: 1 }}>
         {/* Auto-pinned: top words by all-time usage */}
         {pinnedWords.length >= 2 && !subWords && activeCat !== "family" && (
           <>
