@@ -27,7 +27,7 @@ export type MizoProfile = {
   quietHoursStart: number;     // 22
   quietHoursEnd: number;       // 7
   oneHandedMode: boolean;
-  userType: string;            // "stroke" | "deaf" | "child" | "nonverbal" | ""
+  userType: string;            // "stroke"|"tbi"|"als"|"quadriplegia"|"laryngeal"|"elderly"|"alzheimer"|"parkinson"|"child_aac"|""
 };
 
 const DEFAULT_PROFILE: MizoProfile = {
