@@ -266,7 +266,7 @@ export default function MizoLockedScreen() {
 
       {/* Category tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}
-        style={isNight ? { backgroundColor: "#0D1A19" } : undefined}>
+        style={[{ flexShrink: 0 }, isNight && { backgroundColor: "#0D1A19" }]}>
         {subWords && (
           <Pressable style={[styles.catTab, styles.catTabBack]} onPress={() => setSubWords(null)}>
             <Text style={styles.catTabText}>↩ رجوع</Text>
@@ -485,8 +485,8 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
-  catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 8, alignItems: "center" },
-  catTabEmoji: { fontSize: 16 },
+  catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 8 },
+  catTabEmoji: { fontSize: 15 },
   catTab: {
     paddingHorizontal: 16, paddingVertical: 6, borderRadius: 22,
     backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C9D6D4",
