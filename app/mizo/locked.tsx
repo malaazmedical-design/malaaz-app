@@ -435,15 +435,15 @@ const styles = StyleSheet.create({
   phraseInner: { flexDirection: "row-reverse", alignItems: "center", gap: 8, padding: 10 },
   phraseText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#FFFFFF", textAlign: "right", flex: 1 },
   patientName: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#C9A84C88", textAlign: "right", paddingHorizontal: 10, paddingBottom: 6 },
-  yesNoRow: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  yesNoBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  yesNoRow: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 4 },
+  yesNoBtn: { flex: 1, paddingVertical: 10, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   yesBtn: { backgroundColor: "#1C6B3A" },
   noBtn: { backgroundColor: "#8B1A1A" },
   yesNoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF" },
-  buzzerWrap: { paddingHorizontal: 12, paddingVertical: 4, flexDirection: "row" },
+  buzzerWrap: { paddingHorizontal: 12, paddingVertical: 2, flexDirection: "row" },
   buzzerBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: "#FFFDF5", borderRadius: 14, paddingVertical: 13,
+    backgroundColor: "#FFFDF5", borderRadius: 14, paddingVertical: 9,
     borderWidth: 2, borderColor: "#C9A84C",
     elevation: 2, shadowColor: "#C9A84C", shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
@@ -452,12 +452,12 @@ const styles = StyleSheet.create({
   buzzerTextSent: { color: "#FFFFFF" },
 
   quickBar: {
-    flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 6,
+    flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 3,
     backgroundColor: "#EEF3F2", borderBottomWidth: 1, borderBottomColor: "#D8E3E2",
   },
   quickBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
-    backgroundColor: "#FFFFFF", borderRadius: 12, paddingVertical: 8,
+    backgroundColor: "#FFFFFF", borderRadius: 12, paddingVertical: 5,
     borderWidth: 1.5, borderColor: "#D8E3E2",
     elevation: 1, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
   },
@@ -467,16 +467,16 @@ const styles = StyleSheet.create({
 
   smartBar: {
     backgroundColor: "#EEF3FF", borderBottomWidth: 1, borderBottomColor: "#D0DAF5",
-    paddingTop: 7, paddingBottom: 5,
+    paddingTop: 4, paddingBottom: 3,
   },
   smartBarTitle: {
     fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#4A6BA8",
-    textAlign: "right", paddingHorizontal: 14, marginBottom: 5,
+    textAlign: "right", paddingHorizontal: 14, marginBottom: 3,
   },
   smartBarScroll: { paddingHorizontal: 12, gap: 8, alignItems: "center" },
   smartChip: {
     alignItems: "center", justifyContent: "center", gap: 3,
-    backgroundColor: "#FFFFFF", borderRadius: 14, paddingVertical: 7, paddingHorizontal: 11,
+    backgroundColor: "#FFFFFF", borderRadius: 14, paddingVertical: 4, paddingHorizontal: 11,
     borderWidth: 1.5, borderColor: "#C0D0F0",
     elevation: 1, shadowColor: "#4A6BA8", shadowOpacity: 0.10, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
     minWidth: 62,
@@ -485,17 +485,17 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
-  catBar: { paddingHorizontal: 12, paddingVertical: 4, gap: 8, alignItems: "center" },
+  catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 8, alignItems: "center" },
   catTabEmoji: { fontSize: 16 },
   catTab: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
+    paddingHorizontal: 16, paddingVertical: 6, borderRadius: 22,
     backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C9D6D4",
   },
   catTabActive: { backgroundColor: "#1C2B2A", borderColor: "#1C2B2A" },
   catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 2, borderColor: "#C9A84C" },
   catTabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A" },
   catTabTextActive: { color: "#C9A84C" },
-  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12, gap: 8, justifyContent: "flex-end" },
+  grid: { flexDirection: "row-reverse", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 2, paddingBottom: 12, gap: 8, justifyContent: "flex-start" },
   card: {
     width: CARD_SIZE, height: CARD_SIZE, backgroundColor: "#FFFFFF", borderRadius: 16,
     alignItems: "center", justifyContent: "center", gap: 4,
@@ -510,9 +510,9 @@ const styles = StyleSheet.create({
   pinnedBlock: { width: "100%", marginBottom: 2 },
   pinnedHeader: {
     flexDirection: "row-reverse", alignItems: "center",
-    gap: 5, paddingBottom: 6,
+    gap: 5, paddingBottom: 4,
   },
-  pinnedRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
+  pinnedRow: { flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, justifyContent: "flex-start" },
   pinnedTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C9A84C" },
   pinBadge: { position: "absolute", top: 4, right: 4 },
   pinnedSep: { width: "100%", height: 1, backgroundColor: "#E0E8E7", marginTop: 8, marginBottom: 2 },
