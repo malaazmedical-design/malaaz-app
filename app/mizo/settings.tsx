@@ -10,6 +10,8 @@ import {
   getProfile, saveProfile, clearLocalEvents, getVoiceOptions,
   MizoProfile, VoiceType, TtsMode, AzureVoice,
 } from "@/lib/mizoStorage";
+import { clearElevenLabsCache } from "@/lib/elevenLabsTts";
+import { clearAzureCache } from "@/lib/azureTts";
 
 type VoiceOption = { key: VoiceType; label: string; emoji: string; desc: string };
 
@@ -53,6 +55,12 @@ const TTS_MODES: { id: TtsMode; emoji: string; label: string; desc: string }[] =
     emoji: "📱",
     label: "صوت الجهاز",
     desc: "يستخدم محرك الكلام المثبت على الجهاز — مجاني وبيشتغل offline",
+  },
+  {
+    id: "elevenlabs",
+    emoji: "✨",
+    label: "ElevenLabs AI",
+    desc: "أصوات Neural عالية الجودة بالعربي — بيتحفظ على الجهاز بعد أول توليد",
   },
   {
     id: "azure",
@@ -142,6 +150,7 @@ export default function MizoSettingsScreen() {
     dwellTime: 0, quietHoursEnabled: false, quietHoursStart: 22, quietHoursEnd: 7,
     oneHandedMode: false, userType: "",
     ttsMode: "device", azureVoice: "ar-EG-SalmaNeural", azureKey: "", azureRegion: "eastus",
+    elevenApiKey: "", elevenVoiceId: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -171,8 +180,14 @@ export default function MizoSettingsScreen() {
     ]);
   };
 
-  const handleClearAzureCache = () => {
-    Alert.alert("تنبيه", "مسح الكاش هيبقى متاح بعد تحديث التطبيق الكامل.");
+  const handleClearAzureCache = async () => {
+    await clearAzureCache();
+    Alert.alert("تم", "تم مسح كاش Azure.");
+  };
+
+  const handleClearElevenCache = async () => {
+    await clearElevenLabsCache();
+    Alert.alert("تم", "تم مسح كاش ElevenLabs — الأصوات هتتولد من جديد.");
   };
 
   return (
@@ -342,6 +357,52 @@ export default function MizoSettingsScreen() {
             <Pressable style={styles.secondaryBtn} onPress={handleClearAzureCache}>
               <MaterialCommunityIcons name="cached" size={16} color="#1C2B2A" />
               <Text style={styles.secondaryBtnText}>مسح كاش Azure</Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* ── إعدادات ElevenLabs ── */}
+        {profile.ttsMode === "elevenlabs" && (
+          <>
+            <View style={styles.infoBox}>
+              <Text style={styles.infoBoxTitle}>✨ إزاي تجيب الـ Voice ID؟</Text>
+              <Text style={styles.infoBoxText}>
+                ١. روح elevenlabs.io وادخل على أكونتك{"\n"}
+                ٢. اختار أي صوت من Voice Library{"\n"}
+                ٣. اضغط على الصوت → انسخ الـ Voice ID{"\n"}
+                ٤. حطه في الخانة تحت{"\n\n"}
+                الصوت بيتتولد مرة واحدة ويتحفظ على الجهاز — مش بيحتاج إنترنت تاني.
+              </Text>
+            </View>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>مفتاح API (xi-api-key)</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.elevenApiKey}
+              onChangeText={(v) => setProfile((p) => ({ ...p, elevenApiKey: v.trim() }))}
+              placeholder="الصق مفتاح ElevenLabs هنا"
+              placeholderTextColor="#9AABAA"
+              textAlign="right"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+
+            <Text style={[styles.label, { marginTop: 14 }]}>Voice ID</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.elevenVoiceId}
+              onChangeText={(v) => setProfile((p) => ({ ...p, elevenVoiceId: v.trim() }))}
+              placeholder="مثال: pNInz6obpgDQGcFmaJgB"
+              placeholderTextColor="#9AABAA"
+              textAlign="right"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <Pressable style={styles.secondaryBtn} onPress={handleClearElevenCache}>
+              <MaterialCommunityIcons name="cached" size={16} color="#1C2B2A" />
+              <Text style={styles.secondaryBtnText}>مسح كاش ElevenLabs</Text>
             </Pressable>
           </>
         )}
