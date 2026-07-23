@@ -24,7 +24,7 @@ import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, addCustomWord, deleteCustomWord,
   sendFamilyNotification, sendContactDirectNotification, notifyPrimaryContact,
-  getContacts, getWordCustomizations, getSmartSuggestions,
+  getContacts, getWordCustomizations, getSmartSuggestions, getTopWords,
   setWordCustomization, clearWordCustomization,
   CustomWord, MizoProfile, MizoContact, WordCustomization, SmartSuggestion,
 } from "@/lib/mizoStorage";
@@ -47,6 +47,7 @@ export default function MizoScreen() {
   const [contacts, setContacts] = useState<MizoContact[]>([]);
   const [wordCustoms, setWordCustoms] = useState<Record<string, WordCustomization>>({});
   const [smartWords, setSmartWords] = useState<SmartSuggestion[]>([]);
+  const [pinnedWords, setPinnedWords] = useState<SmartSuggestion[]>([]);
 
   // Add custom word modal
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -82,6 +83,7 @@ export default function MizoScreen() {
       setContacts(await getContacts());
       setWordCustoms(await getWordCustomizations());
       setSmartWords(await getSmartSuggestions(new Date().getHours()));
+      setPinnedWords(await getTopWords(4));
     })();
   }, []);
 
@@ -426,6 +428,42 @@ export default function MizoScreen() {
 
       {/* Words grid */}
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+        {/* Auto-pinned: top words by all-time usage */}
+        {pinnedWords.length >= 2 && !subWords && activeCat !== "family" && (
+          <>
+            <View style={styles.pinnedHeader}>
+              <MaterialCommunityIcons name="pin" size={13} color="#C9A84C" />
+              <Text style={styles.pinnedTitle}>الأكثر استخداماً</Text>
+            </View>
+            {pinnedWords.map((sw) => {
+              const word = findWord(sw.word_id);
+              return (
+                <Pressable
+                  key={`pin_${sw.word_id}`}
+                  style={({ pressed }) => [styles.card, styles.cardPinned, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed]}
+                  onPress={() => speak(sw.phrase, sw.word_id, "pinned")}
+                  onPressIn={() => {
+                    if (profile && profile.dwellTime > 0) {
+                      dwellTimerRef.current = setTimeout(() => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        speak(sw.phrase, sw.word_id, "pinned");
+                      }, profile.dwellTime);
+                    }
+                  }}
+                  onPressOut={handlePressOut}
+                >
+                  <Text style={styles.cardEmoji}>{word?.emoji ?? "💬"}</Text>
+                  <Text style={styles.cardLabel} numberOfLines={2}>{word?.label ?? sw.phrase.slice(0, 12)}</Text>
+                  <View style={styles.pinBadge}>
+                    <MaterialCommunityIcons name="pin" size={9} color="#C9A84C" />
+                  </View>
+                </Pressable>
+              );
+            })}
+            <View style={styles.pinnedSep} />
+          </>
+        )}
+
         {/* Contacts in family category */}
         {activeCat === "family" && !subWords && contacts.map((c, idx) => (
           <Pressable
@@ -724,6 +762,16 @@ const styles = StyleSheet.create({
     elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
   cardPressed: { backgroundColor: "#EDF5F4", transform: [{ scale: 0.95 }] },
+  cardPinned: { borderColor: "#C9A84C55", backgroundColor: "#FDFAF3" },
+
+  // ── Auto-Pin ────────────────────────────────────────────────────────────────
+  pinnedHeader: {
+    width: "100%", flexDirection: "row-reverse", alignItems: "center",
+    gap: 5, paddingBottom: 6,
+  },
+  pinnedTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C9A84C" },
+  pinBadge: { position: "absolute", top: 4, right: 4 },
+  pinnedSep: { width: "100%", height: 1, backgroundColor: "#E0E8E7", marginTop: 4, marginBottom: 2 },
   cardCustomized: { borderColor: "#C9A84C55", backgroundColor: "#FDFAF3" },
   cardEmoji: { fontSize: 34 },
   cardEmojiLarge: { fontSize: 42 },
