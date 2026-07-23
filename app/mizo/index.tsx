@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Image,
   SafeAreaView, Dimensions, Animated, Platform, Modal,
-  TextInput, Alert, FlatList,
+  TextInput, Alert, FlatList, Vibration,
 } from "react-native";
 
 const EMOJI_LIST = [
@@ -63,6 +63,11 @@ export default function MizoScreen() {
   const [sosCount, setSosCount] = useState(3);
   const sosTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dwellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Soft buzzer
+  const [buzzerSent, setBuzzerSent] = useState(false);
+  const buzzerCooldown = useRef(false);
+  const buzzerScale = useRef(new Animated.Value(1)).current;
 
   const mizoScale = useRef(new Animated.Value(1)).current;
   const flashAnim = useRef(new Animated.Value(0)).current;
@@ -212,6 +217,40 @@ export default function MizoScreen() {
   const handleNo = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid); speak("لأ", "no_quick", "responses"); };
   const handleRepeat = () => { if (lastPhrase && lastPhrase !== "اضغط على أي كلمة...") speak(lastPhrase); };
 
+  const handleBuzzer = useCallback(() => {
+    if (buzzerCooldown.current) return;
+    buzzerCooldown.current = true;
+    setBuzzerSent(true);
+
+    // Vibration pattern + haptic for in-room alerting
+    Vibration.vibrate([0, 500, 150, 500, 150, 500]);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+    // Speak on device speaker so whoever is in the room hears it
+    Speech.stop();
+    const name = profile?.patientName || "المريض";
+    Speech.speak(`نادوا على ${name}`, { ...voiceOpts });
+
+    // Button pulse animation
+    Animated.sequence([
+      Animated.spring(buzzerScale, { toValue: 1.06, useNativeDriver: true, speed: 25 }),
+      Animated.spring(buzzerScale, { toValue: 1, useNativeDriver: true, speed: 18 }),
+    ]).start();
+
+    // Send gentle notification to family
+    const phrase = `${name} بينادي عليك`;
+    if (profile) {
+      sendFamilyNotification(name, phrase, false, profile.quietHoursEnabled, profile.quietHoursStart, profile.quietHoursEnd);
+    }
+    logEvent({ word_id: "buzzer", phrase, category: "buzzer", is_emergency: false });
+
+    // Reset after 5 seconds
+    setTimeout(() => {
+      setBuzzerSent(false);
+      buzzerCooldown.current = false;
+    }, 5000);
+  }, [voiceOpts, profile, buzzerScale]);
+
   const handleAddCustomWord = async () => {
     if (!newLabel.trim() || !newPhrase.trim()) { Alert.alert("تنبيه", "اكتب اسم الكلمة والجملة"); return; }
     const word = await addCustomWord({ label: newLabel.trim(), emoji: newEmoji.trim() || "⭐", phrase: newPhrase.trim(), category_id: activeCat });
@@ -289,6 +328,46 @@ export default function MizoScreen() {
           <Text style={styles.yesNoText}>✅  ايوه</Text>
         </Pressable>
       </View>
+
+      {/* Quick Access Bar */}
+      <View style={styles.quickBar}>
+        {([
+          { emoji: "💧", label: "مية",  phrase: "أنا عايز مية",    id: "qw" },
+          { emoji: "🚽", label: "حمام", phrase: "محتاج الحمام",    id: "qb" },
+          { emoji: "💊", label: "دوا",  phrase: "محتاج الدوا",     id: "qm" },
+          { emoji: "😣", label: "وجع",  phrase: "أنا وجعني",       id: "qp", pain: true },
+        ] as const).map((q) => (
+          <Pressable
+            key={q.id}
+            style={({ pressed }) => [styles.quickBtn, (q as any).pain && styles.quickBtnPain, pressed && styles.quickBtnPressed]}
+            onPress={() => speak(q.phrase, q.id, "basic")}
+          >
+            <Text style={styles.quickEmoji}>{q.emoji}</Text>
+            <Text style={[(q as any).pain ? styles.quickLabelPain : styles.quickLabel]}>{q.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Soft Buzzer */}
+      <View style={styles.buzzerWrap}>
+        <Animated.View style={{ transform: [{ scale: buzzerScale }], flex: 1 }}>
+          <Pressable
+            style={[styles.buzzerBtn, buzzerSent && styles.buzzerBtnSent]}
+            onPress={handleBuzzer}
+            disabled={buzzerCooldown.current}
+          >
+            <MaterialCommunityIcons
+              name={buzzerSent ? "bell-ring" : "bell-outline"}
+              size={20}
+              color={buzzerSent ? "#FFFFFF" : "#C9A84C"}
+            />
+            <Text style={[styles.buzzerText, buzzerSent && styles.buzzerTextSent]}>
+              {buzzerSent ? "✓  تم إرسال النداء" : "نادوا حد يجيلي"}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+
 
       {/* Category tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}>
@@ -542,8 +621,37 @@ const styles = StyleSheet.create({
   noBtn: { backgroundColor: "#8B1A1A" },
   yesNoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF" },
 
-  // ── Tabs — white background with dark border so they're always visible ──
-  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
+  // ── Quick Bar ──────────────────────────────────────────────────────────────
+  quickBar: {
+    flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: "#EEF3F2", borderBottomWidth: 1, borderBottomColor: "#D8E3E2",
+  },
+  quickBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
+    backgroundColor: "#FFFFFF", borderRadius: 12, paddingVertical: 9,
+    borderWidth: 1.5, borderColor: "#D8E3E2",
+    elevation: 1, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
+  },
+  quickBtnPain: { borderColor: "#CC220044", backgroundColor: "#FFF5F5" },
+  quickBtnPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
+  quickEmoji: { fontSize: 17 },
+  quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A" },
+  quickLabelPain: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#CC2200" },
+
+  // ── Soft Buzzer ─────────────────────────────────────────────────────────────
+  buzzerWrap: { paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row" },
+  buzzerBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: "#FDFAF3", borderRadius: 14, paddingVertical: 11,
+    borderWidth: 2, borderColor: "#C9A84C",
+    elevation: 2, shadowColor: "#C9A84C", shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+  },
+  buzzerBtnSent: { backgroundColor: "#1C6B3A", borderColor: "#1C6B3A" },
+  buzzerText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#C9A84C" },
+  buzzerTextSent: { color: "#FFFFFF" },
+
+  // ── Tabs ────────────────────────────────────────────────────────────────────
+  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "center" },
   catTab: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
     backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C9D6D4",
