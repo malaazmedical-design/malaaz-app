@@ -15,7 +15,9 @@ import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, CustomWord, notifyPrimaryContact,
   getSmartSuggestions, getTopWords, getQuickPins, SmartSuggestion,
+  MizoProfile,
 } from "@/lib/mizoStorage";
+import { mizoSpeak } from "@/lib/mizoTts";
 
 type MizoState = "neutral" | "speaking" | "success" | "alert" | "thinking";
 
@@ -34,6 +36,7 @@ export default function MizoLockedScreen() {
   const [pinnedWords, setPinnedWords] = useState<SmartSuggestion[]>([]);
   const [quickPinIds, setQuickPinIds] = useState<string[]>(["water", "bathroom", "medicine", "pain"]);
   const [patientName, setPatientName] = useState("المريض");
+  const [mizoProfile, setMizoProfile] = useState<MizoProfile | null>(null);
   const [pinModal, setPinModal] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [correctPin, setCorrectPin] = useState("1234");
@@ -58,6 +61,7 @@ export default function MizoLockedScreen() {
   useEffect(() => {
     (async () => {
       const profile = await getProfile();
+      setMizoProfile(profile);
       setPatientName(profile.patientName || "المريض");
       setVoiceOpts(getVoiceOptions(profile.voiceType));
       setCorrectPin(profile.patientPin || "1234");
@@ -92,13 +96,13 @@ export default function MizoLockedScreen() {
     setMizoState("speaking");
     bounceMizo();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Speech.speak(phrase, {
-      ...voiceOpts,
-      onDone: () => setMizoState("neutral"),
-      onError: () => setMizoState("neutral"),
-    });
+    if (mizoProfile) {
+      mizoSpeak(phrase, wordId, mizoProfile, () => setMizoState("neutral"));
+    } else {
+      Speech.speak(phrase, { ...voiceOpts, onDone: () => setMizoState("neutral"), onError: () => setMizoState("neutral") });
+    }
     logEvent({ word_id: wordId, phrase, category, is_emergency: isEmergency });
-  }, [voiceOpts]);
+  }, [voiceOpts, mizoProfile]);
 
   const handleWordPress = (word: MizoWord) => {
     if (word.children && word.children.length > 0) {

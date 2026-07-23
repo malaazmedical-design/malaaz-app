@@ -8,8 +8,9 @@ import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   getProfile, saveProfile, clearLocalEvents, getVoiceOptions,
-  MizoProfile, VoiceType,
+  MizoProfile, VoiceType, TtsMode, AzureVoice,
 } from "@/lib/mizoStorage";
+import { clearAzureCache } from "@/lib/azureTts";
 
 type VoiceOption = { key: VoiceType; label: string; emoji: string; desc: string };
 
@@ -45,6 +46,32 @@ const DWELL_OPTIONS = [
   { value: 500,  label: "٠.٥ ث", desc: "استنى نص ثانية" },
   { value: 1000, label: "١ ث",   desc: "استنى ثانية" },
   { value: 1500, label: "١.٥ ث", desc: "استنى ثانية ونص" },
+];
+
+const TTS_MODES: { id: TtsMode; emoji: string; label: string; desc: string }[] = [
+  {
+    id: "device",
+    emoji: "📱",
+    label: "صوت الجهاز",
+    desc: "يستخدم محرك الكلام المثبت على الجهاز — مجاني وبيشتغل offline",
+  },
+  {
+    id: "azure",
+    emoji: "🌐",
+    label: "صوت Azure",
+    desc: "أصوات مصرية Neural عالية الجودة — محتاج إنترنت ومفتاح Azure",
+  },
+  {
+    id: "recorded",
+    emoji: "🎙️",
+    label: "صوت المريض",
+    desc: "سجّل صوت المريض على كل بطاقة — يشتغل offline بصوته الحقيقي",
+  },
+];
+
+const AZURE_VOICES: { id: AzureVoice; label: string; desc: string }[] = [
+  { id: "ar-EG-SalmaNeural",  label: "سلمى",  desc: "صوت ست مصري طبيعي" },
+  { id: "ar-EG-ShakirNeural", label: "شاكر",  desc: "صوت راجل مصري طبيعي" },
 ];
 
 const USER_TYPES: { id: string; emoji: string; label: string; desc: string }[] = [
@@ -115,6 +142,7 @@ export default function MizoSettingsScreen() {
     patientName: "", voiceType: "male", patientMode: false, patientPin: "1234",
     dwellTime: 0, quietHoursEnabled: false, quietHoursStart: 22, quietHoursEnd: 7,
     oneHandedMode: false, userType: "",
+    ttsMode: "device", azureVoice: "ar-EG-SalmaNeural", azureKey: "", azureRegion: "eastus",
   });
   const [saving, setSaving] = useState(false);
 
@@ -140,6 +168,16 @@ export default function MizoSettingsScreen() {
       {
         text: "امسح", style: "destructive",
         onPress: async () => { await clearLocalEvents(); Alert.alert("تم", "السجل اتمسح"); },
+      },
+    ]);
+  };
+
+  const handleClearAzureCache = () => {
+    Alert.alert("مسح كاش Azure", "هيتمسح الصوت المحفوظ وهيتنزل من Azure تاني. متأكد؟", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "امسح", style: "destructive",
+        onPress: async () => { await clearAzureCache(); Alert.alert("تم", "الكاش اتمسح"); },
       },
     ]);
   };
@@ -237,6 +275,97 @@ export default function MizoSettingsScreen() {
             ))}
           </View>
         ))}
+
+        {/* ── محرك الكلام ── */}
+        <View style={styles.sectionDivider} />
+        <Text style={styles.label}>محرك الكلام</Text>
+        <Text style={styles.modeDesc}>اختار الطريقة اللي ميزو يتكلم بيها</Text>
+        <View style={styles.conditionGrid}>
+          {TTS_MODES.map((m) => {
+            const active = profile.ttsMode === m.id;
+            return (
+              <Pressable
+                key={m.id}
+                style={[styles.conditionCard, styles.conditionCardFull, active && styles.conditionCardActive]}
+                onPress={() => setProfile((p) => ({ ...p, ttsMode: m.id }))}
+              >
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, flex: 1 }}>
+                  <Text style={{ fontSize: 24 }}>{m.emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.conditionLabel, active && styles.conditionLabelActive]}>{m.label}</Text>
+                    <Text style={styles.conditionDesc}>{m.desc}</Text>
+                  </View>
+                  {active && <MaterialCommunityIcons name="check-circle" size={20} color="#C9A84C" />}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* ── إعدادات Azure ── */}
+        {profile.ttsMode === "azure" && (
+          <>
+            <Text style={[styles.label, { marginTop: 16 }]}>الصوت المصري</Text>
+            <View style={styles.dwellRow}>
+              {AZURE_VOICES.map((v) => (
+                <Pressable
+                  key={v.id}
+                  style={[styles.dwellBtn, profile.azureVoice === v.id && styles.dwellBtnActive]}
+                  onPress={() => setProfile((p) => ({ ...p, azureVoice: v.id }))}
+                >
+                  <Text style={[styles.dwellLabel, profile.azureVoice === v.id && styles.dwellLabelActive]}>
+                    {v.label}
+                  </Text>
+                  <Text style={styles.dwellDesc}>{v.desc}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={[styles.label, { marginTop: 14 }]}>مفتاح Azure (Subscription Key)</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.azureKey}
+              onChangeText={(v) => setProfile((p) => ({ ...p, azureKey: v.trim() }))}
+              placeholder="الصق مفتاح Azure هنا"
+              placeholderTextColor="#9AABAA"
+              textAlign="right"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+
+            <Text style={[styles.label, { marginTop: 14 }]}>المنطقة (Region)</Text>
+            <TextInput
+              style={styles.input}
+              value={profile.azureRegion}
+              onChangeText={(v) => setProfile((p) => ({ ...p, azureRegion: v.trim().toLowerCase() }))}
+              placeholder="مثال: eastus أو uaenorth"
+              placeholderTextColor="#9AABAA"
+              textAlign="right"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <Pressable style={styles.secondaryBtn} onPress={handleClearAzureCache}>
+              <MaterialCommunityIcons name="cached" size={16} color="#1C2B2A" />
+              <Text style={styles.secondaryBtnText}>مسح كاش Azure</Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* ── تعليمات صوت المريض ── */}
+        {profile.ttsMode === "recorded" && (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoBoxTitle}>🎙️ كيف تسجّل صوت المريض؟</Text>
+            <Text style={styles.infoBoxText}>
+              ١. اضغط وأمسك (Long Press) على أي بطاقة في ميزو{"\n"}
+              ٢. اختار «سجّل صوت المريض»{"\n"}
+              ٣. اضغط على زر التسجيل والمريض يقول الكلمة{"\n"}
+              ٤. اضغط إيقاف ثم احفظ{"\n\n"}
+              لو البطاقة مالهاش تسجيل، ميزو هيستخدم صوت الجهاز تلقائياً.
+            </Text>
+          </View>
+        )}
 
         {/* ── وقت الإمساك (dwell) ── */}
         <View style={styles.sectionDivider} />
@@ -455,4 +584,24 @@ const styles = StyleSheet.create({
     gap: 6, paddingVertical: 14,
   },
   dangerText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#CC2200" },
+
+  secondaryBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 10, marginTop: 10,
+    backgroundColor: "#E8EDEC", borderRadius: 10,
+  },
+  secondaryBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#1C2B2A" },
+
+  infoBox: {
+    backgroundColor: "#EEF6F4", borderRadius: 14, padding: 16, marginTop: 12,
+    borderWidth: 1, borderColor: "#C9E0DC",
+  },
+  infoBoxTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A",
+    textAlign: "right", marginBottom: 8,
+  },
+  infoBoxText: {
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: "#3A5A55",
+    textAlign: "right", lineHeight: 22,
+  },
 });

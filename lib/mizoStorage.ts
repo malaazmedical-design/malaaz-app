@@ -17,6 +17,9 @@ export type VoiceType =
   | "child_1" | "child_2" | "child_3"
   | "male" | "female" | "child"; // backward compat
 
+export type TtsMode = "device" | "azure" | "recorded";
+export type AzureVoice = "ar-EG-SalmaNeural" | "ar-EG-ShakirNeural";
+
 export type MizoProfile = {
   patientName: string;
   voiceType: VoiceType;
@@ -28,6 +31,10 @@ export type MizoProfile = {
   quietHoursEnd: number;       // 7
   oneHandedMode: boolean;
   userType: string;            // "stroke"|"tbi"|"als"|"quadriplegia"|"laryngeal"|"elderly"|"alzheimer"|"parkinson"|"child_aac"|""
+  ttsMode: TtsMode;            // which speech engine to use
+  azureVoice: AzureVoice;     // Egyptian Arabic Neural voice
+  azureKey: string;            // Azure Cognitive Services subscription key
+  azureRegion: string;         // e.g. "eastus", "uaenorth"
 };
 
 const DEFAULT_PROFILE: MizoProfile = {
@@ -41,6 +48,10 @@ const DEFAULT_PROFILE: MizoProfile = {
   quietHoursEnd: 7,
   oneHandedMode: false,
   userType: "",
+  ttsMode: "device",
+  azureVoice: "ar-EG-SalmaNeural",
+  azureKey: "",
+  azureRegion: "eastus",
 };
 
 export type MizoFamilyLink = {
