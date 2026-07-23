@@ -25,6 +25,7 @@ import {
   getCustomWords, addCustomWord, deleteCustomWord,
   sendFamilyNotification, sendContactDirectNotification, notifyPrimaryContact,
   getContacts, getWordCustomizations, getSmartSuggestions, getTopWords,
+  getQuickPins, toggleQuickPin,
   setWordCustomization, clearWordCustomization,
   CustomWord, MizoProfile, MizoContact, WordCustomization, SmartSuggestion,
 } from "@/lib/mizoStorage";
@@ -52,6 +53,7 @@ export default function MizoScreen() {
   const [wordCustoms, setWordCustoms] = useState<Record<string, WordCustomization>>({});
   const [smartWords, setSmartWords] = useState<SmartSuggestion[]>([]);
   const [pinnedWords, setPinnedWords] = useState<SmartSuggestion[]>([]);
+  const [quickPinIds, setQuickPinIds] = useState<string[]>(["water", "bathroom", "medicine", "pain"]);
 
   // Add custom word modal
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -88,6 +90,7 @@ export default function MizoScreen() {
       setWordCustoms(await getWordCustomizations());
       setSmartWords(await getSmartSuggestions(new Date().getHours()));
       setPinnedWords(await getTopWords(4));
+      setQuickPinIds(await getQuickPins());
     })();
   }, []);
 
@@ -348,23 +351,22 @@ export default function MizoScreen() {
         </Pressable>
       </View>
 
-      {/* Quick Access Bar */}
+      {/* Quick Access Bar — dynamic pins */}
       <View style={[styles.quickBar, isNight && { backgroundColor: "#0A1412", borderBottomColor: "#1A2E2C" }]}>
-        {([
-          { emoji: "💧", label: "مية",  phrase: "أنا عايز مية",    id: "qw" },
-          { emoji: "🚽", label: "حمام", phrase: "محتاج الحمام",    id: "qb" },
-          { emoji: "💊", label: "دوا",  phrase: "محتاج الدوا",     id: "qm" },
-          { emoji: "😣", label: "وجع",  phrase: "أنا وجعني",       id: "qp", pain: true },
-        ] as const).map((q) => (
-          <Pressable
-            key={q.id}
-            style={({ pressed }) => [styles.quickBtn, (q as any).pain && styles.quickBtnPain, pressed && styles.quickBtnPressed]}
-            onPress={() => speak(q.phrase, q.id, "basic")}
-          >
-            <Text style={styles.quickEmoji}>{q.emoji}</Text>
-            <Text style={[(q as any).pain ? styles.quickLabelPain : styles.quickLabel]}>{q.label}</Text>
-          </Pressable>
-        ))}
+        {quickPinIds.map((pinId) => {
+          const w = findWord(pinId);
+          if (!w) return null;
+          return (
+            <Pressable
+              key={pinId}
+              style={({ pressed }) => [styles.quickBtn, pressed && styles.quickBtnPressed]}
+              onPress={() => speak(w.phrase, w.id, "quick")}
+            >
+              <Text style={styles.quickEmoji}>{w.emoji}</Text>
+              <Text style={styles.quickLabel} numberOfLines={1}>{w.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {/* Soft Buzzer */}
@@ -523,19 +525,26 @@ export default function MizoScreen() {
           const isFamily = activeCat === "family" && !subWords;
           const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
           const isCustomized = !!wordCustoms[word.id];
+          const isPinned = quickPinIds.includes(word.id);
 
           return (
             <Pressable
               key={word.id}
-              style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed, isCustomized && styles.cardCustomized]}
+              style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed, isCustomized && styles.cardCustomized, isPinned && styles.cardQuickPinned]}
               onPress={() => { if (!profile || profile.dwellTime === 0) handleWordPress(word); }}
               onPressIn={() => handlePressIn(word)}
               onPressOut={handlePressOut}
-              onLongPress={() => {
-                if (word.id.startsWith("custom_")) { handleDeleteCustomWord(word.id); }
-                else { openPersonalize(word); }
+              onLongPress={async () => {
+                if (word.id.startsWith("custom_")) {
+                  handleDeleteCustomWord(word.id);
+                } else if (!isFamily) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  const { pinned, pins } = await toggleQuickPin(word.id);
+                  setQuickPinIds(pins);
+                  Speech.speak(pinned ? "تم التثبيت" : "تم الإزالة", { language: "ar-EG" });
+                }
               }}
-              delayLongPress={900}
+              delayLongPress={800}
             >
               {/* Show photo if customized and has photo, otherwise emoji */}
               {isFamily && displayPhoto ? (
@@ -552,8 +561,10 @@ export default function MizoScreen() {
               </Text>
               {word.children && word.children.length > 0 && <Text style={styles.cardArrow}>›</Text>}
               {word.id.startsWith("custom_") && <View style={styles.customBadge}><Text style={styles.customBadgeText}>✦</Text></View>}
-              {isFamily && !word.id.startsWith("custom_") && (
-                <View style={styles.editHint}><MaterialCommunityIcons name="pencil-outline" size={11} color="#C9A84C88" /></View>
+              {isPinned && !isFamily && (
+                <View style={styles.quickPinBadge}>
+                  <MaterialCommunityIcons name="pin" size={9} color="#C9A84C" />
+                </View>
               )}
             </Pressable>
           );
@@ -721,18 +732,19 @@ const styles = StyleSheet.create({
   },
   quickBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
-    backgroundColor: "#FFFFFF", borderRadius: 12, paddingVertical: 9,
+    backgroundColor: "#FFFFFF", borderRadius: 12, paddingVertical: 8,
     borderWidth: 1.5, borderColor: "#D8E3E2",
     elevation: 1, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
   },
-  quickBtnPain: { borderColor: "#CC220044", backgroundColor: "#FFF5F5" },
   quickBtnPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
   quickEmoji: { fontSize: 17 },
-  quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A" },
-  quickLabelPain: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#CC2200" },
+  quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#1C2B2A" },
+
+  cardQuickPinned: { borderColor: "#C9A84C88", backgroundColor: "#FFFDF0" },
+  quickPinBadge: { position: "absolute", top: 4, left: 4 },
 
   // ── Soft Buzzer ─────────────────────────────────────────────────────────────
-  buzzerWrap: { paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row" },
+  buzzerWrap: { paddingHorizontal: 12, paddingVertical: 4, flexDirection: "row" },
   buzzerBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     backgroundColor: "#FFFDF5", borderRadius: 14, paddingVertical: 13,
@@ -765,7 +777,7 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
-  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "center" },
+  catBar: { paddingHorizontal: 12, paddingVertical: 4, gap: 8, alignItems: "center" },
   catTabEmoji: { fontSize: 16 },
   catTab: {
     flexDirection: "row", alignItems: "center", gap: 5,
@@ -778,7 +790,7 @@ const styles = StyleSheet.create({
   catTabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A" },
   catTabTextActive: { color: "#C9A84C" },
 
-  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8, gap: 8, justifyContent: "flex-end" },
+  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, gap: 8, justifyContent: "flex-end" },
   card: {
     backgroundColor: "#FFFFFF", borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 4,
     borderWidth: 1.5, borderColor: "#E0E8E7",
