@@ -369,7 +369,7 @@ export default function MizoScreen() {
 
       {/* Soft Buzzer */}
       <View style={[styles.buzzerWrap, isNight && { backgroundColor: "#0D1A19" }]}>
-        <Animated.View style={{ transform: [{ scale: buzzerScale }], flex: 1 }}>
+        <Animated.View style={{ transform: [{ scale: buzzerScale }], flex: 1, alignSelf: "stretch" }}>
           <Pressable
             style={[styles.buzzerBtn, buzzerSent && styles.buzzerBtnSent]}
             onPress={handleBuzzer}
@@ -377,7 +377,7 @@ export default function MizoScreen() {
           >
             <MaterialCommunityIcons
               name={buzzerSent ? "bell-ring" : "bell-outline"}
-              size={20}
+              size={22}
               color={buzzerSent ? "#FFFFFF" : "#C9A84C"}
             />
             <Text style={[styles.buzzerText, buzzerSent && styles.buzzerTextSent]}>
@@ -448,38 +448,40 @@ export default function MizoScreen() {
         style={isNight ? { flex: 1, backgroundColor: "#0D1A19" } : { flex: 1 }}>
         {/* Auto-pinned: top words by all-time usage */}
         {pinnedWords.length >= 2 && !subWords && activeCat !== "family" && (
-          <>
+          <View style={styles.pinnedBlock}>
             <View style={styles.pinnedHeader}>
               <MaterialCommunityIcons name="pin" size={13} color="#C9A84C" />
               <Text style={styles.pinnedTitle}>الأكثر استخداماً</Text>
             </View>
-            {pinnedWords.map((sw) => {
-              const word = findWord(sw.word_id);
-              return (
-                <Pressable
-                  key={`pin_${sw.word_id}`}
-                  style={({ pressed }) => [styles.card, styles.cardPinned, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed]}
-                  onPress={() => speak(sw.phrase, sw.word_id, "pinned")}
-                  onPressIn={() => {
-                    if (profile && profile.dwellTime > 0) {
-                      dwellTimerRef.current = setTimeout(() => {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        speak(sw.phrase, sw.word_id, "pinned");
-                      }, profile.dwellTime);
-                    }
-                  }}
-                  onPressOut={handlePressOut}
-                >
-                  <Text style={styles.cardEmoji}>{word?.emoji ?? "💬"}</Text>
-                  <Text style={styles.cardLabel} numberOfLines={2}>{word?.label ?? sw.phrase.slice(0, 12)}</Text>
-                  <View style={styles.pinBadge}>
-                    <MaterialCommunityIcons name="pin" size={9} color="#C9A84C" />
-                  </View>
-                </Pressable>
-              );
-            })}
+            <View style={styles.pinnedRow}>
+              {pinnedWords.map((sw) => {
+                const word = findWord(sw.word_id);
+                return (
+                  <Pressable
+                    key={`pin_${sw.word_id}`}
+                    style={({ pressed }) => [styles.card, styles.cardPinned, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed]}
+                    onPress={() => speak(sw.phrase, sw.word_id, "pinned")}
+                    onPressIn={() => {
+                      if (profile && profile.dwellTime > 0) {
+                        dwellTimerRef.current = setTimeout(() => {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          speak(sw.phrase, sw.word_id, "pinned");
+                        }, profile.dwellTime);
+                      }
+                    }}
+                    onPressOut={handlePressOut}
+                  >
+                    <Text style={styles.cardEmoji}>{word?.emoji ?? "💬"}</Text>
+                    <Text style={styles.cardLabel} numberOfLines={2}>{word?.label ?? sw.phrase.slice(0, 12)}</Text>
+                    <View style={styles.pinBadge}>
+                      <MaterialCommunityIcons name="pin" size={9} color="#C9A84C" />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
             <View style={styles.pinnedSep} />
-          </>
+          </View>
         )}
 
         {/* Contacts in family category */}
@@ -732,13 +734,13 @@ const styles = StyleSheet.create({
   // ── Soft Buzzer ─────────────────────────────────────────────────────────────
   buzzerWrap: { paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row" },
   buzzerBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: "#FDFAF3", borderRadius: 14, paddingVertical: 11,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: "#FFFDF5", borderRadius: 14, paddingVertical: 13,
     borderWidth: 2, borderColor: "#C9A84C",
     elevation: 2, shadowColor: "#C9A84C", shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
   buzzerBtnSent: { backgroundColor: "#1C6B3A", borderColor: "#1C6B3A" },
-  buzzerText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#C9A84C" },
+  buzzerText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#7A4A00" },
   buzzerTextSent: { color: "#FFFFFF" },
 
   // ── Tabs ────────────────────────────────────────────────────────────────────
@@ -764,6 +766,7 @@ const styles = StyleSheet.create({
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
   catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "center" },
+  catTabEmoji: { fontSize: 16 },
   catTab: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
     backgroundColor: "#FFFFFF", borderWidth: 2, borderColor: "#C9D6D4",
@@ -783,13 +786,15 @@ const styles = StyleSheet.create({
   cardPinned: { borderColor: "#C9A84C55", backgroundColor: "#FDFAF3" },
 
   // ── Auto-Pin ────────────────────────────────────────────────────────────────
+  pinnedBlock: { width: "100%", marginBottom: 2 },
   pinnedHeader: {
-    width: "100%", flexDirection: "row-reverse", alignItems: "center",
+    flexDirection: "row-reverse", alignItems: "center",
     gap: 5, paddingBottom: 6,
   },
+  pinnedRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
   pinnedTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C9A84C" },
   pinBadge: { position: "absolute", top: 4, right: 4 },
-  pinnedSep: { width: "100%", height: 1, backgroundColor: "#E0E8E7", marginTop: 4, marginBottom: 2 },
+  pinnedSep: { width: "100%", height: 1, backgroundColor: "#E0E8E7", marginTop: 8, marginBottom: 2 },
   cardCustomized: { borderColor: "#C9A84C55", backgroundColor: "#FDFAF3" },
   cardEmoji: { fontSize: 34 },
   cardEmojiLarge: { fontSize: 42 },
