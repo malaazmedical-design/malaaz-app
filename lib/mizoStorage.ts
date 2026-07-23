@@ -17,7 +17,7 @@ export type VoiceType =
   | "child_1" | "child_2" | "child_3"
   | "male" | "female" | "child"; // backward compat
 
-export type TtsMode = "device" | "azure" | "recorded";
+export type TtsMode = "device" | "azure" | "recorded" | "elevenlabs";
 export type AzureVoice = "ar-EG-SalmaNeural" | "ar-EG-ShakirNeural";
 
 export type MizoProfile = {
@@ -35,6 +35,8 @@ export type MizoProfile = {
   azureVoice: AzureVoice;     // Egyptian Arabic Neural voice
   azureKey: string;            // Azure Cognitive Services subscription key
   azureRegion: string;         // e.g. "eastus", "uaenorth"
+  elevenApiKey: string;        // ElevenLabs xi-api-key
+  elevenVoiceId: string;       // ElevenLabs voice_id from voice library
 };
 
 const DEFAULT_PROFILE: MizoProfile = {
@@ -52,6 +54,8 @@ const DEFAULT_PROFILE: MizoProfile = {
   azureVoice: "ar-EG-SalmaNeural",
   azureKey: "",
   azureRegion: "eastus",
+  elevenApiKey: "",
+  elevenVoiceId: "",
 };
 
 export type MizoFamilyLink = {
