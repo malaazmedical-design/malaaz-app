@@ -391,7 +391,7 @@ export default function MizoScreen() {
 
       {/* Category tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}
-        style={isNight ? { backgroundColor: "#0D1A19" } : undefined}>
+        style={[{ flexShrink: 0 }, isNight && { backgroundColor: "#0D1A19" }]}>
         {subWords && (
           <Pressable style={[styles.catTab, styles.catTabBack]} onPress={() => setSubWords(null)}>
             <Text style={styles.catTabText}>↩</Text>
@@ -777,8 +777,8 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
-  catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 8, alignItems: "center" },
-  catTabEmoji: { fontSize: 16 },
+  catBar: { paddingHorizontal: 12, paddingVertical: 2, gap: 8 },
+  catTabEmoji: { fontSize: 15 },
   catTab: {
     flexDirection: "row", alignItems: "center", gap: 5,
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 22,
@@ -786,7 +786,6 @@ const styles = StyleSheet.create({
   },
   catTabActive: { backgroundColor: "#1C2B2A", borderColor: "#1C2B2A" },
   catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 2, borderColor: "#C9A84C" },
-  catTabEmoji: { fontSize: 15 },
   catTabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A" },
   catTabTextActive: { color: "#C9A84C" },
 
