@@ -8,6 +8,7 @@ const KEYS = {
   familyLinks: "mizo_family_links",
   contacts: "mizo_contacts",
   wordCustomizations: "mizo_word_customizations",
+  quickPins: "mizo_quick_pins",
 };
 
 export type VoiceType =
@@ -336,6 +337,36 @@ export async function getTopWords(topN = 4): Promise<SmartSuggestion[]> {
     .slice(0, topN);
 }
 
+// Quick-bar pin IDs — manually set by caregiver, max 4
+const DEFAULT_PINS = ["water", "bathroom", "medicine", "pain"];
+
+export async function getQuickPins(): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(KEYS.quickPins);
+  if (!raw) return DEFAULT_PINS;
+  const parsed = JSON.parse(raw) as string[];
+  return parsed.length > 0 ? parsed : DEFAULT_PINS;
+}
+
+export async function setQuickPins(ids: string[]): Promise<void> {
+  await AsyncStorage.setItem(KEYS.quickPins, JSON.stringify(ids.slice(0, 4)));
+}
+
+export async function toggleQuickPin(wordId: string): Promise<{ pinned: boolean; pins: string[] }> {
+  const current = await getQuickPins();
+  const isPinned = current.includes(wordId);
+  let next: string[];
+  if (isPinned) {
+    next = current.filter((id) => id !== wordId);
+    if (next.length === 0) next = DEFAULT_PINS;
+  } else {
+    next = [wordId, ...current.filter((id) => id !== wordId)].slice(0, 4);
+  }
+  await setQuickPins(next);
+  return { pinned: !isPinned, pins: next };
+}
+
+const SMART_SKIP = new Set(["buzzer", "qw", "qb", "qm", "qp"]);
+
 // Returns top N words used most often within ±windowHours of currentHour
 export async function getSmartSuggestions(
   currentHour: number,
@@ -347,7 +378,7 @@ export async function getSmartSuggestions(
 
   const counts = new Map<string, { phrase: string; count: number }>();
   for (const ev of events) {
-    if (ev.word_id === "buzzer" || ev.is_emergency) continue;
+    if (SMART_SKIP.has(ev.word_id) || ev.is_emergency) continue;
     const evHour = new Date(ev.created_at).getHours();
     const diff = Math.abs(evHour - currentHour);
     if (Math.min(diff, 24 - diff) <= windowHours) {

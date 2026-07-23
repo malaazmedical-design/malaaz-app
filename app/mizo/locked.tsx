@@ -13,7 +13,7 @@ import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, CustomWord, notifyPrimaryContact,
-  getSmartSuggestions, getTopWords, SmartSuggestion,
+  getSmartSuggestions, getTopWords, getQuickPins, SmartSuggestion,
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
@@ -34,6 +34,7 @@ export default function MizoLockedScreen() {
   const [customWords, setCustomWords] = useState<CustomWord[]>([]);
   const [smartWords, setSmartWords] = useState<SmartSuggestion[]>([]);
   const [pinnedWords, setPinnedWords] = useState<SmartSuggestion[]>([]);
+  const [quickPinIds, setQuickPinIds] = useState<string[]>(["water", "bathroom", "medicine", "pain"]);
   const [patientName, setPatientName] = useState("المريض");
   const [pinModal, setPinModal] = useState(false);
   const [pinInput, setPinInput] = useState("");
@@ -62,6 +63,7 @@ export default function MizoLockedScreen() {
       setCustomWords(await getCustomWords());
       setSmartWords(await getSmartSuggestions(new Date().getHours()));
       setPinnedWords(await getTopWords(4));
+      setQuickPinIds(await getQuickPins());
     })();
   }, []);
 
@@ -223,23 +225,22 @@ export default function MizoLockedScreen() {
         </Pressable>
       </View>
 
-      {/* Quick Access Bar */}
+      {/* Quick Access Bar — dynamic pins (managed by caregiver) */}
       <View style={[styles.quickBar, isNight && { backgroundColor: "#0A1412", borderBottomColor: "#1A2E2C" }]}>
-        {([
-          { emoji: "💧", label: "مية",  phrase: "أنا عايز مية",  id: "qw" },
-          { emoji: "🚽", label: "حمام", phrase: "محتاج الحمام",  id: "qb" },
-          { emoji: "💊", label: "دوا",  phrase: "محتاج الدوا",   id: "qm" },
-          { emoji: "😣", label: "وجع",  phrase: "أنا وجعني",     id: "qp", pain: true },
-        ] as const).map((q) => (
-          <Pressable
-            key={q.id}
-            style={({ pressed }) => [styles.quickBtn, (q as any).pain && styles.quickBtnPain, pressed && styles.quickBtnPressed]}
-            onPress={() => speak(q.phrase, q.id, "basic")}
-          >
-            <Text style={styles.quickEmoji}>{q.emoji}</Text>
-            <Text style={(q as any).pain ? styles.quickLabelPain : styles.quickLabel}>{q.label}</Text>
-          </Pressable>
-        ))}
+        {quickPinIds.map((pinId) => {
+          const w = findWord(pinId);
+          if (!w) return null;
+          return (
+            <Pressable
+              key={pinId}
+              style={({ pressed }) => [styles.quickBtn, pressed && styles.quickBtnPressed]}
+              onPress={() => speak(w.phrase, w.id, "quick")}
+            >
+              <Text style={styles.quickEmoji}>{w.emoji}</Text>
+              <Text style={styles.quickLabel} numberOfLines={1}>{w.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {/* Soft Buzzer */}
@@ -352,19 +353,27 @@ export default function MizoLockedScreen() {
           </View>
         )}
 
-        {displayWords.map((word) => (
-          <Pressable
-            key={word.id}
-            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-            onPress={() => handleWordPress(word)}
-          >
-            <Text style={styles.cardEmoji}>{word.emoji}</Text>
-            <Text style={styles.cardLabel}>{word.label}</Text>
-            {word.children && word.children.length > 0 && (
-              <Text style={styles.cardArrow}>›</Text>
-            )}
-          </Pressable>
-        ))}
+        {displayWords.map((word) => {
+          const isPinned = quickPinIds.includes(word.id);
+          return (
+            <Pressable
+              key={word.id}
+              style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed, isPinned && styles.cardQuickPinned]}
+              onPress={() => handleWordPress(word)}
+            >
+              <Text style={styles.cardEmoji}>{word.emoji}</Text>
+              <Text style={styles.cardLabel} numberOfLines={2}>{word.label}</Text>
+              {word.children && word.children.length > 0 && (
+                <Text style={styles.cardArrow}>›</Text>
+              )}
+              {isPinned && (
+                <View style={styles.quickPinBadge}>
+                  <MaterialCommunityIcons name="pin" size={9} color="#C9A84C" />
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       {/* Emergency */}
@@ -431,7 +440,7 @@ const styles = StyleSheet.create({
   yesBtn: { backgroundColor: "#1C6B3A" },
   noBtn: { backgroundColor: "#8B1A1A" },
   yesNoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF" },
-  buzzerWrap: { paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row" },
+  buzzerWrap: { paddingHorizontal: 12, paddingVertical: 4, flexDirection: "row" },
   buzzerBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     backgroundColor: "#FFFDF5", borderRadius: 14, paddingVertical: 13,
@@ -443,20 +452,18 @@ const styles = StyleSheet.create({
   buzzerTextSent: { color: "#FFFFFF" },
 
   quickBar: {
-    flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 7,
+    flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 6,
     backgroundColor: "#EEF3F2", borderBottomWidth: 1, borderBottomColor: "#D8E3E2",
   },
   quickBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
-    backgroundColor: "#FFFFFF", borderRadius: 12, paddingVertical: 9,
+    backgroundColor: "#FFFFFF", borderRadius: 12, paddingVertical: 8,
     borderWidth: 1.5, borderColor: "#D8E3E2",
     elevation: 1, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
   },
-  quickBtnPain: { borderColor: "#CC220044", backgroundColor: "#FFF5F5" },
   quickBtnPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
   quickEmoji: { fontSize: 17 },
-  quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A" },
-  quickLabelPain: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#CC2200" },
+  quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#1C2B2A" },
 
   smartBar: {
     backgroundColor: "#EEF3FF", borderBottomWidth: 1, borderBottomColor: "#D0DAF5",
@@ -478,7 +485,7 @@ const styles = StyleSheet.create({
   smartChipEmoji: { fontSize: 26 },
   smartChipLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#1C2B2A", textAlign: "center" },
 
-  catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "center" },
+  catBar: { paddingHorizontal: 12, paddingVertical: 4, gap: 8, alignItems: "center" },
   catTabEmoji: { fontSize: 16 },
   catTab: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
@@ -488,7 +495,7 @@ const styles = StyleSheet.create({
   catTabBack: { backgroundColor: "#C9A84C22", borderWidth: 2, borderColor: "#C9A84C" },
   catTabText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#1C2B2A" },
   catTabTextActive: { color: "#C9A84C" },
-  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingBottom: 12, gap: 8, justifyContent: "flex-end" },
+  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12, gap: 8, justifyContent: "flex-end" },
   card: {
     width: CARD_SIZE, height: CARD_SIZE, backgroundColor: "#FFFFFF", borderRadius: 16,
     alignItems: "center", justifyContent: "center", gap: 4,
@@ -497,6 +504,8 @@ const styles = StyleSheet.create({
   },
   cardPressed: { backgroundColor: "#EDF5F4", transform: [{ scale: 0.95 }] },
   cardPinned: { borderColor: "#C9A84C55", backgroundColor: "#FDFAF3" },
+  cardQuickPinned: { borderColor: "#C9A84C88", backgroundColor: "#FFFDF0" },
+  quickPinBadge: { position: "absolute", top: 4, left: 4 },
 
   pinnedBlock: { width: "100%", marginBottom: 2 },
   pinnedHeader: {
