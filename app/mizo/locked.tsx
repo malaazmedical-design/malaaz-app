@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, Pressable, Image,
   SafeAreaView, Dimensions, Animated, Platform, BackHandler,
-  Modal, TextInput, Alert,
+  Modal, TextInput, Alert, Vibration,
 } from "react-native";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
@@ -12,7 +12,7 @@ import { MIZO_CATEGORIES, MizoWord } from "@/constants/mizoWords";
 import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
-  getCustomWords, CustomWord,
+  getCustomWords, CustomWord, sendFamilyNotification,
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
@@ -35,12 +35,23 @@ export default function MizoLockedScreen() {
   const titleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mizoScale = useRef(new Animated.Value(1)).current;
 
+  // Soft buzzer
+  const [buzzerSent, setBuzzerSent] = useState(false);
+  const buzzerCooldown = useRef(false);
+  const buzzerScale = useRef(new Animated.Value(1)).current;
+  const [quietEnabled, setQuietEnabled] = useState(false);
+  const [quietStart, setQuietStart] = useState(22);
+  const [quietEnd, setQuietEnd] = useState(7);
+
   useEffect(() => {
     (async () => {
       const profile = await getProfile();
       setPatientName(profile.patientName || "المريض");
       setVoiceOpts(getVoiceOptions(profile.voiceType));
       setCorrectPin(profile.patientPin || "1234");
+      setQuietEnabled(profile.quietHoursEnabled);
+      setQuietStart(profile.quietHoursStart);
+      setQuietEnd(profile.quietHoursEnd);
       setCustomWords(await getCustomWords());
     })();
   }, []);
@@ -87,6 +98,27 @@ export default function MizoLockedScreen() {
     setMizoState("alert");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     speak("النجدة! أنا محتاج مساعدة فوراً!", "emergency", "emergency", true);
+  };
+
+  const handleBuzzer = () => {
+    if (buzzerCooldown.current) return;
+    buzzerCooldown.current = true;
+    setBuzzerSent(true);
+
+    Vibration.vibrate([0, 500, 150, 500, 150, 500]);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Speech.stop();
+    Speech.speak(`نادوا على ${patientName}`, { ...voiceOpts });
+
+    Animated.sequence([
+      Animated.spring(buzzerScale, { toValue: 1.06, useNativeDriver: true, speed: 25 }),
+      Animated.spring(buzzerScale, { toValue: 1, useNativeDriver: true, speed: 18 }),
+    ]).start();
+
+    sendFamilyNotification(patientName, `${patientName} بينادي عليك`, false, quietEnabled, quietStart, quietEnd);
+    logEvent({ word_id: "buzzer", phrase: `${patientName} بينادي عليك`, category: "buzzer", is_emergency: false });
+
+    setTimeout(() => { setBuzzerSent(false); buzzerCooldown.current = false; }, 5000);
   };
 
   // ثلاث ضغطات على العنوان تفتح مربع الـ PIN
@@ -187,6 +219,26 @@ export default function MizoLockedScreen() {
             <Text style={(q as any).pain ? styles.quickLabelPain : styles.quickLabel}>{q.label}</Text>
           </Pressable>
         ))}
+      </View>
+
+      {/* Soft Buzzer */}
+      <View style={styles.buzzerWrap}>
+        <Animated.View style={{ transform: [{ scale: buzzerScale }], flex: 1 }}>
+          <Pressable
+            style={[styles.buzzerBtn, buzzerSent && styles.buzzerBtnSent]}
+            onPress={handleBuzzer}
+            disabled={buzzerCooldown.current}
+          >
+            <MaterialCommunityIcons
+              name={buzzerSent ? "bell-ring" : "bell-outline"}
+              size={20}
+              color={buzzerSent ? "#FFFFFF" : "#C9A84C"}
+            />
+            <Text style={[styles.buzzerText, buzzerSent && styles.buzzerTextSent]}>
+              {buzzerSent ? "✓  تم إرسال النداء" : "نادوا حد يجيلي"}
+            </Text>
+          </Pressable>
+        </Animated.View>
       </View>
 
       {/* Category tabs */}
@@ -293,6 +345,17 @@ const styles = StyleSheet.create({
   yesBtn: { backgroundColor: "#1C6B3A" },
   noBtn: { backgroundColor: "#8B1A1A" },
   yesNoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF" },
+  buzzerWrap: { paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row" },
+  buzzerBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: "#FDFAF3", borderRadius: 14, paddingVertical: 11,
+    borderWidth: 2, borderColor: "#C9A84C",
+    elevation: 2, shadowColor: "#C9A84C", shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+  },
+  buzzerBtnSent: { backgroundColor: "#1C6B3A", borderColor: "#1C6B3A" },
+  buzzerText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#C9A84C" },
+  buzzerTextSent: { color: "#FFFFFF" },
+
   quickBar: {
     flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 7,
     backgroundColor: "#EEF3F2", borderBottomWidth: 1, borderBottomColor: "#D8E3E2",
