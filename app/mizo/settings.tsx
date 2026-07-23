@@ -8,7 +8,7 @@ import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   getProfile, saveProfile, clearLocalEvents, getVoiceOptions,
-  MizoProfile, VoiceType, TtsMode, AzureVoice,
+  MizoProfile, VoiceType, TtsMode, AzureVoice, SCAN_AUTO_CONDITIONS,
 } from "@/lib/mizoStorage";
 import { clearElevenLabsCache } from "@/lib/elevenLabsTts";
 import { clearAzureCache } from "@/lib/azureTts";
@@ -151,6 +151,7 @@ export default function MizoSettingsScreen() {
     oneHandedMode: false, userType: "",
     ttsMode: "device", azureVoice: "ar-EG-SalmaNeural", azureKey: "", azureRegion: "eastus",
     elevenApiKey: "", elevenVoiceId: "",
+    scanningMode: false, scanSpeed: 1500,
   });
   const [saving, setSaving] = useState(false);
 
@@ -216,7 +217,11 @@ export default function MizoSettingsScreen() {
                   u.id === "" && styles.conditionCardFull,
                   active && styles.conditionCardActive,
                 ]}
-                onPress={() => setProfile((p) => ({ ...p, userType: u.id }))}
+                onPress={() => setProfile((p) => ({
+                ...p,
+                userType: u.id,
+                scanningMode: SCAN_AUTO_CONDITIONS.has(u.id) ? true : p.scanningMode,
+              }))}
               >
                 <Text style={styles.conditionEmoji}>{u.emoji}</Text>
                 <Text style={[styles.conditionLabel, active && styles.conditionLabelActive]}>
@@ -458,6 +463,64 @@ export default function MizoSettingsScreen() {
             {profile.oneHandedMode ? "وضع اليد الواحدة مفعّل" : "وضع اليد الواحدة متفعّلش"}
           </Text>
         </View>
+
+        {/* ── وضع المسح التلقائي ── */}
+        <View style={styles.sectionDivider} />
+        <Text style={styles.label}>وضع المسح التلقائي</Text>
+        {SCAN_AUTO_CONDITIONS.has(profile.userType) && (
+          <View style={[styles.infoBox, { marginBottom: 12 }]}>
+            <Text style={styles.infoBoxText}>
+              ✅ تم تفعيله تلقائياً لحالة "{USER_TYPES.find(u => u.id === profile.userType)?.label}" — بيتحكم فيه بإيماءة أو مفتاح خارجي
+            </Text>
+          </View>
+        )}
+        <Text style={styles.modeDesc}>
+          ميزو بيلوّن البطاقات واحدة واحدة تلقائياً — المريض يضغط «اختار» لما يوصل للكلمة اللي عايزها.
+          مناسب لمرضى الشلل الرباعي، ALS، وأي حالة مش قادر يلمس الشاشة.
+        </Text>
+        <View style={styles.switchRow}>
+          <Switch
+            value={profile.scanningMode}
+            onValueChange={(v) => setProfile((p) => ({ ...p, scanningMode: v }))}
+            trackColor={{ false: "#E0E8E7", true: "#1C2B2A" }}
+            thumbColor={profile.scanningMode ? "#C9A84C" : "#7A8A89"}
+          />
+          <Text style={styles.switchLabel}>
+            {profile.scanningMode ? "وضع المسح مفعّل" : "وضع المسح متفعّلش"}
+          </Text>
+        </View>
+        {profile.scanningMode && (
+          <>
+            <Text style={[styles.label, { marginTop: 12 }]}>سرعة المسح</Text>
+            <View style={styles.dwellRow}>
+              {([
+                { value: 2500, label: "بطيء",  desc: "٢.٥ ث لكل بطاقة" },
+                { value: 1500, label: "متوسط", desc: "١.٥ ث لكل بطاقة" },
+                { value: 800,  label: "سريع",  desc: "٠.٨ ث لكل بطاقة" },
+              ] as const).map((opt) => (
+                <Pressable
+                  key={opt.value}
+                  style={[styles.dwellBtn, profile.scanSpeed === opt.value && styles.dwellBtnActive]}
+                  onPress={() => setProfile((p) => ({ ...p, scanSpeed: opt.value }))}
+                >
+                  <Text style={[styles.dwellLabel, profile.scanSpeed === opt.value && styles.dwellLabelActive]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.dwellDesc}>{opt.desc}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.infoBox}>
+              <Text style={styles.infoBoxTitle}>🖐️ إزاي يشتغل مع العيون؟</Text>
+              <Text style={styles.infoBoxText}>
+                ١. افتح إعدادات الأندرويد → Accessibility → Switch Access{"\n"}
+                ٢. فعّل Camera Switch{"\n"}
+                ٣. اربط حركة العين/الوجه بـ «Tap»{"\n"}
+                ٤. المريض يبص على زرار «اختار» ويحرك عينه → ميزو بيتكلم
+              </Text>
+            </View>
+          </>
+        )}
 
         {/* ── ساعات الهدوء ── */}
         <View style={styles.sectionDivider} />
