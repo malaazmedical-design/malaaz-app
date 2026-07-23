@@ -13,7 +13,7 @@ import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, CustomWord, notifyPrimaryContact,
-  getSmartSuggestions, SmartSuggestion,
+  getSmartSuggestions, getTopWords, SmartSuggestion,
 } from "@/lib/mizoStorage";
 
 const { width } = Dimensions.get("window");
@@ -29,6 +29,7 @@ export default function MizoLockedScreen() {
   const [voiceOpts, setVoiceOpts] = useState(getVoiceOptions("male"));
   const [customWords, setCustomWords] = useState<CustomWord[]>([]);
   const [smartWords, setSmartWords] = useState<SmartSuggestion[]>([]);
+  const [pinnedWords, setPinnedWords] = useState<SmartSuggestion[]>([]);
   const [patientName, setPatientName] = useState("المريض");
   const [pinModal, setPinModal] = useState(false);
   const [pinInput, setPinInput] = useState("");
@@ -56,6 +57,7 @@ export default function MizoLockedScreen() {
       setQuietEnd(profile.quietHoursEnd);
       setCustomWords(await getCustomWords());
       setSmartWords(await getSmartSuggestions(new Date().getHours()));
+      setPinnedWords(await getTopWords(4));
     })();
   }, []);
 
@@ -303,6 +305,33 @@ export default function MizoLockedScreen() {
 
       {/* Words grid */}
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+        {/* Auto-pinned: top words by all-time usage */}
+        {pinnedWords.length >= 2 && !subWords && (
+          <>
+            <View style={styles.pinnedHeader}>
+              <MaterialCommunityIcons name="pin" size={13} color="#C9A84C" />
+              <Text style={styles.pinnedTitle}>الأكثر استخداماً</Text>
+            </View>
+            {pinnedWords.map((sw) => {
+              const word = findWord(sw.word_id);
+              return (
+                <Pressable
+                  key={`pin_${sw.word_id}`}
+                  style={({ pressed }) => [styles.card, styles.cardPinned, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed]}
+                  onPress={() => speak(sw.phrase, sw.word_id, "pinned")}
+                >
+                  <Text style={styles.cardEmoji}>{word?.emoji ?? "💬"}</Text>
+                  <Text style={styles.cardLabel} numberOfLines={2}>{word?.label ?? sw.phrase.slice(0, 12)}</Text>
+                  <View style={styles.pinBadge}>
+                    <MaterialCommunityIcons name="pin" size={9} color="#C9A84C" />
+                  </View>
+                </Pressable>
+              );
+            })}
+            <View style={styles.pinnedSep} />
+          </>
+        )}
+
         {displayWords.map((word) => (
           <Pressable
             key={word.id}
@@ -448,6 +477,15 @@ const styles = StyleSheet.create({
     elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
   cardPressed: { backgroundColor: "#EDF5F4", transform: [{ scale: 0.95 }] },
+  cardPinned: { borderColor: "#C9A84C55", backgroundColor: "#FDFAF3" },
+
+  pinnedHeader: {
+    width: "100%", flexDirection: "row-reverse", alignItems: "center",
+    gap: 5, paddingBottom: 6,
+  },
+  pinnedTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#C9A84C" },
+  pinBadge: { position: "absolute", top: 4, right: 4 },
+  pinnedSep: { width: "100%", height: 1, backgroundColor: "#E0E8E7", marginTop: 4, marginBottom: 2 },
   cardEmoji: { fontSize: 34 },
   cardLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A", textAlign: "center" },
   cardArrow: { position: "absolute", top: 6, left: 8, fontSize: 18, color: "#C9A84C", fontWeight: "700" },
