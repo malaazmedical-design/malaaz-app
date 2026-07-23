@@ -170,6 +170,25 @@ export default function MizoLockedScreen() {
         </Pressable>
       </View>
 
+      {/* Quick Access Bar */}
+      <View style={styles.quickBar}>
+        {([
+          { emoji: "💧", label: "مية",  phrase: "أنا عايز مية",  id: "qw" },
+          { emoji: "🚽", label: "حمام", phrase: "محتاج الحمام",  id: "qb" },
+          { emoji: "💊", label: "دوا",  phrase: "محتاج الدوا",   id: "qm" },
+          { emoji: "😣", label: "وجع",  phrase: "أنا وجعني",     id: "qp", pain: true },
+        ] as const).map((q) => (
+          <Pressable
+            key={q.id}
+            style={({ pressed }) => [styles.quickBtn, (q as any).pain && styles.quickBtnPain, pressed && styles.quickBtnPressed]}
+            onPress={() => speak(q.phrase, q.id, "basic")}
+          >
+            <Text style={styles.quickEmoji}>{q.emoji}</Text>
+            <Text style={(q as any).pain ? styles.quickLabelPain : styles.quickLabel}>{q.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       {/* Category tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}>
         {subWords && (
@@ -274,6 +293,22 @@ const styles = StyleSheet.create({
   yesBtn: { backgroundColor: "#1C6B3A" },
   noBtn: { backgroundColor: "#8B1A1A" },
   yesNoText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#FFFFFF" },
+  quickBar: {
+    flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: "#EEF3F2", borderBottomWidth: 1, borderBottomColor: "#D8E3E2",
+  },
+  quickBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
+    backgroundColor: "#FFFFFF", borderRadius: 12, paddingVertical: 9,
+    borderWidth: 1.5, borderColor: "#D8E3E2",
+    elevation: 1, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
+  },
+  quickBtnPain: { borderColor: "#CC220044", backgroundColor: "#FFF5F5" },
+  quickBtnPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
+  quickEmoji: { fontSize: 17 },
+  quickLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#1C2B2A" },
+  quickLabelPain: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#CC2200" },
+
   catBar: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   catTab: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22,
