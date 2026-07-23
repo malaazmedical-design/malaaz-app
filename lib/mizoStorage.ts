@@ -303,6 +303,23 @@ export async function sendContactDirectNotification(
   );
 }
 
+// Send to ALL family links + ALL contacts with push tokens (buzzer / SOS)
+export async function notifyAllFamily(
+  patientName: string,
+  phrase: string,
+  isEmergency: boolean,
+): Promise<void> {
+  const title = `ميزو — ${patientName}`;
+  const links = await getFamilyLinks();
+  for (const link of links) {
+    if (link.push_token) await pushSend(link.push_token, title, phrase, isEmergency);
+  }
+  const contacts = await getContacts();
+  for (const c of contacts) {
+    if (c.push_token) await pushSend(c.push_token, title, phrase, isEmergency);
+  }
+}
+
 // ─── Events ──────────────────────────────────────────────────────────────────
 
 export async function logEvent(event: Omit<AacEvent, "id" | "created_at">): Promise<void> {

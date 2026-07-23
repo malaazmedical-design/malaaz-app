@@ -24,7 +24,7 @@ import { MIZO_IMAGES } from "@/constants/mizoImages";
 import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, addCustomWord, deleteCustomWord,
-  sendFamilyNotification, sendContactDirectNotification, notifyPrimaryContact,
+  sendContactDirectNotification, notifyPrimaryContact, notifyAllFamily,
   getContacts, getWordCustomizations, getSmartSuggestions, getTopWords,
   getQuickPins, toggleQuickPin,
   setWordCustomization, clearWordCustomization,
@@ -167,10 +167,12 @@ export default function MizoScreen() {
     }
     logEvent({ word_id: wordId, phrase, category, is_emergency: isEmergency });
     if (profile) {
-      sendFamilyNotification(
-        profile.patientName || "المريض", phrase, isEmergency,
-        profile.quietHoursEnabled, profile.quietHoursStart, profile.quietHoursEnd,
-      );
+      const name = profile.patientName || "المريض";
+      if (isEmergency) {
+        notifyAllFamily(name, phrase, true);
+      } else {
+        notifyPrimaryContact(name, phrase, profile.quietHoursEnabled, profile.quietHoursStart, profile.quietHoursEnd);
+      }
     }
   }, [voiceOpts, profile]);
 
@@ -270,6 +272,17 @@ export default function MizoScreen() {
   const handleNo = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid); speak("لأ", "no_quick", "responses"); };
   const handleRepeat = () => { if (lastPhrase && lastPhrase !== "اضغط على أي كلمة...") speak(lastPhrase); };
 
+  const handleSecretComplaint = useCallback(async () => {
+    if (!profile) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 250);
+    setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 500);
+    setMizoState("thinking");
+    setTimeout(() => setMizoState("neutral"), 2000);
+    const name = profile.patientName || "المريض";
+    await notifyPrimaryContact(name, `⚠️ ${name} عنده شكوى — يحتاج انتباهك`, false, 0, 0);
+  }, [profile]);
+
   const handleBuzzer = useCallback(() => {
     if (buzzerCooldown.current) return;
     buzzerCooldown.current = true;
@@ -293,7 +306,7 @@ export default function MizoScreen() {
     // Push notification goes only to the designated primary contact
     const phrase = `${name} بينادي عليك — روح شوفه`;
     if (profile) {
-      notifyPrimaryContact(name, phrase, profile.quietHoursEnabled, profile.quietHoursStart, profile.quietHoursEnd);
+      notifyAllFamily(name, phrase, false);
     }
     logEvent({ word_id: "buzzer", phrase, category: "buzzer", is_emergency: false });
 
@@ -372,9 +385,11 @@ export default function MizoScreen() {
 
       {/* Mizo mascot + phrase */}
       <View style={[styles.mizoRow, isNight && { backgroundColor: "#0A1614" }]}>
-        <Animated.View style={{ transform: [{ scale: mizoScale }] }}>
-          <Image source={mizoImage} style={[styles.mizoImg, isTablet && { width: 110, height: 110 }]} resizeMode="contain" />
-        </Animated.View>
+        <Pressable onLongPress={handleSecretComplaint} delayLongPress={1500}>
+          <Animated.View style={{ transform: [{ scale: mizoScale }] }}>
+            <Image source={mizoImage} style={[styles.mizoImg, isTablet && { width: 110, height: 110 }]} resizeMode="contain" />
+          </Animated.View>
+        </Pressable>
         <View style={[styles.phraseBox, isNight && { backgroundColor: "#0A1614" }]}>
           <Pressable onPress={handleRepeat} style={styles.phraseInner}>
             <MaterialCommunityIcons name="volume-high" size={20} color="#C9A84C" />
