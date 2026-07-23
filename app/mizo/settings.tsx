@@ -10,7 +10,6 @@ import {
   getProfile, saveProfile, clearLocalEvents, getVoiceOptions,
   MizoProfile, VoiceType, TtsMode, AzureVoice,
 } from "@/lib/mizoStorage";
-import { clearAzureCache } from "@/lib/azureTts";
 
 type VoiceOption = { key: VoiceType; label: string; emoji: string; desc: string };
 
@@ -173,13 +172,7 @@ export default function MizoSettingsScreen() {
   };
 
   const handleClearAzureCache = () => {
-    Alert.alert("مسح كاش Azure", "هيتمسح الصوت المحفوظ وهيتنزل من Azure تاني. متأكد؟", [
-      { text: "إلغاء", style: "cancel" },
-      {
-        text: "امسح", style: "destructive",
-        onPress: async () => { await clearAzureCache(); Alert.alert("تم", "الكاش اتمسح"); },
-      },
-    ]);
+    Alert.alert("تنبيه", "مسح الكاش هيبقى متاح بعد تحديث التطبيق الكامل.");
   };
 
   return (
