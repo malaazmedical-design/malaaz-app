@@ -361,6 +361,13 @@ export default function MizoScreen() {
               key={pinId}
               style={({ pressed }) => [styles.quickBtn, pressed && styles.quickBtnPressed]}
               onPress={() => speak(w.phrase, w.id, "quick")}
+              onLongPress={async () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                const { pins } = await toggleQuickPin(pinId);
+                setQuickPinIds(pins);
+                Speech.speak("تم الإزالة", { language: "ar-EG" });
+              }}
+              delayLongPress={800}
             >
               <Text style={styles.quickEmoji}>{w.emoji}</Text>
               <Text style={styles.quickLabel} numberOfLines={1}>{w.label}</Text>
