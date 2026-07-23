@@ -69,6 +69,13 @@ export default function MizoScreen() {
   const [personalizeLabel, setPersonalizeLabel] = useState("");
   const [personalizePhoto, setPersonalizePhoto] = useState<string | null>(null);
 
+  // Scanning mode
+  const isScanMode = !!(profile?.scanningMode);
+  const scanSpeed = profile?.scanSpeed ?? 1500;
+  const [scanIndex, setScanIndex] = useState(0);
+  const scanTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scanWordsRef = useRef<typeof displayWords>([]);
+
   // SOS countdown
   const [sosModal, setSosModal] = useState(false);
   const [sosCount, setSosCount] = useState(3);
@@ -108,6 +115,24 @@ export default function MizoScreen() {
       setPinnedWords(await getTopWords(6, pins));
     })();
   }, []);
+
+  // Scanning timer — restart only when mode/speed changes
+  useEffect(() => {
+    if (scanTimerRef.current) clearInterval(scanTimerRef.current);
+    if (!isScanMode) { setScanIndex(0); return; }
+    scanTimerRef.current = setInterval(() => {
+      setScanIndex((i) => (i + 1) % Math.max(scanWordsRef.current.length, 1));
+    }, scanSpeed);
+    return () => { if (scanTimerRef.current) clearInterval(scanTimerRef.current); };
+  }, [isScanMode, scanSpeed]);
+
+  // Reset scan index when category or sub-menu changes
+  useEffect(() => { setScanIndex(0); }, [activeCat, subWords]);
+
+  const handleScanSelect = useCallback(() => {
+    const word = scanWordsRef.current[scanIndex];
+    if (word) handleWordPress(word);
+  }, [scanIndex, handleWordPress]);
 
   const cols = profile?.oneHandedMode
     ? (isTablet ? 3 : isLandscape ? 3 : 2)
@@ -297,6 +322,7 @@ export default function MizoScreen() {
   const activeCatCustomWords = customWords.filter((w) => w.category_id === activeCat)
     .map((w): MizoWord => ({ id: w.id, label: w.label, emoji: w.emoji, phrase: w.phrase }));
   const displayWords = subWords ?? [...(currentCategory?.words ?? []), ...activeCatCustomWords];
+  scanWordsRef.current = displayWords;
 
   const mizoImage = MIZO_IMAGES[
     mizoState === "speaking" ? "speaking" : mizoState === "success" ? "success"
@@ -532,7 +558,7 @@ export default function MizoScreen() {
           return (
             <Pressable
               key={word.id}
-              style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed, isCustomized && styles.cardCustomized, isPinned && styles.cardQuickPinned]}
+              style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed, isCustomized && styles.cardCustomized, isPinned && styles.cardQuickPinned, isScanMode && scanIndex === idx && styles.cardScanning]}
               onPress={() => { if (!profile || profile.dwellTime === 0) handleWordPress(word); }}
               onPressIn={() => handlePressIn(word)}
               onPressOut={handlePressOut}
@@ -606,6 +632,16 @@ export default function MizoScreen() {
           </Pressable>
         )}
       </ScrollView>
+
+      {/* Scan select button */}
+      {isScanMode && (
+        <Pressable style={styles.scanSelectBtn} onPress={handleScanSelect}>
+          <MaterialCommunityIcons name="cursor-default-click-outline" size={28} color="#fff" />
+          <Text style={styles.scanSelectText}>
+            {displayWords[scanIndex] ? `✓  ${displayWords[scanIndex].label}` : "✓  اختار"}
+          </Text>
+        </Pressable>
+      )}
 
       {/* Emergency */}
       <Pressable style={[styles.emergencyBtn, { marginBottom: Math.max(insets.bottom, 8) + 4 }]} onPress={handleEmergencyPress}>
@@ -950,6 +986,25 @@ const styles = StyleSheet.create({
   emojiCell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 8, margin: 2 },
   emojiCellActive: { backgroundColor: "#C9A84C33" },
   emojiCellText: { fontSize: 22 },
+
+  cardScanning: {
+    borderColor: "#C9A84C",
+    borderWidth: 3,
+    backgroundColor: "#FFFBEE",
+    transform: [{ scale: 1.07 }],
+    elevation: 8,
+    shadowColor: "#C9A84C",
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  scanSelectBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
+    backgroundColor: "#1C6B3A", marginHorizontal: 12, marginBottom: 6,
+    paddingVertical: 18, borderRadius: 16,
+    elevation: 4, shadowColor: "#1C6B3A", shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+  },
+  scanSelectText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#FFFFFF" },
 
   recMicBtn: {
     width: 96, height: 96, borderRadius: 48, backgroundColor: "#1C2B2A",

@@ -20,6 +20,9 @@ export type VoiceType =
 export type TtsMode = "device" | "azure" | "recorded" | "elevenlabs";
 export type AzureVoice = "ar-EG-SalmaNeural" | "ar-EG-ShakirNeural";
 
+// Conditions that auto-enable scanning mode
+export const SCAN_AUTO_CONDITIONS = new Set(["quadriplegia", "als"]);
+
 export type MizoProfile = {
   patientName: string;
   voiceType: VoiceType;
@@ -37,6 +40,8 @@ export type MizoProfile = {
   azureRegion: string;         // e.g. "eastus", "uaenorth"
   elevenApiKey: string;        // ElevenLabs xi-api-key
   elevenVoiceId: string;       // ElevenLabs voice_id from voice library
+  scanningMode: boolean;       // auto-scan cards for hands-free use
+  scanSpeed: number;           // ms per card: 800 | 1500 | 2500
 };
 
 const DEFAULT_PROFILE: MizoProfile = {
@@ -56,6 +61,8 @@ const DEFAULT_PROFILE: MizoProfile = {
   azureRegion: "eastus",
   elevenApiKey: "",
   elevenVoiceId: "",
+  scanningMode: false,
+  scanSpeed: 1500,
 };
 
 export type MizoFamilyLink = {
