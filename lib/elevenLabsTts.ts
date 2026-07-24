@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CACHE_KEY = "mizo_eleven_cache_map";
 const SUPABASE_TTS_URL = "https://omsictbrqlsohrmxeuym.supabase.co/storage/v1/object/public/mizo-tts";
+const SUPABASE_EDGE_URL = "https://omsictbrqlsohrmxeuym.supabase.co/functions/v1/tts-generate";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tc2ljdGJycWxzb2hybXhldXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTc1NzcsImV4cCI6MjA5NTI5MzU3N30.tbFL_7mWZ6qVUtgFkagfSwWdgni5JKRuCR8nbwqIqho";
 
 let Audio: any = null;
 try { Audio = require("expo-av").Audio; } catch {}
@@ -53,20 +55,46 @@ async function getFileUri(filename: string): Promise<string | null> {
   return null;
 }
 
-// Try fetching a pre-generated file from Supabase Storage (no API key needed)
-async function fetchFromSupabase(wordId: string): Promise<string | null> {
-  const filename = `supabase_${wordId}.mp3`;
-  const cached = await getFileUri(filename);
-  if (cached) return cached;
-
+async function downloadAndCache(filename: string, url: string): Promise<string | null> {
   try {
-    const res = await fetch(`${SUPABASE_TTS_URL}/${wordId}.mp3`);
+    const res = await fetch(url);
     if (!res.ok) return null;
     const bytes = new Uint8Array(await res.arrayBuffer());
     const path = await saveToFile(filename, bytes);
     if (path) return path;
-    const uri = `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`;
-    return uri;
+    return `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`;
+  } catch {
+    return null;
+  }
+}
+
+// Try Supabase Storage; if missing, ask Edge Function to generate on demand.
+// Custom words (custom_) are skipped — they're personal and not shared.
+async function fetchFromSupabase(wordId: string, phrase?: string): Promise<string | null> {
+  const filename = `supabase_${wordId}.mp3`;
+  const cached = await getFileUri(filename);
+  if (cached) return cached;
+
+  const publicUrl = `${SUPABASE_TTS_URL}/${wordId}.mp3`;
+
+  // 1. Try the already-generated file
+  const direct = await downloadAndCache(filename, publicUrl);
+  if (direct) return direct;
+
+  // 2. Not found — ask Edge Function to generate it on demand
+  if (!phrase) return null;
+  try {
+    const res = await fetch(SUPABASE_EDGE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ word_id: wordId, phrase }),
+    });
+    if (!res.ok) return null;
+    // Edge Function has now uploaded the file — download it
+    return await downloadAndCache(filename, publicUrl);
   } catch {
     return null;
   }
@@ -79,9 +107,9 @@ async function fetchAndCache(
   cacheKey: string,
   wordId?: string,
 ): Promise<string> {
-  // 1. Check Supabase pre-generated cache (standard words, no API key needed)
+  // 1. Check Supabase cache; generate on demand if missing (standard words only)
   if (wordId && !wordId.startsWith("custom_")) {
-    const supabaseUri = await fetchFromSupabase(wordId);
+    const supabaseUri = await fetchFromSupabase(wordId, phrase);
     if (supabaseUri) return supabaseUri;
   }
 
