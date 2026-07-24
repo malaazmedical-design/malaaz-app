@@ -15,7 +15,7 @@ import {
   getProfile, getVoiceOptions, logEvent,
   getCustomWords, CustomWord, notifyPrimaryContact,
   getSmartSuggestions, getTopWords, getQuickPins, SmartSuggestion,
-  MizoProfile,
+  MizoProfile, getWordCustomizations, WordCustomization,
 } from "@/lib/mizoStorage";
 import { mizoSpeak } from "@/lib/mizoTts";
 
@@ -35,6 +35,7 @@ export default function MizoLockedScreen() {
   const [smartWords, setSmartWords] = useState<SmartSuggestion[]>([]);
   const [pinnedWords, setPinnedWords] = useState<SmartSuggestion[]>([]);
   const [quickPinIds, setQuickPinIds] = useState<string[]>(["water", "bathroom", "medicine", "pain"]);
+  const [wordCustoms, setWordCustoms] = useState<Record<string, WordCustomization>>({});
   const [patientName, setPatientName] = useState("المريض");
   const [mizoProfile, setMizoProfile] = useState<MizoProfile | null>(null);
   const [pinModal, setPinModal] = useState(false);
@@ -69,6 +70,7 @@ export default function MizoLockedScreen() {
       setQuietStart(profile.quietHoursStart);
       setQuietEnd(profile.quietHoursEnd);
       setCustomWords(await getCustomWords());
+      setWordCustoms(await getWordCustomizations());
       setSmartWords(await getSmartSuggestions(new Date().getHours()));
       const pins = await getQuickPins();
       setQuickPinIds(pins);
@@ -164,6 +166,11 @@ export default function MizoLockedScreen() {
       Alert.alert("رقم سري غلط", "حاول تاني");
       setPinInput("");
     }
+  };
+
+  const getWordDisplay = (word: MizoWord) => {
+    const custom = wordCustoms[word.id];
+    return { label: custom?.label ?? word.label, photo: custom?.photo ?? null };
   };
 
   const findWord = (id: string, words?: MizoWord[]): MizoWord | null => {
@@ -342,14 +349,19 @@ export default function MizoLockedScreen() {
 
         {displayWords.map((word) => {
           const isPinned = quickPinIds.includes(word.id);
+          const { label: displayLabel, photo: displayPhoto } = getWordDisplay(word);
           return (
             <Pressable
               key={word.id}
               style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed, isPinned && styles.cardQuickPinned]}
               onPress={() => handleWordPress(word)}
             >
-              <Text style={styles.cardEmoji}>{word.emoji}</Text>
-              <Text style={styles.cardLabel} numberOfLines={2}>{word.label}</Text>
+              {displayPhoto ? (
+                <Image source={{ uri: displayPhoto }} style={{ width: CARD_SIZE * 0.55, height: CARD_SIZE * 0.55, borderRadius: 8 }} resizeMode="cover" />
+              ) : (
+                <Text style={styles.cardEmoji}>{word.emoji}</Text>
+              )}
+              <Text style={styles.cardLabel} numberOfLines={2}>{displayLabel}</Text>
               {word.children && word.children.length > 0 && (
                 <Text style={styles.cardArrow}>›</Text>
               )}
