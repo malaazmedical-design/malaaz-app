@@ -594,6 +594,10 @@ export default function MizoScreen() {
                     text: "🗑️ امسح التسجيل", style: "destructive" as const,
                     onPress: () => deleteRecording(word.id),
                   } : null,
+                  {
+                    text: "✏️ تعديل البطاقة",
+                    onPress: () => openPersonalize(word),
+                  },
                   !isFamily ? {
                     text: isPinned ? "📌 إزالة من الشريط السريع" : "📌 أضف للشريط السريع",
                     onPress: async () => {
