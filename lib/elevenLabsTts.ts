@@ -31,7 +31,6 @@ function uint8ToBase64(bytes: Uint8Array): string {
 
 async function saveToFile(filename: string, bytes: Uint8Array): Promise<string | null> {
   try {
-    // expo-file-system v19 API
     if (FS?.documentDirectory && typeof FS.writeAsStringAsync === "function") {
       const dir = FS.documentDirectory + "eleven_cache/";
       await FS.makeDirectoryAsync(dir, { intermediates: true });
@@ -93,7 +92,7 @@ async function fetchFromSupabase(wordId: string, phrase?: string): Promise<strin
       body: JSON.stringify({ word_id: wordId, phrase }),
     });
     if (!res.ok) return null;
-    // Edge Function has now uploaded the file — download it
+    // Edge Function uploaded the file — now download it
     return await downloadAndCache(filename, publicUrl);
   } catch {
     return null;
@@ -146,11 +145,9 @@ async function fetchAndCache(
   const buffer = await response.arrayBuffer();
   const bytes = new Uint8Array(buffer);
 
-  // Try file storage (v19 API)
   const fileUri = await saveToFile(filename, bytes);
   if (fileUri) return fileUri;
 
-  // Fallback: store base64 data URI in AsyncStorage
   const uri = `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`;
   cacheMap[cacheKey] = uri;
   await saveCacheMap(cacheMap);
@@ -165,7 +162,6 @@ export async function elevenLabsSpeak(
   onDone?: () => void,
 ): Promise<void> {
   if (!Audio) throw new Error("NEEDS_NATIVE_BUILD");
-  // Custom words require the API key; standard words can use the Supabase cache
   const isCustom = wordId.startsWith("custom_");
   if (isCustom && (!apiKey || !voiceId)) throw new Error("ElevenLabs config missing");
 
