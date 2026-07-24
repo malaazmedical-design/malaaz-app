@@ -72,6 +72,7 @@ export type MizoFamilyLink = {
   push_token: string;
   phone: string;
   notify_emergency_only: boolean;
+  is_primary: boolean;
 };
 
 export type AacEvent = {
@@ -157,6 +158,7 @@ export async function getFamilyLinks(): Promise<MizoFamilyLink[]> {
           push_token: d.push_token ?? "",
           phone: d.phone ?? "",
           notify_emergency_only: d.notify_emergency_only ?? false,
+          is_primary: d.is_primary ?? false,
         }));
         await AsyncStorage.setItem(KEYS.familyLinks, JSON.stringify(links));
         return links;
@@ -174,12 +176,22 @@ export async function getFamilyLinks(): Promise<MizoFamilyLink[]> {
 export async function addFamilyLink(link: Omit<MizoFamilyLink, "id">): Promise<MizoFamilyLink> {
   const newLink: MizoFamilyLink = { ...link, id: `fl_${Date.now()}` };
   const existing = await getFamilyLinks();
-  existing.push(newLink);
-  await AsyncStorage.setItem(KEYS.familyLinks, JSON.stringify(existing));
+  // If this is primary, clear others
+  const updated = link.is_primary
+    ? existing.map((l) => ({ ...l, is_primary: false }))
+    : existing;
+  updated.push(newLink);
+  await AsyncStorage.setItem(KEYS.familyLinks, JSON.stringify(updated));
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
+      if (link.is_primary) {
+        await supabase
+          .from("aac_family_links")
+          .update({ is_primary: false })
+          .eq("patient_user_id", session.user.id);
+      }
       await supabase.from("aac_family_links").insert({
         patient_user_id: session.user.id,
         family_name: link.family_name,
@@ -187,11 +199,46 @@ export async function addFamilyLink(link: Omit<MizoFamilyLink, "id">): Promise<M
         push_token: link.push_token,
         phone: link.phone,
         notify_emergency_only: link.notify_emergency_only,
+        is_primary: link.is_primary,
       });
     }
   } catch {}
 
   return newLink;
+}
+
+export async function setPrimaryFamilyLink(id: string): Promise<void> {
+  const links = await getFamilyLinks();
+  const updated = links.map((l) => ({ ...l, is_primary: l.id === id }));
+  await AsyncStorage.setItem(KEYS.familyLinks, JSON.stringify(updated));
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await supabase
+        .from("aac_family_links")
+        .update({ is_primary: false })
+        .eq("patient_user_id", session.user.id);
+      if (!id.startsWith("fl_")) {
+        await supabase
+          .from("aac_family_links")
+          .update({ is_primary: true })
+          .eq("id", id)
+          .eq("patient_user_id", session.user.id);
+      }
+    }
+  } catch {}
+}
+
+export async function lookupPushTokenByPhone(phone: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc("lookup_push_token_by_phone", { p_phone: phone });
+    if (error || !data) return null;
+    return data as string;
+  } catch {
+    return null;
+  }
+
 }
 
 export async function deleteFamilyLink(id: string): Promise<void> {
@@ -267,7 +314,7 @@ export async function setPrimaryContact(contactId: string): Promise<void> {
   await AsyncStorage.setItem(KEYS.contacts, JSON.stringify(updated));
 }
 
-// Send buzzer notification only to the designated primary contact
+// Send notification to the primary contact (family link first, then contacts fallback)
 export async function notifyPrimaryContact(
   patientName: string,
   phrase: string,
@@ -282,10 +329,19 @@ export async function notifyPrimaryContact(
       : (hour >= quietStart && hour < quietEnd);
     if (inQuiet) return;
   }
+  const title = `ميزو — ${patientName}`;
+  // Family links take priority (new system)
+  const links = await getFamilyLinks();
+  const primaryLink = links.find((l) => l.is_primary && l.push_token);
+  if (primaryLink) {
+    await pushSend(primaryLink.push_token, title, phrase, false);
+    return;
+  }
+  // Fallback: contacts marked as primary
   const contacts = await getContacts();
   const primary = contacts.find((c) => c.is_primary && c.push_token);
   if (!primary) return;
-  await pushSend(primary.push_token!, `ميزو — ${patientName}`, phrase, false, { type: "buzzer" });
+  await pushSend(primary.push_token!, title, phrase, false, { type: "buzzer" });
 }
 
 // Send notification directly to one contact when their card is pressed

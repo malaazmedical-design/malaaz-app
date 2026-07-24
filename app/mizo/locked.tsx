@@ -272,13 +272,13 @@ export default function MizoLockedScreen() {
         </Animated.View>
       </View>
 
+
       {/* Category tabs */}
       <View style={[styles.catBarWrap, isNight && { backgroundColor: "#0D1A19" }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catBar}>
         {subWords && (
           <Pressable style={[styles.catTab, styles.catTabBack]} onPress={() => setSubWords(null)}>
-            <Text style={styles.catTabText}>↩</Text>
-            <Text style={styles.catTabText}>رجوع</Text>
+            <Text style={styles.catTabText}>↩ رجوع</Text>
           </Pressable>
         )}
         {[...MIZO_CATEGORIES].reverse().map((cat) => {
