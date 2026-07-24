@@ -8,10 +8,10 @@ import type { MizoProfile } from "@/lib/mizoStorage";
 export async function mizoSpeak(
   phrase: string,
   wordId: string,
-  profile: Pick<MizoProfile, "ttsMode" | "azureVoice" | "azureKey" | "azureRegion" | "elevenApiKey" | "elevenVoiceId" | "voiceType">,
+  profile: Pick<MizoProfile, "ttsMode" | "azureVoice" | "azureKey" | "azureRegion" | "elevenApiKey" | "elevenVoiceId" | "elevenGender" | "voiceType">,
   onDone?: () => void,
 ): Promise<void> {
-  const { ttsMode, azureVoice, azureKey, azureRegion, elevenApiKey, elevenVoiceId, voiceType } = profile;
+  const { ttsMode, azureVoice, azureKey, azureRegion, elevenApiKey, elevenVoiceId, elevenGender, voiceType } = profile;
 
   if (ttsMode === "recorded") {
     const exists = await hasRecording(wordId);
@@ -31,7 +31,7 @@ export async function mizoSpeak(
   // Custom words still fall back to device TTS when no API key is set.
   if (ttsMode === "elevenlabs") {
     try {
-      await elevenLabsSpeak(phrase, wordId, elevenVoiceId, elevenApiKey, onDone);
+      await elevenLabsSpeak(phrase, wordId, elevenVoiceId, elevenApiKey, onDone, elevenGender ?? "male");
       return;
     } catch (e: any) {
       if (e?.message !== "NEEDS_NATIVE_BUILD" && e?.message !== "ElevenLabs config missing") {

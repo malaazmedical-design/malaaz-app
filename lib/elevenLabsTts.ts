@@ -69,12 +69,13 @@ async function downloadAndCache(filename: string, url: string): Promise<string |
 
 // Try Supabase Storage; if missing, ask Edge Function to generate on demand.
 // Custom words (custom_) are skipped — they're personal and not shared.
-async function fetchFromSupabase(wordId: string, phrase?: string): Promise<string | null> {
-  const filename = `supabase_${wordId}.mp3`;
+async function fetchFromSupabase(wordId: string, phrase?: string, gender: "male" | "female" = "male"): Promise<string | null> {
+  const storageName = gender === "female" ? `${wordId}_f` : wordId;
+  const filename = `supabase_${storageName}.mp3`;
   const cached = await getFileUri(filename);
   if (cached) return cached;
 
-  const publicUrl = `${SUPABASE_TTS_URL}/${wordId}.mp3`;
+  const publicUrl = `${SUPABASE_TTS_URL}/${storageName}.mp3`;
 
   // 1. Try the already-generated file
   const direct = await downloadAndCache(filename, publicUrl);
@@ -89,7 +90,7 @@ async function fetchFromSupabase(wordId: string, phrase?: string): Promise<strin
         "Content-Type": "application/json",
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ word_id: wordId, phrase }),
+      body: JSON.stringify({ word_id: wordId, phrase, gender }),
     });
     if (!res.ok) return null;
     // Edge Function uploaded the file — now download it
@@ -105,10 +106,11 @@ async function fetchAndCache(
   apiKey: string,
   cacheKey: string,
   wordId?: string,
+  gender: "male" | "female" = "male",
 ): Promise<string> {
   // 1. Check Supabase cache; generate on demand if missing (standard words only)
   if (wordId && !wordId.startsWith("custom_")) {
-    const supabaseUri = await fetchFromSupabase(wordId, phrase);
+    const supabaseUri = await fetchFromSupabase(wordId, phrase, gender);
     if (supabaseUri) return supabaseUri;
   }
 
@@ -160,12 +162,13 @@ export async function elevenLabsSpeak(
   voiceId: string,
   apiKey: string,
   onDone?: () => void,
+  gender: "male" | "female" = "male",
 ): Promise<void> {
   if (!Audio) throw new Error("NEEDS_NATIVE_BUILD");
   const isCustom = wordId.startsWith("custom_");
   if (isCustom && (!apiKey || !voiceId)) throw new Error("ElevenLabs config missing");
 
-  const uri = await fetchAndCache(phrase, voiceId, apiKey, `${wordId}_${voiceId.slice(0, 20)}`, wordId);
+  const uri = await fetchAndCache(phrase, voiceId, apiKey, `${wordId}_${voiceId.slice(0, 20)}_${gender}`, wordId, gender);
 
   await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
   const { sound } = await Audio.Sound.createAsync({ uri });

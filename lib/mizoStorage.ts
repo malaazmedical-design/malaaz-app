@@ -40,6 +40,7 @@ export type MizoProfile = {
   azureRegion: string;         // e.g. "eastus", "uaenorth"
   elevenApiKey: string;        // ElevenLabs xi-api-key
   elevenVoiceId: string;       // ElevenLabs voice_id from voice library
+  elevenGender: "male" | "female";
   scanningMode: boolean;       // auto-scan cards for hands-free use
   scanSpeed: number;           // ms per card: 800 | 1500 | 2500
 };
@@ -61,6 +62,7 @@ const DEFAULT_PROFILE: MizoProfile = {
   azureRegion: "eastus",
   elevenApiKey: "",
   elevenVoiceId: "",
+  elevenGender: "male",
   scanningMode: false,
   scanSpeed: 1500,
 };
