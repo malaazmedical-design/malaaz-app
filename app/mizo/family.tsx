@@ -8,6 +8,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   getFamilyLinks, addFamilyLink, deleteFamilyLink, setPrimaryFamilyLink,
   lookupPushTokenByPhone, MizoFamilyLink, getProfile,
+  addContact, getContacts, deleteContact,
 } from "@/lib/mizoStorage";
 
 const RELATIONS = ["أب", "أم", "ابن", "بنت", "زوج", "زوجة", "أخ", "أخت", "جد", "جدة", "ممرض/ة", "أخرى"];
@@ -45,24 +46,44 @@ export default function MizoFamilyScreen() {
     if (!phone.trim()) { Alert.alert("تنبيه", "لازم تكتب رقم التليفون"); return; }
     setSaving(true);
     const token = await lookupPushTokenByPhone(phone.trim());
+    const trimmedName = name.trim();
+
     await addFamilyLink({
-      family_name: name.trim(),
+      family_name: trimmedName,
       relation,
       phone: phone.trim(),
       push_token: token ?? "",
       notify_emergency_only: emergencyOnly,
       is_primary: isPrimary,
     });
+
+    // Add/update contact card so the person appears in the family category
+    const existingContacts = await getContacts();
+    const existingContact = existingContacts.find(
+      (c) => c.name === trimmedName || c.phrase.includes(trimmedName)
+    );
+    if (!existingContact) {
+      await addContact({
+        name: trimmedName,
+        relation,
+        phrase: `نادوا على ${trimmedName}`,
+        photo: null,
+        push_token: token ?? undefined,
+        notify_mode: emergencyOnly ? "emergency_only" : "direct_only",
+        is_primary: isPrimary,
+      });
+    }
+
     setSaving(false);
     setModalVisible(false);
     await refresh();
 
     if (token) {
-      Alert.alert("تم ✅", `${name.trim()} عنده التطبيق — هيوصله الإشعار لحظياً`);
+      Alert.alert("تم ✅", `${trimmedName} عنده التطبيق — هيوصله الإشعار لحظياً وبطاقته ظهرت في العيلة`);
     } else {
       Alert.alert(
         "تم الحفظ ⚠️",
-        `${name.trim()} مش عنده التطبيق دلوقتي.\nلما ينزّل ملاذ ويسجّل بنفس الرقم، الإشعارات هتبدأ تلقائياً.`,
+        `${trimmedName} اتضاف وبطاقته ظهرت في العيلة.\nلما ينزّل ملاذ ويسجّل بنفس الرقم، الإشعارات هتبدأ تلقائياً.`,
       );
     }
   };
@@ -74,6 +95,12 @@ export default function MizoFamilyScreen() {
         text: "امسح", style: "destructive",
         onPress: async () => {
           await deleteFamilyLink(link.id);
+          // Remove the matching contact card too
+          const allContacts = await getContacts();
+          const match = allContacts.find(
+            (c) => c.name === link.family_name || c.phrase.includes(link.family_name)
+          );
+          if (match) await deleteContact(match.id);
           await refresh();
         },
       },
