@@ -13,33 +13,10 @@ import {
 import { clearElevenLabsCache } from "@/lib/elevenLabsTts";
 import { clearAzureCache } from "@/lib/azureTts";
 
-type VoiceOption = { key: VoiceType; label: string; emoji: string; desc: string };
-
-const VOICE_GROUPS: { title: string; emoji: string; options: VoiceOption[] }[] = [
-  {
-    title: "راجل", emoji: "👨",
-    options: [
-      { key: "male_1", label: "راجل ١", emoji: "👨", desc: "صوت عميق وهادي" },
-      { key: "male_2", label: "راجل ٢", emoji: "👨", desc: "صوت طبيعي متوسط" },
-      { key: "male_3", label: "راجل ٣", emoji: "👨", desc: "صوت خفيف وسريع" },
-    ],
-  },
-  {
-    title: "ست", emoji: "👩",
-    options: [
-      { key: "female_1", label: "ست ١", emoji: "👩", desc: "صوت هادي ومريح" },
-      { key: "female_2", label: "ست ٢", emoji: "👩", desc: "صوت طبيعي متوسط" },
-      { key: "female_3", label: "ست ٣", emoji: "👩", desc: "صوت مرتفع وحيوي" },
-    ],
-  },
-  {
-    title: "طفل", emoji: "👦",
-    options: [
-      { key: "child_1", label: "طفل ١", emoji: "👦", desc: "صوت هادي ومريح" },
-      { key: "child_2", label: "طفل ٢", emoji: "👦", desc: "صوت طبيعي متوسط" },
-      { key: "child_3", label: "طفل ٣", emoji: "👦", desc: "صوت حيوي ومبهج" },
-    ],
-  },
+const DEVICE_VOICES: { key: VoiceType; label: string; emoji: string; desc: string }[] = [
+  { key: "male",   label: "راجل", emoji: "👨", desc: "صوت رجالي طبيعي" },
+  { key: "female", label: "ست",   emoji: "👩", desc: "صوت نسائي طبيعي" },
+  { key: "child",  label: "طفل",  emoji: "👦", desc: "صوت طفل خفيف" },
 ];
 
 const DWELL_OPTIONS = [
@@ -252,43 +229,6 @@ export default function MizoSettingsScreen() {
           textAlign="right"
         />
 
-        {/* ── اختيار الصوت ── */}
-        <Text style={[styles.label, { marginTop: 20 }]}>نوع الصوت</Text>
-        <Text style={styles.voiceHint}>اضغط على "جرّب" عشان تسمع كل صوت قبل ما تختار</Text>
-        {VOICE_GROUPS.map((group) => (
-          <View key={group.title}>
-            <Text style={styles.voiceGroupTitle}>{group.emoji} صوت {group.title}</Text>
-            {group.options.map((opt) => (
-              <Pressable
-                key={opt.key}
-                style={[styles.voiceCard, profile.voiceType === opt.key && styles.voiceCardActive]}
-                onPress={() => setProfile((p) => ({ ...p, voiceType: opt.key }))}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.voiceLabel, profile.voiceType === opt.key && styles.voiceLabelActive]}>
-                    {opt.label}
-                  </Text>
-                  <Text style={styles.voiceDesc}>{opt.desc}</Text>
-                </View>
-                <Pressable
-                  style={styles.tryBtn}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    Speech.stop();
-                    const { language, rate, pitch } = getVoiceOptions(opt.key);
-                    Speech.speak("أنا عايز مية", { language, rate, pitch });
-                  }}
-                >
-                  <Text style={styles.tryBtnText}>جرّب</Text>
-                </Pressable>
-                {profile.voiceType === opt.key && (
-                  <MaterialCommunityIcons name="check-circle" size={22} color="#C9A84C" />
-                )}
-              </Pressable>
-            ))}
-          </View>
-        ))}
-
         {/* ── محرك الكلام ── */}
         <View style={styles.sectionDivider} />
         <Text style={styles.label}>محرك الكلام</Text>
@@ -314,6 +254,43 @@ export default function MizoSettingsScreen() {
             );
           })}
         </View>
+
+        {/* ── اختيار صوت الجهاز ── */}
+        {profile.ttsMode === "device" && (
+          <>
+            <Text style={[styles.label, { marginTop: 14 }]}>جنس الصوت</Text>
+            <Text style={styles.voiceHint}>اضغط على "جرّب" عشان تسمع الصوت قبل ما تختار</Text>
+            {DEVICE_VOICES.map((opt) => (
+              <Pressable
+                key={opt.key}
+                style={[styles.voiceCard, profile.voiceType === opt.key && styles.voiceCardActive]}
+                onPress={() => setProfile((p) => ({ ...p, voiceType: opt.key }))}
+              >
+                <Text style={{ fontSize: 24 }}>{opt.emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.voiceLabel, profile.voiceType === opt.key && styles.voiceLabelActive]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.voiceDesc}>{opt.desc}</Text>
+                </View>
+                <Pressable
+                  style={styles.tryBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    Speech.stop();
+                    const { language, rate, pitch } = getVoiceOptions(opt.key);
+                    Speech.speak("أنا عايز مية", { language, rate, pitch });
+                  }}
+                >
+                  <Text style={styles.tryBtnText}>جرّب</Text>
+                </Pressable>
+                {profile.voiceType === opt.key && (
+                  <MaterialCommunityIcons name="check-circle" size={22} color="#C9A84C" />
+                )}
+              </Pressable>
+            ))}
+          </>
+        )}
 
         {/* ── إعدادات Azure ── */}
         {profile.ttsMode === "azure" && (
