@@ -314,21 +314,6 @@ export default function ProfileScreen() {
           <MaterialCommunityIcons name="chevron-left" size={22} color={colors.mutedForeground} />
         </Pressable>
 
-        {/* Provider portal entry */}
-        <Pressable
-          onPress={() => router.push("/provider-portal")}
-          style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", padding: 16, borderRadius: 14, borderWidth: 1.5, borderColor: "#C9A84C55", backgroundColor: "#C9A84C14" }}
-        >
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
-            <MaterialCommunityIcons name="doctor" size={22} color="#b8860b" />
-            <View>
-              <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>هل أنت مقدم خدمة؟</Text>
-              <Text style={{ color: "#b8860b", fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" }}>ادخل لبوابة مقدمي الخدمة — تابع حجوزاتك وأسعارك</Text>
-            </View>
-          </View>
-          <MaterialCommunityIcons name="chevron-left" size={22} color="#b8860b" />
-        </Pressable>
-
         {/* Logout */}
         {hasData ? (
           <Pressable onPress={handleLogout}
