@@ -599,6 +599,18 @@ export default function MizoSettingsScreen() {
           </>
         )}
 
+        {/* ── إشعارات العيلة ── */}
+        <View style={styles.sectionDivider} />
+        <Text style={styles.label}>إشعارات العيلة</Text>
+        <Text style={styles.modeDesc}>
+          أضيف أهل المريض عشان يوصلهم إشعار لما يتكلم — الشخص المسؤول بيوصله كل حاجة.
+        </Text>
+        <Pressable style={styles.familyNavBtn} onPress={() => router.push("/mizo/family")}>
+          <MaterialCommunityIcons name="account-group-outline" size={20} color="#C9A84C" />
+          <Text style={styles.familyNavBtnText}>إدارة العيلة والإشعارات</Text>
+          <MaterialCommunityIcons name="chevron-left" size={20} color="#C9A84C" />
+        </Pressable>
+
         {/* ── حفظ ── */}
         <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}>
           <Text style={styles.saveBtnText}>{saving ? "جاري الحفظ..." : "حفظ الإعدادات"}</Text>
@@ -701,6 +713,12 @@ const styles = StyleSheet.create({
     gap: 6, paddingVertical: 14,
   },
   dangerText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#CC2200" },
+
+  familyNavBtn: {
+    flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: "#1C2B2A", borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
+  },
+  familyNavBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#C9A84C", flex: 1, textAlign: "right", marginHorizontal: 8 },
 
   secondaryBtn: {
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "center",
