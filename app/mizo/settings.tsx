@@ -60,7 +60,7 @@ const TTS_MODES: { id: TtsMode; emoji: string; label: string; desc: string }[] =
     id: "elevenlabs",
     emoji: "✨",
     label: "ElevenLabs AI",
-    desc: "أصوات Neural عالية الجودة بالعربي — بيتحفظ على الجهاز بعد أول توليد",
+    desc: "أصوات Neural عالية الجودة بالعربي — الكلمات الأساسية جاهزة من غير مفتاح",
   },
   {
     id: "azure",
@@ -370,17 +370,14 @@ export default function MizoSettingsScreen() {
         {profile.ttsMode === "elevenlabs" && (
           <>
             <View style={styles.infoBox}>
-              <Text style={styles.infoBoxTitle}>✨ إزاي تجيب الـ Voice ID؟</Text>
+              <Text style={styles.infoBoxTitle}>✨ الكلمات الأساسية جاهزة — مجاناً</Text>
               <Text style={styles.infoBoxText}>
-                ١. روح elevenlabs.io وادخل على أكونتك{"\n"}
-                ٢. اختار أي صوت من Voice Library{"\n"}
-                ٣. اضغط على الصوت → انسخ الـ Voice ID{"\n"}
-                ٤. حطه في الخانة تحت{"\n\n"}
-                الصوت بيتتولد مرة واحدة ويتحفظ على الجهاز — مش بيحتاج إنترنت تاني.
+                كل الكلمات الأساسية في ميزو (~150 جملة) متولّدة بالفعل وموجودة على السيرفر، التطبيق بيحملها ويحفظها على الجهاز تلقائياً من غير أي مفتاح.{"\n\n"}
+                لو عايز صوت مختلف أو عايز تضيف كلمات مخصصة بصوت AI، حط مفتاحك وVoice ID من elevenlabs.io (اختياري).
               </Text>
             </View>
 
-            <Text style={[styles.label, { marginTop: 12 }]}>مفتاح API (xi-api-key)</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>مفتاح API (اختياري — للكلمات المخصصة)</Text>
             <TextInput
               style={styles.input}
               value={profile.elevenApiKey}

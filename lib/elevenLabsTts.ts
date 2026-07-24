@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CACHE_KEY = "mizo_eleven_cache_map";
+const SUPABASE_TTS_URL = "https://omsictbrqlsohrmxeuym.supabase.co/storage/v1/object/public/mizo-tts";
 
 let Audio: any = null;
 try { Audio = require("expo-av").Audio; } catch {}
@@ -52,21 +53,49 @@ async function getFileUri(filename: string): Promise<string | null> {
   return null;
 }
 
+// Try fetching a pre-generated file from Supabase Storage (no API key needed)
+async function fetchFromSupabase(wordId: string): Promise<string | null> {
+  const filename = `supabase_${wordId}.mp3`;
+  const cached = await getFileUri(filename);
+  if (cached) return cached;
+
+  try {
+    const res = await fetch(`${SUPABASE_TTS_URL}/${wordId}.mp3`);
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const path = await saveToFile(filename, bytes);
+    if (path) return path;
+    const uri = `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`;
+    return uri;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchAndCache(
   phrase: string,
   voiceId: string,
   apiKey: string,
   cacheKey: string,
+  wordId?: string,
 ): Promise<string> {
+  // 1. Check Supabase pre-generated cache (standard words, no API key needed)
+  if (wordId && !wordId.startsWith("custom_")) {
+    const supabaseUri = await fetchFromSupabase(wordId);
+    if (supabaseUri) return supabaseUri;
+  }
+
   const filename = `${cacheKey.replace(/[^a-z0-9_]/gi, "_")}.mp3`;
 
-  // Check file cache first
+  // 2. Check local file cache
   const existingFile = await getFileUri(filename);
   if (existingFile) return existingFile;
 
-  // Check AsyncStorage map (for base64 fallback entries)
+  // 3. Check AsyncStorage map (for base64 fallback entries)
   const cacheMap = await getCacheMap();
   if (cacheMap[cacheKey]) return cacheMap[cacheKey];
+
+  if (!apiKey) throw new Error("ElevenLabs API key missing");
 
   const response = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -108,9 +137,11 @@ export async function elevenLabsSpeak(
   onDone?: () => void,
 ): Promise<void> {
   if (!Audio) throw new Error("NEEDS_NATIVE_BUILD");
-  if (!apiKey || !voiceId) throw new Error("ElevenLabs config missing");
+  // Custom words require the API key; standard words can use the Supabase cache
+  const isCustom = wordId.startsWith("custom_");
+  if (isCustom && (!apiKey || !voiceId)) throw new Error("ElevenLabs config missing");
 
-  const uri = await fetchAndCache(phrase, voiceId, apiKey, `${wordId}_${voiceId.slice(0, 20)}`);
+  const uri = await fetchAndCache(phrase, voiceId, apiKey, `${wordId}_${voiceId.slice(0, 20)}`, wordId);
 
   await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
   const { sound } = await Audio.Sound.createAsync({ uri });

@@ -27,12 +27,16 @@ export async function mizoSpeak(
     }
   }
 
-  if (ttsMode === "elevenlabs" && elevenApiKey && elevenVoiceId) {
+  // Standard words load from the shared Supabase cache (no API key needed).
+  // Custom words still fall back to device TTS when no API key is set.
+  if (ttsMode === "elevenlabs") {
     try {
       await elevenLabsSpeak(phrase, wordId, elevenVoiceId, elevenApiKey, onDone);
       return;
     } catch (e: any) {
-      if (e?.message !== "NEEDS_NATIVE_BUILD") console.warn("ElevenLabs TTS failed:", e);
+      if (e?.message !== "NEEDS_NATIVE_BUILD" && e?.message !== "ElevenLabs config missing") {
+        console.warn("ElevenLabs TTS failed:", e);
+      }
     }
   }
 
