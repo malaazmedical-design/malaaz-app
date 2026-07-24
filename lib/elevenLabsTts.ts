@@ -5,8 +5,9 @@ const CACHE_KEY = "mizo_eleven_cache_map";
 let Audio: any = null;
 try { Audio = require("expo-av").Audio; } catch {}
 
-let FileSystem: any = null;
-try { FileSystem = require("expo-file-system"); } catch {}
+// expo-file-system v19 (compatible with Expo SDK 54)
+let FS: any = null;
+try { FS = require("expo-file-system"); } catch {}
 
 async function getCacheMap(): Promise<Record<string, string>> {
   try {
@@ -27,12 +28,25 @@ function uint8ToBase64(bytes: Uint8Array): string {
 
 async function saveToFile(filename: string, bytes: Uint8Array): Promise<string | null> {
   try {
-    if (FileSystem?.Paths && FileSystem?.File && FileSystem?.Directory) {
-      const dir = new FileSystem.Directory(FileSystem.Paths.document("eleven_cache"));
-      if (!dir.exists) dir.create();
-      const file = new FileSystem.File(FileSystem.Paths.document("eleven_cache", filename));
-      file.write(bytes);
-      return file.uri;
+    // expo-file-system v19 API
+    if (FS?.documentDirectory && typeof FS.writeAsStringAsync === "function") {
+      const dir = FS.documentDirectory + "eleven_cache/";
+      await FS.makeDirectoryAsync(dir, { intermediates: true });
+      const path = dir + filename;
+      const base64 = uint8ToBase64(bytes);
+      await FS.writeAsStringAsync(path, base64, { encoding: "base64" });
+      return path;
+    }
+  } catch {}
+  return null;
+}
+
+async function getFileUri(filename: string): Promise<string | null> {
+  try {
+    if (FS?.documentDirectory && typeof FS.getInfoAsync === "function") {
+      const path = FS.documentDirectory + "eleven_cache/" + filename;
+      const info = await FS.getInfoAsync(path);
+      if (info.exists) return path;
     }
   } catch {}
   return null;
@@ -44,6 +58,13 @@ async function fetchAndCache(
   apiKey: string,
   cacheKey: string,
 ): Promise<string> {
+  const filename = `${cacheKey.replace(/[^a-z0-9_]/gi, "_")}.mp3`;
+
+  // Check file cache first
+  const existingFile = await getFileUri(filename);
+  if (existingFile) return existingFile;
+
+  // Check AsyncStorage map (for base64 fallback entries)
   const cacheMap = await getCacheMap();
   if (cacheMap[cacheKey]) return cacheMap[cacheKey];
 
@@ -67,16 +88,12 @@ async function fetchAndCache(
 
   const buffer = await response.arrayBuffer();
   const bytes = new Uint8Array(buffer);
-  const filename = `${cacheKey.replace(/[^a-z0-9_]/gi, "_")}.mp3`;
 
+  // Try file storage (v19 API)
   const fileUri = await saveToFile(filename, bytes);
-  if (fileUri) {
-    cacheMap[cacheKey] = fileUri;
-    await saveCacheMap(cacheMap);
-    return fileUri;
-  }
+  if (fileUri) return fileUri;
 
-  // Fallback: base64 data URI (works on some RN versions)
+  // Fallback: store base64 data URI in AsyncStorage
   const uri = `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`;
   cacheMap[cacheKey] = uri;
   await saveCacheMap(cacheMap);
@@ -105,9 +122,9 @@ export async function elevenLabsSpeak(
 
 export async function clearElevenLabsCache(): Promise<void> {
   try {
-    if (FileSystem?.Directory && FileSystem?.Paths) {
-      const dir = new FileSystem.Directory(FileSystem.Paths.document("eleven_cache"));
-      if (dir.exists) dir.delete();
+    if (FS?.documentDirectory && typeof FS.deleteAsync === "function") {
+      const dir = FS.documentDirectory + "eleven_cache/";
+      await FS.deleteAsync(dir, { idempotent: true });
     }
   } catch {}
   await AsyncStorage.removeItem(CACHE_KEY);
