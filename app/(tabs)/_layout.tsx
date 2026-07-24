@@ -95,8 +95,8 @@ export default function TabLayout() {
               {props.children}
             </Pressable>
           ),
-          tabBarItemStyle: showMizo ? undefined : { display: "none" },
-          href: showMizo ? undefined : null,
+          tabBarItemStyle: { display: "none" },
+          href: null,
         }}
       />
       <Tabs.Screen
