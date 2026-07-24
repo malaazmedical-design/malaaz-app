@@ -150,7 +150,7 @@ export default function MizoSettingsScreen() {
     dwellTime: 0, quietHoursEnabled: false, quietHoursStart: 22, quietHoursEnd: 7,
     oneHandedMode: false, userType: "",
     ttsMode: "device", azureVoice: "ar-EG-SalmaNeural", azureKey: "", azureRegion: "eastus",
-    elevenApiKey: "", elevenVoiceId: "",
+    elevenApiKey: "", elevenVoiceId: "", elevenGender: "male",
     scanningMode: false, scanSpeed: 1500,
   });
   const [saving, setSaving] = useState(false);
@@ -375,6 +375,25 @@ export default function MizoSettingsScreen() {
                 كل الكلمات الأساسية في ميزو (~150 جملة) متولّدة بالفعل وموجودة على السيرفر، التطبيق بيحملها ويحفظها على الجهاز تلقائياً من غير أي مفتاح.{"\n\n"}
                 لو عايز صوت مختلف أو عايز تضيف كلمات مخصصة بصوت AI، حط مفتاحك وVoice ID من elevenlabs.io (اختياري).
               </Text>
+            </View>
+
+            <Text style={[styles.label, { marginTop: 16 }]}>جنس الصوت</Text>
+            <View style={styles.dwellRow}>
+              {([
+                { id: "male",   emoji: "👨", label: "صوت رجالي" },
+                { id: "female", emoji: "👩", label: "صوت نسائي" },
+              ] as const).map((g) => (
+                <Pressable
+                  key={g.id}
+                  style={[styles.dwellBtn, profile.elevenGender === g.id && styles.dwellBtnActive]}
+                  onPress={() => setProfile((p) => ({ ...p, elevenGender: g.id }))}
+                >
+                  <Text style={{ fontSize: 22 }}>{g.emoji}</Text>
+                  <Text style={[styles.dwellLabel, profile.elevenGender === g.id && styles.dwellLabelActive]}>
+                    {g.label}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
 
             <Text style={[styles.label, { marginTop: 12 }]}>مفتاح API (اختياري — للكلمات المخصصة)</Text>
