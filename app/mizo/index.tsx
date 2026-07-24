@@ -35,6 +35,7 @@ import {
   hasRecording, startRecording, stopAndSaveRecording,
   cancelRecording, playRecording, deleteRecording,
 } from "@/lib/mizoRecording";
+import MizoOnboarding, { checkOnboardingDone } from "@/components/mizo/MizoOnboarding";
 
 const AVATAR_COLORS = ["#2E7D6B","#1C5C8A","#7B3F8C","#B85C1A","#1A6B4A","#8C3A3A","#5A6B1A","#6B1A5A"];
 
@@ -88,6 +89,16 @@ export default function MizoScreen() {
   const [recWordLabel, setRecWordLabel] = useState("");
   const [recState, setRecState] = useState<"idle" | "recording" | "done">("idle");
   const [recHasExisting, setRecHasExisting] = useState(false);
+
+  // Onboarding
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const onboardingChecked = useRef(false);
+
+  useEffect(() => {
+    if (onboardingChecked.current) return;
+    onboardingChecked.current = true;
+    checkOnboardingDone().then((done) => { if (!done) setShowOnboarding(true); });
+  }, []);
 
   // Soft buzzer
   const [buzzerSent, setBuzzerSent] = useState(false);
@@ -827,6 +838,10 @@ export default function MizoScreen() {
           </View>
         </View>
       </Modal>
+
+      {showOnboarding && (
+        <MizoOnboarding onDone={() => setShowOnboarding(false)} />
+      )}
     </SafeAreaView>
   );
 }
