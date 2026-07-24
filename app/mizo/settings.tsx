@@ -141,7 +141,17 @@ export default function MizoSettingsScreen() {
     await saveProfile(profile);
     setSaving(false);
     if (profile.patientMode) {
-      router.replace("/mizo/locked");
+      Alert.alert(
+        "✅ وضع المريض مفعّل",
+        `عشان تفتح الإعدادات تاني:\n\n` +
+        `١. اضغط على كلمة «ميزو» في أعلى الشاشة ٣ مرات متتالية بسرعة\n` +
+        `٢. أدخل الرقم السري: ${profile.patientPin || "1234"}\n\n` +
+        `احتفظ بالرقم السري في مكان آمن.`,
+        [{
+          text: "فهمت — سلّم الجهاز للمريض",
+          onPress: () => router.replace("/mizo/locked"),
+        }],
+      );
     } else {
       router.replace("/mizo");
     }
