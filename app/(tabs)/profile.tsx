@@ -339,6 +339,16 @@ export default function ProfileScreen() {
             <Text style={{ color: "#DC2626", fontFamily: "Cairo_600SemiBold", fontSize: 14 }}>مسح البيانات</Text>
           </Pressable>
         ) : null}
+
+        {/* Provider portal link — subtle, for providers only */}
+        <Pressable
+          onPress={() => router.push("/provider-portal")}
+          style={{ alignItems: "center", paddingVertical: 10 }}
+        >
+          <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12 }}>
+            دخول مقدمي الخدمة
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
