@@ -93,8 +93,11 @@ async function fetchFromSupabase(wordId: string, phrase?: string, gender: "male"
       body: JSON.stringify({ word_id: wordId, phrase, gender }),
     });
     if (!res.ok) return null;
-    // Edge Function uploaded the file — now download it
-    return await downloadAndCache(filename, publicUrl);
+    // Edge Function returns audio bytes directly — save and play
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const path = await saveToFile(filename, bytes);
+    if (path) return path;
+    return `data:audio/mpeg;base64,${uint8ToBase64(bytes)}`;
   } catch {
     return null;
   }
