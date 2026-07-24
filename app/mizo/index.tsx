@@ -17,7 +17,7 @@ const EMOJI_LIST = [
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MIZO_CATEGORIES, MizoWord } from "@/constants/mizoWords";
 import { MIZO_IMAGES } from "@/constants/mizoImages";
@@ -101,20 +101,22 @@ export default function MizoScreen() {
   const isLandscape = width > height;
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    (async () => {
-      const p = await getProfile();
-      setProfile(p);
-      setVoiceOpts(getVoiceOptions(p.voiceType));
-      setCustomWords(await getCustomWords());
-      setContacts(await getContacts());
-      setWordCustoms(await getWordCustomizations());
-      setSmartWords(await getSmartSuggestions(new Date().getHours()));
-      const pins = await getQuickPins();
-      setQuickPinIds(pins);
-      setPinnedWords(await getTopWords(6, pins));
-    })();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const p = await getProfile();
+        setProfile(p);
+        setVoiceOpts(getVoiceOptions(p.voiceType));
+        setCustomWords(await getCustomWords());
+        setContacts(await getContacts());
+        setWordCustoms(await getWordCustomizations());
+        setSmartWords(await getSmartSuggestions(new Date().getHours()));
+        const pins = await getQuickPins();
+        setQuickPinIds(pins);
+        setPinnedWords(await getTopWords(6, pins));
+      })();
+    }, [])
+  );
 
   // Scanning timer — restart only when mode/speed changes
   useEffect(() => {
