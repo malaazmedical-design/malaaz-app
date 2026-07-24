@@ -16,6 +16,7 @@ import {
   getCustomWords, CustomWord, notifyPrimaryContact,
   getSmartSuggestions, getTopWords, getQuickPins, SmartSuggestion,
   MizoProfile, getWordCustomizations, WordCustomization,
+  getContacts, MizoContact, sendContactDirectNotification,
 } from "@/lib/mizoStorage";
 import { mizoSpeak } from "@/lib/mizoTts";
 
@@ -36,6 +37,7 @@ export default function MizoLockedScreen() {
   const [pinnedWords, setPinnedWords] = useState<SmartSuggestion[]>([]);
   const [quickPinIds, setQuickPinIds] = useState<string[]>(["water", "bathroom", "medicine", "pain"]);
   const [wordCustoms, setWordCustoms] = useState<Record<string, WordCustomization>>({});
+  const [contacts, setContacts] = useState<MizoContact[]>([]);
   const [patientName, setPatientName] = useState("المريض");
   const [mizoProfile, setMizoProfile] = useState<MizoProfile | null>(null);
   const [pinModal, setPinModal] = useState(false);
@@ -71,6 +73,7 @@ export default function MizoLockedScreen() {
       setQuietEnd(profile.quietHoursEnd);
       setCustomWords(await getCustomWords());
       setWordCustoms(await getWordCustomizations());
+      setContacts(await getContacts());
       setSmartWords(await getSmartSuggestions(new Date().getHours()));
       const pins = await getQuickPins();
       setQuickPinIds(pins);
@@ -346,6 +349,33 @@ export default function MizoLockedScreen() {
             <View style={styles.pinnedSep} />
           </View>
         )}
+
+        {/* Contact cards in family category */}
+        {activeCat === "family" && !subWords && contacts.map((c) => (
+          <Pressable
+            key={c.id}
+            style={({ pressed }) => [styles.card, { width: CARD_SIZE, height: CARD_SIZE }, pressed && styles.cardPressed]}
+            onPress={() => {
+              speak(c.phrase, c.id, "family");
+              if (c.push_token) sendContactDirectNotification(c, patientName);
+            }}
+          >
+            {c.photo ? (
+              <Image source={{ uri: c.photo }} style={{ width: CARD_SIZE * 0.6, height: CARD_SIZE * 0.6, borderRadius: CARD_SIZE * 0.3 }} resizeMode="cover" />
+            ) : (
+              <View style={{ width: CARD_SIZE * 0.6, height: CARD_SIZE * 0.6, borderRadius: CARD_SIZE * 0.3, backgroundColor: "#1C2B2A", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: CARD_SIZE * 0.28, color: "#C9A84C", fontFamily: "Cairo_700Bold" }}>{c.name[0]}</Text>
+              </View>
+            )}
+            <Text style={styles.cardLabel} numberOfLines={1}>{c.name}</Text>
+            <Text style={[styles.cardLabel, { fontSize: 10, color: "#7A8A89" }]} numberOfLines={1}>{c.relation}</Text>
+            {c.push_token && (
+              <View style={{ position: "absolute", top: 4, left: 4 }}>
+                <MaterialCommunityIcons name="bell-outline" size={10} color="#1C6B3A" />
+              </View>
+            )}
+          </Pressable>
+        ))}
 
         {displayWords.map((word) => {
           const isPinned = quickPinIds.includes(word.id);
