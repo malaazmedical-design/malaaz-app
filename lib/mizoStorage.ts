@@ -260,6 +260,21 @@ export async function deleteFamilyLink(id: string): Promise<void> {
   } catch {}
 }
 
+// Returns what the PATIENT is to the contact (inverse of the stored relation)
+// e.g. contact relation="ابن" (he's the patient's son) → patient is his "بابا"
+function patientRoleFor(relation: string): string {
+  const map: Record<string, string> = {
+    "ابن": "بابا", "بنت": "بابا",
+    "أب": "ابنك", "أم": "ابنك", "بابا": "ابنك", "ماما": "ابنك",
+    "زوج": "مراتك", "زوجة": "جوزك",
+    "أخ": "أخوك", "أخت": "أختك",
+    "جد": "حفيدك", "جدة": "حفيدك",
+    "ممرض": "مريضك", "ممرض/ة": "مريضك",
+    "دكتور": "مريضك", "صاحب": "صاحبك",
+  };
+  return map[relation] ?? "قريبك";
+}
+
 async function pushSend(token: string, title: string, body: string, isEmergency: boolean, extra?: object) {
   try {
     await fetch("https://exp.host/--/api/v2/push/send", {
@@ -352,10 +367,13 @@ export async function sendContactDirectNotification(
   patientName: string,
 ): Promise<void> {
   if (!contact.push_token) return;
+  const role = patientRoleFor(contact.relation ?? "");
+  const title = `ميزو — ${role} ${patientName}`;
+  const body = `${role} ${patientName} بيناديك`;
   await pushSend(
     contact.push_token,
-    `ميزو — ${patientName}`,
-    contact.phrase,
+    title,
+    body,
     false,
     { contact_id: contact.id, direct: true },
   );
