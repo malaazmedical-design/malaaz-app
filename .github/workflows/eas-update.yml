@@ -27,11 +27,5 @@ jobs:
       - name: Push OTA update
         run: eas update --auto --non-interactive
 
-      - name: Link preview channel to main branch
-        run: eas channel:edit preview --branch main --non-interactive
-
-      - name: Link production channel to main branch
-        run: eas channel:edit production --branch main --non-interactive
-
       - name: Link mizo-test channel to main branch
         run: eas channel:edit mizo-test --branch main --non-interactive
