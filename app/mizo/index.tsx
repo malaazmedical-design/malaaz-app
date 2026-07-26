@@ -142,11 +142,6 @@ export default function MizoScreen() {
   // Reset scan index when category or sub-menu changes
   useEffect(() => { setScanIndex(0); }, [activeCat, subWords]);
 
-  const handleScanSelect = useCallback(() => {
-    const word = scanWordsRef.current[scanIndex];
-    if (word) handleWordPress(word);
-  }, [scanIndex, handleWordPress]);
-
   const cols = profile?.oneHandedMode
     ? (isTablet ? 3 : isLandscape ? 3 : 2)
     : (isTablet ? (isLandscape ? 6 : 5) : (isLandscape ? 4 : 3));
@@ -198,6 +193,11 @@ export default function MizoScreen() {
       speak(customPhrase ?? word.phrase, word.id, activeCat);
     }
   }, [speak, activeCat]);
+
+  const handleScanSelect = useCallback(() => {
+    const word = scanWordsRef.current[scanIndex];
+    if (word) handleWordPress(word);
+  }, [scanIndex, handleWordPress]);
 
   // ─── Dwell ────────────────────────────────────────────────────────────────
   const handlePressIn = useCallback((word: MizoWord, customPhrase?: string) => {
