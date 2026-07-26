@@ -314,20 +314,22 @@ export default function ProfileScreen() {
           <MaterialCommunityIcons name="chevron-left" size={22} color={colors.mutedForeground} />
         </Pressable>
 
-        {/* Provider portal entry */}
-        <Pressable
-          onPress={() => router.push("/provider-portal")}
-          style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", padding: 16, borderRadius: 14, borderWidth: 1.5, borderColor: "#C9A84C55", backgroundColor: "#C9A84C14" }}
-        >
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
-            <MaterialCommunityIcons name="doctor" size={22} color="#b8860b" />
-            <View>
-              <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>هل أنت مقدم خدمة؟</Text>
-              <Text style={{ color: "#b8860b", fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" }}>ادخل لبوابة مقدمي الخدمة — تابع حجوزاتك وأسعارك</Text>
+        {/* ميزو — بس للعميل المتسجل */}
+        {client ? (
+          <Pressable
+            onPress={() => router.push("/mizo")}
+            style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", padding: 16, borderRadius: 14, borderWidth: 1.5, borderColor: "#C9A84C55", backgroundColor: "#C9A84C14" }}
+          >
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+              <MaterialCommunityIcons name="robot-happy-outline" size={22} color="#b8860b" />
+              <View>
+                <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>ميزو — مساعد التواصل</Text>
+                <Text style={{ color: "#b8860b", fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" }}>مساعد ذكي لمرضى صعوبات الكلام والتواصل</Text>
+              </View>
             </View>
-          </View>
-          <MaterialCommunityIcons name="chevron-left" size={22} color="#b8860b" />
-        </Pressable>
+            <MaterialCommunityIcons name="chevron-left" size={22} color="#b8860b" />
+          </Pressable>
+        ) : null}
 
         {/* Logout */}
         {hasData ? (
@@ -337,6 +339,16 @@ export default function ProfileScreen() {
             <Text style={{ color: "#DC2626", fontFamily: "Cairo_600SemiBold", fontSize: 14 }}>مسح البيانات</Text>
           </Pressable>
         ) : null}
+
+        {/* Provider portal link — subtle, for providers only */}
+        <Pressable
+          onPress={() => router.push("/provider-portal")}
+          style={{ alignItems: "center", paddingVertical: 10 }}
+        >
+          <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12 }}>
+            دخول مقدمي الخدمة
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

@@ -1,0 +1,57 @@
+name: توليد أصوات ميزو (ElevenLabs → Supabase)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate:
+    name: Generate & Upload TTS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Batch 1 (0-29)
+        run: |
+          curl -s -X POST \
+            "https://omsictbrqlsohrmxeuym.supabase.co/functions/v1/generate-mizo-tts" \
+            -H "Content-Type: application/json" \
+            -H "x-secret: malaaz-tts-2026" \
+            -d '{"voice_id":"${{ secrets.ELEVEN_VOICE_ID }}","api_key":"${{ secrets.ELEVEN_API_KEY }}","batch_start":0,"batch_size":30}' \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'✓ done={d[\"done\"]} skipped={d[\"skipped\"]} failed={d[\"failed\"]}')"
+
+      - name: Batch 2 (30-59)
+        run: |
+          curl -s -X POST \
+            "https://omsictbrqlsohrmxeuym.supabase.co/functions/v1/generate-mizo-tts" \
+            -H "Content-Type: application/json" \
+            -H "x-secret: malaaz-tts-2026" \
+            -d '{"voice_id":"${{ secrets.ELEVEN_VOICE_ID }}","api_key":"${{ secrets.ELEVEN_API_KEY }}","batch_start":30,"batch_size":30}' \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'✓ done={d[\"done\"]} skipped={d[\"skipped\"]} failed={d[\"failed\"]}')"
+
+      - name: Batch 3 (60-89)
+        run: |
+          curl -s -X POST \
+            "https://omsictbrqlsohrmxeuym.supabase.co/functions/v1/generate-mizo-tts" \
+            -H "Content-Type: application/json" \
+            -H "x-secret: malaaz-tts-2026" \
+            -d '{"voice_id":"${{ secrets.ELEVEN_VOICE_ID }}","api_key":"${{ secrets.ELEVEN_API_KEY }}","batch_start":60,"batch_size":30}' \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'✓ done={d[\"done\"]} skipped={d[\"skipped\"]} failed={d[\"failed\"]}')"
+
+      - name: Batch 4 (90-119)
+        run: |
+          curl -s -X POST \
+            "https://omsictbrqlsohrmxeuym.supabase.co/functions/v1/generate-mizo-tts" \
+            -H "Content-Type: application/json" \
+            -H "x-secret: malaaz-tts-2026" \
+            -d '{"voice_id":"${{ secrets.ELEVEN_VOICE_ID }}","api_key":"${{ secrets.ELEVEN_API_KEY }}","batch_start":90,"batch_size":30}' \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'✓ done={d[\"done\"]} skipped={d[\"skipped\"]} failed={d[\"failed\"]}')"
+
+      - name: Batch 5 (120+)
+        run: |
+          curl -s -X POST \
+            "https://omsictbrqlsohrmxeuym.supabase.co/functions/v1/generate-mizo-tts" \
+            -H "Content-Type: application/json" \
+            -H "x-secret: malaaz-tts-2026" \
+            -d '{"voice_id":"${{ secrets.ELEVEN_VOICE_ID }}","api_key":"${{ secrets.ELEVEN_API_KEY }}","batch_start":120,"batch_size":30}' \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'✓ done={d[\"done\"]} skipped={d[\"skipped\"]} failed={d[\"failed\"]}')"
+
+      - name: Done
+        run: echo "All 150 phrases processed!"

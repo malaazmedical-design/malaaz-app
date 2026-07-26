@@ -6,7 +6,7 @@ on:
       branch:
         description: 'اسم الـ branch'
         required: true
-        default: 'feature/mizo-aac'
+        default: 'main'
       message:
         description: 'رسالة التحديث'
         required: false
@@ -24,6 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci

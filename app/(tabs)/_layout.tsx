@@ -2,17 +2,26 @@ import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { supabase } from "@/lib/supabase";
-
+import { getProfile } from "@/lib/mizoStorage";
 export default function TabLayout() {
   const colors = useColors();
   const isIOS = Platform.OS === "ios";
 
-  // لو فيه جلسة مقدم خدمة محفوظة — نحوّله لبوابته تلقائياً
   useEffect(() => {
     (async () => {
+      // وضع المريض — يحوّل لشاشة ميزو المقفلة فوراً بدون أي شاشات تانية
+      try {
+        const profile = await getProfile();
+        if (profile.patientMode) {
+          router.replace("/mizo/locked");
+          return;
+        }
+      } catch {}
+
+      // مقدم خدمة — يحوّله لبوابته
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) return;
@@ -25,7 +34,7 @@ export default function TabLayout() {
           router.replace("/provider-portal");
         }
       } catch {
-        // ignore — يفضل في صفحة العميل
+        // ignore
       }
     })();
   }, []);
@@ -63,6 +72,26 @@ export default function TabLayout() {
         options={{
           title: "حجوزاتي",
           tabBarIcon: ({ color }) => <MaterialCommunityIcons name="calendar-check" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="mizo-entry"
+        options={{
+          title: "ميزو",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="robot-happy-outline" size={24} color={color} />
+          ),
+          tabBarButton: (props) => (
+            <Pressable
+              style={props.style}
+              onPress={() => router.push("/mizo")}
+              accessibilityRole="button"
+              accessibilityLabel="ميزو"
+            >
+              {props.children}
+            </Pressable>
+          ),
+          tabBarItemStyle: { display: "none", width: 0, overflow: "hidden" },
         }}
       />
       <Tabs.Screen
