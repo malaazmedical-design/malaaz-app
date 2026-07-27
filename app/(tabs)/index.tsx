@@ -29,6 +29,7 @@ import {
 } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { DbSubService } from "@/lib/supabase";
 
 type SortKey = "rating" | "price_asc" | "price_desc" | "experience";
 type Filters = {
@@ -67,8 +68,10 @@ function countActiveFilters(f: Filters, maxPriceLimit: number) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { profile, providers, loadingProviders, coverageAreas } = useApp();
+  const { profile, providers, loadingProviders, coverageAreas, subServices } = useApp();
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
+  const [gradeFilter, setGradeFilter] = useState<string | null>(null);
+  const [subServiceFilter, setSubServiceFilter] = useState<string | null>(null);
   const [cityFilter, setCityFilter] = useState("الكل");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -98,6 +101,20 @@ export default function HomeScreen() {
   }, [maxPriceLimit]);
 
   const activeCount = countActiveFilters(filters, maxPriceLimit);
+
+  // Sub-filters بناءً على نوع الخدمة المختار
+  const doctorGrades = useMemo(() =>
+    subServices.filter((s) => s.service_name === "كشف منزلي" && s.group_name === "grade"),
+    [subServices]);
+  const doctorSpecialties = useMemo(() =>
+    subServices.filter((s) => s.service_name === "كشف منزلي" && s.group_name === "specialty"),
+    [subServices]);
+  const nurseSubServices = useMemo(() =>
+    subServices.filter((s) => s.service_name === "تمريض منزلي" && s.group_name !== "grade"),
+    [subServices]);
+  const xraySubServices = useMemo(() =>
+    subServices.filter((s) => s.service_name === "أشعة منزلية" && s.group_name !== "grade"),
+    [subServices]);
 
   // أول ما البيانات تخلص تحميل: نحاول نحدد منطقة العميل تلقائياً ونرتب القائمة
   // على أساسها — مرة واحدة بس، وبهدوء (لو رفض الصلاحية أو فشل التحديد، الفلتر يفضل "الكل")
@@ -134,6 +151,8 @@ export default function HomeScreen() {
   const filtered = useMemo(() => {
     let list: Provider[] = providers;
     if (serviceFilter !== "all") list = list.filter((p) => p.serviceType === serviceFilter);
+    if (gradeFilter) list = list.filter((p) => p.title.includes(gradeFilter));
+    if (subServiceFilter) list = list.filter((p) => p.services.some((s) => s.name === subServiceFilter));
     if (cityFilter !== "الكل") {
       // مطابقة ذكية: مناطق المقدم بتتترجم لمدينتها مهما كانت طريقة كتابتها،
       // واللي مدينته مش معروفة بيظهر في الحالتين بدل ما يختفي
@@ -285,7 +304,10 @@ export default function HomeScreen() {
                 <Animated.View key={cat.id} entering={FadeInUp.delay(150 + catIndex * 90).springify()} style={{ flex: 1 }}>
                 <Pressable
                   onPress={() => {
-                    setServiceFilter(isActive ? "all" : (cat.id as ServiceType));
+                    const next = isActive ? "all" : (cat.id as ServiceType);
+                    setServiceFilter(next);
+                    setGradeFilter(null);
+                    setSubServiceFilter(null);
                     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   style={({ pressed }) => ({
@@ -315,6 +337,50 @@ export default function HomeScreen() {
             })}
           </View>
         </View>
+
+        {/* ─── Sub-filters (درجة + تخصص / خدمات فرعية) ─── */}
+        {serviceFilter === "doctor" && (doctorGrades.length > 0 || doctorSpecialties.length > 0) && (
+          <View style={{ paddingTop: 14, gap: 8 }}>
+            {/* الدرجة العلمية */}
+            {doctorGrades.length > 0 && (
+              <SubFilterRow
+                label="الدرجة"
+                items={doctorGrades}
+                selected={gradeFilter}
+                onSelect={(name) => setGradeFilter(gradeFilter === name ? null : name)}
+              />
+            )}
+            {/* التخصص */}
+            {doctorSpecialties.length > 0 && (
+              <SubFilterRow
+                label="التخصص"
+                items={doctorSpecialties}
+                selected={subServiceFilter}
+                onSelect={(name) => setSubServiceFilter(subServiceFilter === name ? null : name)}
+              />
+            )}
+          </View>
+        )}
+        {serviceFilter === "nurse" && nurseSubServices.length > 0 && (
+          <View style={{ paddingTop: 14 }}>
+            <SubFilterRow
+              label="نوع الخدمة"
+              items={nurseSubServices}
+              selected={subServiceFilter}
+              onSelect={(name) => setSubServiceFilter(subServiceFilter === name ? null : name)}
+            />
+          </View>
+        )}
+        {serviceFilter === "xray" && xraySubServices.length > 0 && (
+          <View style={{ paddingTop: 14 }}>
+            <SubFilterRow
+              label="نوع الخدمة"
+              items={xraySubServices}
+              selected={subServiceFilter}
+              onSelect={(name) => setSubServiceFilter(subServiceFilter === name ? null : name)}
+            />
+          </View>
+        )}
 
         {/* ─── City Filter ─── */}
         <View style={{ paddingTop: 18 }}>
@@ -374,7 +440,7 @@ export default function HomeScreen() {
               <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_600SemiBold", marginTop: 10, textAlign: "center", fontSize: 14 }}>
                 لا يوجد مقدمو خدمة مطابقون
               </Text>
-              <Pressable onPress={() => { setFilters(DEFAULT_FILTERS); setSearch(""); setCityFilter("الكل"); setServiceFilter("all"); }} style={{ marginTop: 12 }}>
+              <Pressable onPress={() => { setFilters(DEFAULT_FILTERS); setSearch(""); setCityFilter("الكل"); setServiceFilter("all"); setGradeFilter(null); setSubServiceFilter(null); }} style={{ marginTop: 12 }}>
                 <Text style={{ color: "#C9A84C", fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>مسح الفلاتر</Text>
               </Pressable>
             </Card>
@@ -400,6 +466,51 @@ export default function HomeScreen() {
         onClose={() => setShowFilterPanel(false)}
         onReset={() => setPendingFilters(DEFAULT_FILTERS)}
       />
+    </View>
+  );
+}
+
+/* ─── Sub-Filter Row ─────────────────────────────────────────────────────── */
+function SubFilterRow({ label, items, selected, onSelect }: {
+  label: string;
+  items: DbSubService[];
+  selected: string | null;
+  onSelect: (name: string) => void;
+}) {
+  const colors = useColors();
+  return (
+    <View>
+      <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "right", paddingHorizontal: 20, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, flexDirection: "row-reverse" }}>
+        {items.map((item) => {
+          const isActive = selected === item.name;
+          return (
+            <Pressable
+              key={item.id}
+              onPress={() => onSelect(item.name)}
+              style={({ pressed }) => ({
+                paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99,
+                backgroundColor: isActive ? "#C9A84C" : colors.card,
+                borderWidth: 1.5,
+                borderColor: isActive ? "#C9A84C" : colors.border,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+                flexDirection: "row-reverse", alignItems: "center", gap: 5,
+              })}
+            >
+              {item.duration ? (
+                <Text style={{ color: isActive ? "#1C2B2A" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 10 }}>
+                  {item.duration}
+                </Text>
+              ) : null}
+              <Text style={{ color: isActive ? "#1C2B2A" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 13 }}>
+                {item.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
