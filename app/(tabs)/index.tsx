@@ -152,7 +152,10 @@ export default function HomeScreen() {
     let list: Provider[] = providers;
     if (serviceFilter !== "all") list = list.filter((p) => p.serviceType === serviceFilter);
     if (gradeFilter) list = list.filter((p) => p.title.includes(gradeFilter));
-    if (subServiceFilter) list = list.filter((p) => p.services.some((s) => s.name === subServiceFilter));
+    if (subServiceFilter) list = list.filter((p) =>
+      p.title.includes(subServiceFilter) ||
+      p.services.some((s) => s.name === subServiceFilter)
+    );
     if (cityFilter !== "الكل") {
       // مطابقة ذكية: مناطق المقدم بتتترجم لمدينتها مهما كانت طريقة كتابتها،
       // واللي مدينته مش معروفة بيظهر في الحالتين بدل ما يختفي
