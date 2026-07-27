@@ -186,7 +186,7 @@ export default function HomeScreen() {
         case "experience": return b.yearsExperience - a.yearsExperience;
       }
     });
-  }, [serviceFilter, cityFilter, search, filters, providers, maxPriceLimit]);
+  }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, filters, providers, maxPriceLimit]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
