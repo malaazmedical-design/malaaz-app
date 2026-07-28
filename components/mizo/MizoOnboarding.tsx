@@ -9,14 +9,14 @@ const KEY = "mizo_onboarding_done_v1";
 const SLIDES = [
   {
     emoji: "🤖",
-    title: "أهلاً بيك في ميزو!",
+    title: "أهلاً بيك في Malaaz ReVoice!",
     desc: "مساعدك الذكي للتواصل\nبيتكلم عنك من غير ما تحتاج تتكلم",
     hint: null,
   },
   {
     emoji: "👆",
     title: "اضغط على أي بطاقة",
-    desc: "ميزو بيقرأها بصوت عالي عنك",
+    desc: "Malaaz ReVoice بيقرأها بصوت عالي عنك",
     hint: "مثال:  💧 مية  →  «أنا عايز مية»",
   },
   {
