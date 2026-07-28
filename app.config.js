@@ -2,7 +2,7 @@ const isMizoTest = process.env.APP_VARIANT === "mizotest";
 
 module.exports = ({ config }) => ({
   ...config,
-  name: isMizoTest ? "ميزو ملاذ" : config.name,
+  name: isMizoTest ? "Malaaz ReVoice" : config.name,
   android: {
     ...config.android,
     package: isMizoTest
