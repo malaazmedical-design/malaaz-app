@@ -208,7 +208,7 @@ export default function MizoLockedScreen() {
         </Pressable>
         <Pressable onPress={handleTitleTap}>
           <Text style={[styles.headerTitle, isNight && { color: "#B89038" }]}>
-            {isNight ? "Malaaz ReVoice 🌙" : "Malaaz ReVoice"}
+            {isNight ? "ReVoice 🌙" : "ReVoice"}
           </Text>
         </Pressable>
         <View style={{ width: 34 }} />

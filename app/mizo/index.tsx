@@ -381,7 +381,7 @@ export default function MizoScreen() {
           <MaterialCommunityIcons name="arrow-right" size={26} color="#C9A84C" />
         </Pressable>
         <Text style={[styles.headerTitle, isNight && { color: "#B89038" }]}>
-          {isNight ? "Malaaz ReVoice 🌙" : "Malaaz ReVoice"}
+          {isNight ? "ReVoice 🌙" : "ReVoice"}
         </Text>
         <View style={styles.headerActions}>
           <Pressable onPress={() => router.push("/mizo/family")} style={styles.headerBtn}>

@@ -45,6 +45,7 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerBackTitle: "رجوع" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="mizo" options={{ title: "Malaaz", headerTintColor: "#C9A84C", headerStyle: { backgroundColor: "#1C2B2A" }, headerTitleStyle: { fontFamily: "Cairo_700Bold", color: "#C9A84C" } }} />
       <Stack.Screen
         name="provider/[id]"
         options={{ headerShown: false, presentation: "card", animation: "slide_from_right" }}
