@@ -17,7 +17,7 @@ import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import { Platform, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -45,7 +45,18 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerBackTitle: "رجوع" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="mizo" options={{ title: "Malaaz", headerTintColor: "#C9A84C", headerStyle: { backgroundColor: "#1C2B2A" }, headerTitleStyle: { fontFamily: "Cairo_700Bold", color: "#C9A84C" } }} />
+      <Stack.Screen
+        name="mizo"
+        options={{
+          headerTintColor: "#C9A84C",
+          headerStyle: { backgroundColor: "#1C2B2A" },
+          headerTitle: () => (
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#C9A84C", letterSpacing: 1 }}>
+              Malaaz
+            </Text>
+          ),
+        }}
+      />
       <Stack.Screen
         name="provider/[id]"
         options={{ headerShown: false, presentation: "card", animation: "slide_from_right" }}
