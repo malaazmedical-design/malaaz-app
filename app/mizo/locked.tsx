@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: "#1C2B2A",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#C9A84C" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#C9A84C", letterSpacing: 1.5 },
   exitHint: { width: 34, alignItems: "center", justifyContent: "center" },
   mizoRow: {
     flexDirection: "row-reverse",

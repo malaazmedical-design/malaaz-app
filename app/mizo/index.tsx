@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#1C2B2A",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#C9A84C" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#C9A84C", letterSpacing: 1.5 },
   headerBtn: { padding: 4 },
   headerActions: { flexDirection: "row-reverse", gap: 8 },
 
