@@ -353,7 +353,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clientResetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://malaaz-plum.vercel.app/client.html",
+      redirectTo: "malaaz://reset-password",
     });
     if (error) throw new Error(error.message);
   };

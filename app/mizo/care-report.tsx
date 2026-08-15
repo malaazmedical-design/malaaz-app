@@ -32,9 +32,12 @@ export default function CareReportScreen() {
   const loadReports = async () => {
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { setLoading(false); return; }
       const { data } = await supabase
         .from("care_reports")
         .select("id,note,severity,created_at")
+        .eq("nurse_user_id", session.user.id)
         .order("created_at", { ascending: false })
         .limit(30);
       if (data) setReports(data as Report[]);

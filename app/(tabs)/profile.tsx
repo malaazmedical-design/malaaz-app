@@ -52,7 +52,7 @@ export default function ProfileScreen() {
 
   const hasData = !!profile.name && !!profile.phone;
 
-  // ─── صورة العميل (محفوظة على الجهاز) ─────────────────────────────────────
+  // ─── صورة العميل (ترفع على Supabase Storage) ─────────────────────────────
   const pickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
@@ -60,9 +60,27 @@ export default function ProfileScreen() {
       aspect: [1, 1],
       quality: 0.6,
     });
-    if (!result.canceled && result.assets?.[0]) {
-      setAvatarUri(result.assets[0].uri);
-    }
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setAvatarUri(asset.uri);
+
+    if (!client?.id || Platform.OS === "web") return;
+    try {
+      const { supabase: sb } = await import("@/lib/supabase");
+      const ext = asset.uri.split(".").pop() ?? "jpg";
+      const path = `${client.id}/avatar.${ext}`;
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      const { error: upErr } = await sb.storage
+        .from("avatars")
+        .upload(path, blob, { upsert: true, contentType: `image/${ext}` });
+      if (upErr) return;
+      const { data } = sb.storage.from("avatars").getPublicUrl(path);
+      if (data?.publicUrl) {
+        setAvatarUri(data.publicUrl);
+        updateProfile({ avatarUri: data.publicUrl });
+      }
+    } catch {}
   };
 
   // ─── تحديد الموقع تلقائياً ────────────────────────────────────────────────
