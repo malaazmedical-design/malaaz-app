@@ -115,8 +115,13 @@ export default function RootLayout() {
   // فتح شاشة الحجوزات لما المستخدم يضغط على أي إشعار
   useEffect(() => {
     if (Platform.OS === "web") return;
-    const sub = Notifications.addNotificationResponseReceivedListener(() => {
-      router.push("/(tabs)/bookings");
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+      if (data?.type === "medicine") {
+        router.push("/medicines");
+      } else {
+        router.push("/(tabs)/bookings");
+      }
     });
     return () => sub.remove();
   }, []);

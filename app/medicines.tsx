@@ -99,6 +99,7 @@ export default function MedicinesScreen() {
               title: `💊 ميعاد الدواء: ${name.trim()}`,
               body: dose.trim() ? `الجرعة: ${dose.trim()}` : "متنساش جرعتك — صحتك أولوية 💙",
               sound: "default",
+              data: { type: "medicine" },
             },
             trigger: {
               type: Notifications.SchedulableTriggerInputTypes.DAILY,

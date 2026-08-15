@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppState, Platform } from "react-native";
 
-const PING_URL = "https://omsictbrqlsohrmxeuym.supabase.co/";
+const PING_URL = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "https://omsictbrqlsohrmxeuym.supabase.co") + "/";
 
 export function useOnlineStatus(): boolean {
   const [online, setOnline] = useState(true);
@@ -34,10 +34,15 @@ export function useOnlineStatus(): boolean {
     };
 
     ping();
+    // فحص دوري كل 30 ثانية لاكتشاف انقطاع الإنترنت أثناء نشاط التطبيق
+    const interval = setInterval(ping, 30_000);
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") ping();
     });
-    return () => sub.remove();
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
   }, []);
 
   return online;

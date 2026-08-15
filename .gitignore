@@ -39,3 +39,7 @@ yarn-error.*
 .vercel
 
 .env
+
+# Firebase — contains project credentials; keep out of public repos
+google-services.json
+GoogleService-Info.plist

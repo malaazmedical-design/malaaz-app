@@ -689,6 +689,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     review: Review
   ) => {
     const booking = bookings.find((b) => b.id === bookingId);
+    // لا يُسمح بالتقييم إلا لو الحجز كان مؤكداً أو مكتملاً بالفعل
+    if (booking && booking.status !== "confirmed" && booking.status !== "completed") {
+      throw new Error("لا يمكن تقييم هذا الحجز");
+    }
 
     // حفظ الريفيو في Supabase (بيظهر للعامة بعد موافقة الأدمن)
     await supabase.from("reviews").insert({
