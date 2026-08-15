@@ -13,8 +13,9 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { Platform, Text } from "react-native";
@@ -24,7 +25,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { AppProvider } from "@/contexts/AppContext";
+import { supabase } from "@/lib/supabase";
 
 SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
@@ -89,6 +92,10 @@ function RootLayoutNav() {
         name="family/[id]"
         options={{ headerShown: false, animation: "slide_from_left" }}
       />
+      <Stack.Screen
+        name="reset-password"
+        options={{ headerShown: false, presentation: "modal", animation: "slide_from_bottom" }}
+      />
     </Stack>
   );
 }
@@ -105,6 +112,42 @@ export default function RootLayout() {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
 
+  // فتح شاشة الحجوزات لما المستخدم يضغط على أي إشعار
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+      if (data?.type === "medicine") {
+        router.push("/medicines");
+      } else {
+        router.push("/(tabs)/bookings");
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  // معالجة deep link لإعادة تعيين كلمة المرور
+  useEffect(() => {
+    const handleUrl = async (url: string) => {
+      if (!url.includes("reset-password")) return;
+      try {
+        const fragment = url.split("#")[1] ?? "";
+        const params = new URLSearchParams(fragment);
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+        const type = params.get("type");
+        if (type === "recovery" && accessToken && refreshToken) {
+          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          router.push("/reset-password");
+        }
+      } catch {}
+    };
+
+    Linking.getInitialURL().then((url) => { if (url) handleUrl(url); });
+    const sub = Linking.addEventListener("url", ({ url }) => handleUrl(url));
+    return () => sub.remove();
+  }, []);
+
   if (!fontsLoaded && !fontError) return null;
 
   return (
@@ -114,6 +157,7 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AppProvider>
+                <OfflineBanner />
                 <RootLayoutNav />
                 {!introDone ? <AnimatedSplash onDone={() => setIntroDone(true)} /> : null}
               </AppProvider>

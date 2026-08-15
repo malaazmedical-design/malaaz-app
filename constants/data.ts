@@ -76,7 +76,7 @@ export const PAYMENT_METHODS = [
     name: "محفظة فودافون",
     description: "حوّل على المحفظة الرسمية وأظهر لقطة الشاشة لمقدم الخدمة —",
     icon: "cellphone",
-    detail: "01039091989",
+    detail: process.env.EXPO_PUBLIC_VODAFONE_CASH ?? "01039091989",
   },
   {
     id: "instapay" as PaymentMethod,

@@ -10,7 +10,8 @@ import React, {
   ReactNode,
 } from "react";
 
-import { registerClientPushToken } from "@/lib/push";
+import { registerClientPushToken, notifyProviderCancellation } from "@/lib/push";
+import { sendMalaazEmail } from "@/lib/emailjs";
 import {
   supabase,
   DbBooking,
@@ -353,7 +354,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clientResetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://malaaz-plum.vercel.app/client.html",
+      redirectTo: "malaaz://reset-password",
     });
     if (error) throw new Error(error.message);
   };
@@ -675,11 +676,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ─── Cancel booking ───────────────────────────────────────────────────────
   const cancelBooking = async (id: string) => {
-    // التحديث على السيرفر محتاج تسجيل دخول (RLS)؛ بنحدّث محلياً في كل الأحوال
+    const booking = bookings.find((b) => b.id === id);
+
     await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id);
     await persistBookings(
       bookings.map((b) => (b.id === id ? { ...b, status: "cancelled" as const } : b))
     );
+
+    // إشعار المقدم لو الحجز كان مخصصاً له — fire and forget
+    if (booking?.provider_id) {
+      notifyProviderCancellation(
+        booking.provider_id,
+        booking.patient_name,
+        booking.service_type,
+        booking.area ?? null
+      ).catch(() => {});
+    }
+
+    // إشعار الأدمن بالإلغاء — fire and forget
+    sendMalaazEmail({
+      to_email: "malaaz.medical@gmail.com",
+      subject: `❌ إلغاء حجز من العميل — ${booking?.patient_name ?? id}`,
+      title: "❌ إلغاء حجز",
+      title_color: "#CC2200",
+      message: "قام العميل بإلغاء الحجز من التطبيق أو الموقع.",
+      details:
+        `👤 الاسم: ${booking?.patient_name ?? "—"}<br>` +
+        `📱 الهاتف: ${booking?.phone ?? "—"}<br>` +
+        `⚕️ الخدمة: ${booking?.service_type ?? "—"}<br>` +
+        `📍 المنطقة: ${booking?.area ?? "—"}<br>` +
+        `🕐 الموعد: ${booking?.appointment_time ?? "—"}<br>` +
+        `🔖 رقم الحجز: ${id}`,
+      button_text: "عرض لوحة التحكم",
+      button_link: "https://malaaz-plum.vercel.app",
+      button_color: "#CC2200",
+    }).catch(() => {});
   };
 
   // ─── Add review ───────────────────────────────────────────────────────────
@@ -689,6 +720,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     review: Review
   ) => {
     const booking = bookings.find((b) => b.id === bookingId);
+    // لا يُسمح بالتقييم إلا لو الحجز كان مؤكداً أو مكتملاً بالفعل
+    if (booking && booking.status !== "confirmed" && booking.status !== "completed") {
+      throw new Error("لا يمكن تقييم هذا الحجز");
+    }
 
     // حفظ الريفيو في Supabase (بيظهر للعامة بعد موافقة الأدمن)
     await supabase.from("reviews").insert({

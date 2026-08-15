@@ -32,6 +32,15 @@ if (Platform.OS !== "web") {
       supabase.auth.stopAutoRefresh();
     }
   });
+} else if (typeof document !== "undefined") {
+  // الويب: نجدد الـ token لما المستخدم يرجع للتاب
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
 }
 
 // ─── Database Types (مطابقة لجداول Supabase بتاع ملاذ) ──────────────────────

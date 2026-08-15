@@ -39,3 +39,6 @@ yarn-error.*
 .vercel
 
 .env
+
+# Firebase — iOS only (contains sensitive keys)
+GoogleService-Info.plist

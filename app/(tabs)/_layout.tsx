@@ -6,9 +6,13 @@ import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { supabase } from "@/lib/supabase";
 import { getProfile } from "@/lib/mizoStorage";
+import { useApp } from "@/contexts/AppContext";
+
 export default function TabLayout() {
   const colors = useColors();
   const isIOS = Platform.OS === "ios";
+  const { client } = useApp();
+  const showMizo = !!client;
 
   useEffect(() => {
     (async () => {
@@ -91,7 +95,8 @@ export default function TabLayout() {
               {props.children}
             </Pressable>
           ),
-          tabBarItemStyle: { display: "none", width: 0, overflow: "hidden" },
+          tabBarItemStyle: { display: "none" },
+          href: null,
         }}
       />
       <Tabs.Screen
