@@ -16,7 +16,7 @@ on:
 
 jobs:
   build:
-    name: Build Android
+    name: Build Android (${{ github.event.inputs.profile }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
