@@ -40,6 +40,5 @@ yarn-error.*
 
 .env
 
-# Firebase — contains project credentials; keep out of public repos
-google-services.json
+# Firebase — iOS only (contains sensitive keys)
 GoogleService-Info.plist
