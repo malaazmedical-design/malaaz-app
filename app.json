@@ -24,7 +24,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.malaaz.homecare",
+      "bundleIdentifier": "com.malaaz.app",
       "buildNumber": "1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "ملاذ يحتاج موقعك لتحديد أقرب مقدم خدمة في منطقتك",
@@ -37,7 +37,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1C2B2A"
       },
-      "package": "com.malaaz.homecare",
+      "package": "com.malaaz.app",
       "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "permissions": [
