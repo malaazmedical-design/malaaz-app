@@ -25,6 +25,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { AppProvider } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
 
@@ -151,6 +152,7 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AppProvider>
+                <OfflineBanner />
                 <RootLayoutNav />
                 {!introDone ? <AnimatedSplash onDone={() => setIntroDone(true)} /> : null}
               </AppProvider>

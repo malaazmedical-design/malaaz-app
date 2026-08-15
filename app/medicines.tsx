@@ -51,8 +51,13 @@ export default function MedicinesScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (raw) setMedicines(JSON.parse(raw));
+    AsyncStorage.getItem(STORAGE_KEY).then(async (raw) => {
+      if (raw) {
+        setMedicines(JSON.parse(raw));
+      } else if (Platform.OS !== "web") {
+        // بعد إعادة التثبيت — إلغاء أي إشعارات دوائية متبقية من النسخة السابقة
+        await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+      }
     }).catch(() => {});
   }, []);
 
