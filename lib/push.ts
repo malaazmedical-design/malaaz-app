@@ -72,6 +72,36 @@ export async function registerProviderPushToken(providerId: string): Promise<voi
     );
 }
 
+// إشعار المقدم لما العميل يلغي الحجز — fire and forget
+export async function notifyProviderCancellation(
+  providerId: string,
+  patientName: string,
+  serviceType: string,
+  area: string | null
+): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from("push_tokens")
+      .select("expo_token")
+      .eq("owner_type", "provider")
+      .eq("provider_id", providerId)
+      .maybeSingle();
+    if (!data?.expo_token) return;
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: data.expo_token,
+        title: "❌ إلغاء حجز",
+        body: `${patientName} ألغى الحجز — ${serviceType}${area ? ` (${area})` : ""}`,
+        data: { type: "booking_cancelled" },
+        sound: "default",
+        priority: "high",
+      }),
+    });
+  } catch {}
+}
+
 // هل العميل ده عنده التطبيق؟ (عشان نبعت إيميل بس لو معندوش)
 export async function clientHasPushToken(phone: string | null): Promise<boolean> {
   if (!phone) return false;
