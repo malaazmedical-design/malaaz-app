@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CACHE_KEY = "mizo_eleven_cache_map";
-const SUPABASE_TTS_URL = "https://omsictbrqlsohrmxeuym.supabase.co/storage/v1/object/public/mizo-tts";
-const SUPABASE_EDGE_URL = "https://omsictbrqlsohrmxeuym.supabase.co/functions/v1/tts-generate";
+const SUPABASE_BASE = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+const SUPABASE_TTS_URL = `${SUPABASE_BASE}/storage/v1/object/public/mizo-tts`;
+const SUPABASE_EDGE_URL = `${SUPABASE_BASE}/functions/v1/tts-generate`;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 let Audio: any = null;
