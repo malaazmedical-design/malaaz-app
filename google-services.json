@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "104831599299",
+    "project_id": "malaaz-d6b8b",
+    "storage_bucket": "malaaz-d6b8b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:104831599299:android:f90ea5f8f11527706c9876",
+        "android_client_info": {
+          "package_name": "com.malaaz.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgvGJfRjbfprmYxv3hf57Vv-nGOlxkjyg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:104831599299:android:257359bc52e971ed6c9876",
+        "android_client_info": {
+          "package_name": "com.malaaz.homecare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgvGJfRjbfprmYxv3hf57Vv-nGOlxkjyg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:104831599299:android:257359bc52e971ed6c9876",
+        "android_client_info": {
+          "package_name": "com.malaaz.homecare.mizotest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgvGJfRjbfprmYxv3hf57Vv-nGOlxkjyg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
