@@ -17,8 +17,9 @@ import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as Updates from "expo-updates";
 import React, { useEffect, useState } from "react";
-import { Platform, Text } from "react-native";
+import { AppState, Platform, Text } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -124,6 +125,27 @@ export default function RootLayout() {
       } else {
         router.push("/(tabs)/bookings");
       }
+    });
+    return () => sub.remove();
+  }, []);
+
+  // فحص OTA تلقائي عند كل فتح للتطبيق (foreground) — يطبّق التحديث فوراً لو وجد
+  useEffect(() => {
+    if (Platform.OS === "web" || !Updates.isEnabled) return;
+
+    const applyUpdate = async () => {
+      try {
+        const check = await Updates.checkForUpdateAsync();
+        if (!check.isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } catch {}
+    };
+
+    applyUpdate();
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") applyUpdate();
     });
     return () => sub.remove();
   }, []);
