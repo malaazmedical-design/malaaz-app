@@ -380,6 +380,10 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider?.id]);
 
+  // ref يضمن أن Realtime دايماً بيستدعي آخر نسخة من refreshAll (تجنب stale closure)
+  const refreshAllRef = useRef(refreshAll);
+  useEffect(() => { refreshAllRef.current = refreshAll; }, [refreshAll]);
+
   // Realtime: تحديث حجوزات المقدم تلقائياً (مثلاً لو عميل ألغى)
   useEffect(() => {
     if (!provider?.id) return;
@@ -388,7 +392,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "bookings", filter: `provider_id=eq.${provider.id}` },
-        () => { refreshAll(); }
+        () => { refreshAllRef.current(); }
       )
       .subscribe();
     return () => {

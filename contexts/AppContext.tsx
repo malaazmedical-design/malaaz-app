@@ -6,6 +6,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -575,6 +576,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.phone, client?.id]);
 
+  // ref يضمن أن Realtime دايماً بيستدعي آخر نسخة من refreshBookings (تجنب stale closure)
+  const refreshBookingsRef = useRef(refreshBookings);
+  useEffect(() => { refreshBookingsRef.current = refreshBookings; }, [refreshBookings]);
+
   // Realtime: تحديث حجوزات العميل تلقائياً بدون refresh يدوي
   useEffect(() => {
     if (!client?.id) return;
@@ -582,8 +587,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .channel(`client_bookings_${client.id}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "bookings", filter: `client_id=eq.${client.id}` },
-        () => { refreshBookings(); }
+        { event: "*", schema: "public", table: "bookings", filter: `client_id=eq.${client.id}` },
+        () => { refreshBookingsRef.current(); }
       )
       .subscribe();
     return () => { channel.unsubscribe(); supabase.removeChannel(channel); };
@@ -693,7 +698,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const booking = bookings.find((b) => b.id === id);
 
     if (!booking) return;
-    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id).eq("client_id", client?.id ?? "");
+
+    if (client) {
+      // العميل المسجّل: نستخدم RPC تشتغل بـ SECURITY DEFINER لتجاوز قيود RLS
+      const { error } = await supabase.rpc("cancel_booking", { p_booking_id: id });
+      if (error) throw new Error(error.message);
+    } else {
+      // الزائر: لا يوجد auth session، نحاول مباشرة (بدون ضمان)
+      await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id).eq("phone", booking.phone);
+    }
+
     await persistBookings(
       bookings.map((b) => (b.id === id ? { ...b, status: "cancelled" as const } : b))
     );
