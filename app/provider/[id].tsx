@@ -245,7 +245,7 @@ export default function ProviderScreen() {
                         <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>{svc.name}</Text>
                         <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>{svc.description}</Text>
                         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
-                          <Text style={{ color: isActive ? "#C9A84C" : "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>{svc.price} ج.م</Text>
+                          <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 15 }}>{svc.price} ج.م</Text>
                           {svc.durationLabel ? (
                             <Text style={{ color: isActive ? "#FFFFFF66" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>⏱ {svc.durationLabel}</Text>
                           ) : null}

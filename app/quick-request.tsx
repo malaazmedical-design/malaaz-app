@@ -249,8 +249,8 @@ export default function QuickRequestScreen() {
                         transform: [{ scale: pressed ? 0.96 : 1 }],
                       })}
                     >
-                      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: isActive ? "#C9A84C22" : "#1C2B2A10", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
-                        <MaterialCommunityIcons name={cat.icon as any} size={24} color={isActive ? "#C9A84C" : "#1C2B2A"} />
+                      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: isActive ? "#C9A84C22" : colors.muted, alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+                        <MaterialCommunityIcons name={cat.icon as any} size={24} color={isActive ? "#C9A84C" : colors.foreground} />
                       </View>
                       <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 12, textAlign: "center" }}>
                         {cat.name}
@@ -277,7 +277,7 @@ export default function QuickRequestScreen() {
                         onPress={() => setGrade(g)}
                         style={{ flex: 1, alignItems: "center", padding: 14, borderRadius: 16, borderWidth: 2, backgroundColor: isActive ? "#1C2B2A" : colors.card, borderColor: isActive ? "#C9A84C" : colors.border }}
                       >
-                        <MaterialCommunityIcons name={g === "استشاري" ? "medal" : "stethoscope"} size={22} color={isActive ? "#C9A84C" : "#1C2B2A"} />
+                        <MaterialCommunityIcons name={g === "استشاري" ? "medal" : "stethoscope"} size={22} color={isActive ? "#C9A84C" : colors.foreground} />
                         <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, marginTop: 6 }}>{g}</Text>
                         {range ? (
                           <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 2 }}>
@@ -562,8 +562,8 @@ export default function QuickRequestScreen() {
                     transform: [{ scale: pressed ? 0.98 : 1 }],
                   })}
                 >
-                  <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: isActive ? "#C9A84C22" : "#1C2B2A10", alignItems: "center", justifyContent: "center" }}>
-                    <MaterialCommunityIcons name={pm.icon as any} size={28} color={isActive ? "#C9A84C" : "#1C2B2A"} />
+                  <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: isActive ? "#C9A84C22" : colors.muted, alignItems: "center", justifyContent: "center" }}>
+                    <MaterialCommunityIcons name={pm.icon as any} size={28} color={isActive ? "#C9A84C" : colors.foreground} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right" }}>

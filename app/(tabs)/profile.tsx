@@ -341,7 +341,7 @@ export default function ProfileScreen() {
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
               <MaterialCommunityIcons name="robot-happy-outline" size={22} color="#b8860b" />
               <View>
-                <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>Malaaz ReVoice — مساعد التواصل</Text>
+                <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>Malaaz ReVoice — مساعد التواصل</Text>
                 <Text style={{ color: "#b8860b", fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "right" }}>مساعد ذكي لمرضى صعوبات الكلام والتواصل</Text>
               </View>
             </View>
