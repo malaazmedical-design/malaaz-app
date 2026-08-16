@@ -23,7 +23,7 @@
       "backgroundColor": "#1C2B2A"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.malaaz.app",
       "buildNumber": "1",
       "infoPlist": {

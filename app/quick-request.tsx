@@ -10,6 +10,7 @@ import {
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { PrimaryButton } from "@/components/ui";
 import {
   SERVICE_CATEGORIES, ServiceType, serviceTypeToArabic,
@@ -221,10 +222,11 @@ export default function QuickRequestScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 110 }}
+        contentContainerStyle={{ paddingVertical: 20, paddingBottom: insets.bottom + 110 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <ScreenContainer style={{ paddingHorizontal: 20 }}>
 
         {/* ══════════════════════════════════════════════════════
             STEP 1 — الخدمة → الدرجة → التخصص (زي الموقع)
@@ -610,6 +612,7 @@ export default function QuickRequestScreen() {
           </View>
         )}
 
+        </ScreenContainer>
       </ScrollView>
 
       {/* ─── اختيار المنطقة ─── */}

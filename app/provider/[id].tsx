@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { Card, Pill, PrimaryButton, Stars } from "@/components/ui";
 import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS } from "@/constants/data";
 import { serviceIcon } from "@/constants/icons";
@@ -114,6 +115,7 @@ export default function ProviderScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} showsVerticalScrollIndicator={false}>
+        <ScreenContainer>
 
         {/* ─── Hero ─── */}
         <LinearGradient colors={["#1C2B2A", "#243635"]} style={{ paddingTop: insets.top + 12 + webTopInset, paddingBottom: 28, paddingHorizontal: 20 }}>
@@ -302,6 +304,7 @@ export default function ProviderScreen() {
           </View>
 
         </View>
+        </ScreenContainer>
       </ScrollView>
 
       {/* ─── Sticky Book Button ─── */}

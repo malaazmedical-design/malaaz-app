@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, SafeAreaView, Pressable,
-  ScrollView, TextInput, Alert, Modal, Image,
+  ScrollView, TextInput, Alert, Modal, Image, useWindowDimensions,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -21,6 +21,12 @@ const NOTIFY_OPTIONS: NotifyOption[] = [
 ];
 
 export default function MizoContactsScreen() {
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
+  // padding 16 each side, gap 12 between cards
+  const COLS = isTablet ? 5 : 3;
+  const CARD_W = Math.floor((Math.min(width, 720) - 32 - (COLS - 1) * 12) / COLS);
+
   const [contacts, setContacts] = useState<MizoContact[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -153,7 +159,7 @@ export default function MizoContactsScreen() {
             {contacts.map((c) => {
               const nb = notifyLabel(c);
               return (
-                <Pressable key={c.id} style={[styles.card, c.is_primary && styles.cardPrimary]} onPress={() => openEdit(c)} onLongPress={() => handleDelete(c.id, c.name)}>
+                <Pressable key={c.id} style={[styles.card, c.is_primary && styles.cardPrimary, { width: CARD_W }]} onPress={() => openEdit(c)} onLongPress={() => handleDelete(c.id, c.name)}>
                   {c.photo ? (
                     <Image source={{ uri: c.photo }} style={styles.avatar} />
                   ) : (
@@ -187,7 +193,7 @@ export default function MizoContactsScreen() {
                 </Pressable>
               );
             })}
-            <Pressable style={styles.addCard} onPress={openAdd}>
+            <Pressable style={[styles.addCard, { width: CARD_W }]} onPress={openAdd}>
               <MaterialCommunityIcons name="plus" size={32} color="#C9A84C" />
               <Text style={styles.addCardText}>أضف شخص</Text>
             </Pressable>
@@ -329,7 +335,7 @@ const styles = StyleSheet.create({
 
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "flex-end" },
   card: {
-    width: 106, alignItems: "center", backgroundColor: "#fff",
+    alignItems: "center", backgroundColor: "#fff",
     borderRadius: 16, padding: 10, gap: 4,
     borderWidth: 1.5, borderColor: "#E0E8E7",
     elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
@@ -350,7 +356,7 @@ const styles = StyleSheet.create({
   crownBtnActive: {},
 
   addCard: {
-    width: 106, alignItems: "center", justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
     borderRadius: 16, padding: 12, gap: 6,
     borderWidth: 2, borderColor: "#C9A84C55", borderStyle: "dashed", backgroundColor: "#FDFAF3",
     minHeight: 120,

@@ -816,7 +816,7 @@ export default function MizoScreen() {
             <Text style={styles.modalLabel}>الإيموجي</Text>
             <View style={styles.emojiSelected}><Text style={styles.emojiSelectedText}>{newEmoji}</Text></View>
             <FlatList
-              data={EMOJI_LIST} keyExtractor={(e) => e} numColumns={8} scrollEnabled={false} style={styles.emojiGrid}
+              data={EMOJI_LIST} keyExtractor={(e) => e} numColumns={isTablet ? 12 : 8} key={isTablet ? "tablet" : "phone"} scrollEnabled={false} style={styles.emojiGrid}
               renderItem={({ item }) => (
                 <Pressable style={[styles.emojiCell, newEmoji === item && styles.emojiCellActive]} onPress={() => setNewEmoji(item)}>
                   <Text style={styles.emojiCellText}>{item}</Text>

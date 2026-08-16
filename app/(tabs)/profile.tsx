@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AddressesSection, FamilySection } from "@/components/client/AccountSections";
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { PrimaryButton } from "@/components/ui";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -173,7 +174,8 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 100, gap: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingVertical: 20, paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScreenContainer style={{ gap: 16, paddingHorizontal: 20 }}>
 
         {/* ─── حساب العميل ─── */}
         {client ? (
@@ -367,6 +369,7 @@ export default function ProfileScreen() {
             دخول مقدمي الخدمة
           </Text>
         </Pressable>
+        </ScreenContainer>
       </ScrollView>
     </View>
   );
