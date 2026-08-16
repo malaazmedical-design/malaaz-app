@@ -25,4 +25,6 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Push OTA update to production channel
-        run: eas update --channel production --message "${{ github.event.head_commit.message }}" --non-interactive
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: eas update --channel production --message "$(echo "$COMMIT_MSG" | head -1)" --non-interactive
