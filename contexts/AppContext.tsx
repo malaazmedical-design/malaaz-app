@@ -374,14 +374,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteAddress = async (id: string) => {
     if (!client) return;
-    await supabase.from("client_addresses").delete().eq("id", id);
+    await supabase.from("client_addresses").delete().eq("id", id).eq("client_id", client.id);
     loadClientData(client.id);
   };
 
   const setDefaultAddress = async (id: string) => {
     if (!client) return;
     await supabase.from("client_addresses").update({ is_default: false }).eq("client_id", client.id);
-    await supabase.from("client_addresses").update({ is_default: true }).eq("id", id);
+    await supabase.from("client_addresses").update({ is_default: true }).eq("id", id).eq("client_id", client.id);
     loadClientData(client.id);
   };
 
@@ -678,7 +678,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const cancelBooking = async (id: string) => {
     const booking = bookings.find((b) => b.id === id);
 
-    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id);
+    if (!booking) return;
+    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id).eq("client_id", client?.id ?? "");
     await persistBookings(
       bookings.map((b) => (b.id === id ? { ...b, status: "cancelled" as const } : b))
     );

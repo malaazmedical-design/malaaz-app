@@ -449,6 +449,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       .from("bookings")
       .update(updatePayload)
       .eq("id", id)
+      .eq("provider_id", provider!.id)
       .select();
     if (error) throw new Error(error.message);
     if (!data || data.length === 0)
