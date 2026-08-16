@@ -586,7 +586,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         () => { refreshBookings(); }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { channel.unsubscribe(); supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client?.id]);
 

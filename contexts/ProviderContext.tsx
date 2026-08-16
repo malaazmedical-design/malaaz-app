@@ -374,6 +374,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
     return () => {
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,7 +391,10 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
         () => { refreshAll(); }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider?.id]);
 
