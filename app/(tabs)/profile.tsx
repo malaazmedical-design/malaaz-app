@@ -55,6 +55,10 @@ export default function ProfileScreen() {
 
   // ─── صورة العميل (ترفع على Supabase Storage) ─────────────────────────────
   const pickAvatar = async () => {
+    if (!client?.id || Platform.OS === "web") {
+      Alert.alert("تنبيه", "يجب تسجيل الدخول أولاً لإضافة صورة");
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
@@ -63,25 +67,34 @@ export default function ProfileScreen() {
     });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
+    // عرض مؤقت للصورة المحلية أثناء الرفع
     setAvatarUri(asset.uri);
-
-    if (!client?.id || Platform.OS === "web") return;
     try {
       const { supabase: sb } = await import("@/lib/supabase");
-      const ext = asset.uri.split(".").pop() ?? "jpg";
+      const ext = asset.uri.split(".").pop()?.toLowerCase().replace(/[^a-z]/g, "") || "jpg";
+      // نستخدم client.id كمجلد (الـ storage policy محدّثة لتقبله)
       const path = `${client.id}/avatar.${ext}`;
       const response = await fetch(asset.uri);
       const blob = await response.blob();
+      const mimeType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
       const { error: upErr } = await sb.storage
         .from("avatars")
-        .upload(path, blob, { upsert: true, contentType: `image/${ext}` });
-      if (upErr) return;
+        .upload(path, blob, { upsert: true, contentType: mimeType });
+      if (upErr) {
+        setAvatarUri(avatarUri); // رجّع الصورة القديمة لو فشل الرفع
+        Alert.alert("خطأ", "تعذّر رفع الصورة، حاول مرة أخرى");
+        return;
+      }
       const { data } = sb.storage.from("avatars").getPublicUrl(path);
       if (data?.publicUrl) {
-        setAvatarUri(data.publicUrl);
-        updateProfile({ avatarUri: data.publicUrl });
+        const url = `${data.publicUrl}?t=${Date.now()}`; // تجنّب cache القديم
+        setAvatarUri(url);
+        updateProfile({ avatarUri: url });
       }
-    } catch {}
+    } catch {
+      setAvatarUri(avatarUri);
+      Alert.alert("خطأ", "تعذّر رفع الصورة، حاول مرة أخرى");
+    }
   };
 
   // ─── تحديد الموقع تلقائياً ────────────────────────────────────────────────

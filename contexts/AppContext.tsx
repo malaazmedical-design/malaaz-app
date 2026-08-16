@@ -276,6 +276,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         email: c.email ?? prev.email,
         whatsapp: c.whatsapp ?? prev.whatsapp,
         phone2: c.phone2 ?? prev.phone2,
+        // استعادة الصورة من DB لو مش موجودة محلياً (مثلاً بعد إعادة تثبيت التطبيق)
+        avatarUri: prev.avatarUri || (c as any).avatar_url || undefined,
         isGuest: false,
       };
       AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged)).catch(() => {});
@@ -600,7 +602,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const merged = { ...profile, ...next };
     setProfile(merged);
     await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged));
-    // العميل المسجّل: مزامنة بياناته مع السيرفر (زي client.html)
+    // العميل المسجّل: مزامنة بياناته مع السيرفر
     if (client) {
       supabase
         .from("clients")
@@ -610,6 +612,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           email: merged.email || null,
           phone2: merged.phone2 || null,
           whatsapp: merged.whatsapp || null,
+          avatar_url: merged.avatarUri || null,
         })
         .eq("id", client.id)
         .then(() => {});
