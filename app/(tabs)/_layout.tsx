@@ -96,7 +96,6 @@ export default function TabLayout() {
             </Pressable>
           ),
           tabBarItemStyle: { display: "none" },
-          href: null,
         }}
       />
       <Tabs.Screen
