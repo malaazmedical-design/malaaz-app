@@ -10,6 +10,7 @@ import {
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { PrimaryButton } from "@/components/ui";
 import {
   SERVICE_CATEGORIES, ServiceType, serviceTypeToArabic,
@@ -146,6 +147,14 @@ export default function QuickRequestScreen() {
     if (step === 2) {
       if (!name.trim())    { Alert.alert("تنبيه", "يرجى إدخال اسم المريض"); return; }
       if (!phone.trim())   { Alert.alert("تنبيه", "يرجى إدخال رقم الموبايل"); return; }
+      if (!/^01[0125]\d{8}$/.test(phone.trim())) {
+        Alert.alert("تنبيه", "رقم الموبايل غير صحيح — أدخل رقماً مصرياً صحيحاً (مثال: 01012345678)");
+        return;
+      }
+      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        Alert.alert("تنبيه", "صيغة البريد الإلكتروني غير صحيحة");
+        return;
+      }
       if (!area)           { Alert.alert("تنبيه", "يرجى اختيار المنطقة"); return; }
       if (!address.trim()) { Alert.alert("تنبيه", "يرجى كتابة العنوان التفصيلي أو تحديد موقعك"); return; }
     }
@@ -221,10 +230,11 @@ export default function QuickRequestScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 110 }}
+        contentContainerStyle={{ paddingVertical: 20, paddingBottom: insets.bottom + 110 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <ScreenContainer style={{ paddingHorizontal: 20 }}>
 
         {/* ══════════════════════════════════════════════════════
             STEP 1 — الخدمة → الدرجة → التخصص (زي الموقع)
@@ -610,6 +620,7 @@ export default function QuickRequestScreen() {
           </View>
         )}
 
+        </ScreenContainer>
       </ScrollView>
 
       {/* ─── اختيار المنطقة ─── */}

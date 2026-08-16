@@ -6,11 +6,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { Card, EmptyState, Pill, PrimaryButton } from "@/components/ui";
 import { PAYMENT_METHOD_LABELS } from "@/constants/data";
 import { whatsappCompany } from "@/lib/contact";
 import { Booking, useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useResponsive } from "@/hooks/useResponsive";
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: string }> = {
   pending:   { label: "قيد المراجعة", color: "#F59E0B", icon: "clock-outline" },
@@ -22,6 +24,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: string }>
 export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { isTablet, colWidth } = useResponsive();
   const { bookings, loadingBookings, cancelBooking, refreshBookings, profile } = useApp();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
@@ -77,22 +80,32 @@ export default function BookingsScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100, gap: 12 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}
           showsVerticalScrollIndicator={false}
         >
-          {bookings.length === 0 ? (
-            <View style={{ paddingTop: 40 }}>
-              <EmptyState
-                icon="calendar-blank-outline"
-                title="لا يوجد حجوزات حتى الآن"
-                message="ابدأ بطلب خدمة طبية منزلية من الصفحة الرئيسية"
-              />
-            </View>
-          ) : (
-            bookings.map((booking) => (
-              <BookingCard key={booking.id} booking={booking} onCancel={handleCancel} />
-            ))
-          )}
+          <ScreenContainer>
+            {bookings.length === 0 ? (
+              <View style={{ paddingTop: 40 }}>
+                <EmptyState
+                  icon="calendar-blank-outline"
+                  title="لا يوجد حجوزات حتى الآن"
+                  message="ابدأ بطلب خدمة طبية منزلية من الصفحة الرئيسية"
+                />
+              </View>
+            ) : (
+              <View style={{
+                flexDirection: isTablet ? "row" : "column",
+                flexWrap: isTablet ? "wrap" : "nowrap",
+                gap: 12,
+              }}>
+                {bookings.map((booking) => (
+                  <View key={booking.id} style={isTablet ? { width: colWidth(2) } : undefined}>
+                    <BookingCard booking={booking} onCancel={handleCancel} />
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScreenContainer>
         </ScrollView>
       )}
     </View>

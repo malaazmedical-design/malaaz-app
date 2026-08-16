@@ -40,5 +40,6 @@ yarn-error.*
 
 .env
 
-# Firebase — iOS only (contains sensitive keys)
+# Firebase credentials
 GoogleService-Info.plist
+google-services.json

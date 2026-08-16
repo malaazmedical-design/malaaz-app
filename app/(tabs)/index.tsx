@@ -18,6 +18,7 @@ import {
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { Card, Pill, PrimaryButton, SectionHeader, Stars } from "@/components/ui";
 import {
   Provider,
@@ -29,6 +30,7 @@ import {
 } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useResponsive } from "@/hooks/useResponsive";
 import { DbSubService } from "@/lib/supabase";
 
 type SortKey = "rating" | "price_asc" | "price_desc" | "experience";
@@ -68,6 +70,7 @@ function countActiveFilters(f: Filters, maxPriceLimit: number) {
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { isTablet, colWidth } = useResponsive();
   const { profile, providers, loadingProviders, coverageAreas, subServices } = useApp();
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
@@ -413,9 +416,9 @@ export default function HomeScreen() {
         </View>
 
         {/* ─── Results ─── */}
-        <View style={{ paddingTop: 22, paddingHorizontal: 16 }}>
+        <ScreenContainer style={{ paddingTop: 22, paddingHorizontal: 16 }}>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginBottom: 12, paddingHorizontal: 4 }}>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 18 }}>
+            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: isTablet ? 20 : 18 }}>
               {serviceFilter === "all" ? "مقدمو الخدمة" : getCategoryById(serviceFilter)?.name ?? ""}
             </Text>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
@@ -448,15 +451,23 @@ export default function HomeScreen() {
               </Pressable>
             </Card>
           ) : (
-            <View style={{ gap: 12 }}>
+            <View style={{
+              flexDirection: isTablet ? "row" : "column",
+              flexWrap: isTablet ? "wrap" : "nowrap",
+              gap: 12,
+            }}>
               {filtered.map((p, i) => (
-                <Animated.View key={p.id} entering={FadeInUp.delay(Math.min(i, 7) * 80).springify()}>
+                <Animated.View
+                  key={p.id}
+                  style={isTablet ? { width: colWidth(2) } : undefined}
+                  entering={FadeInUp.delay(Math.min(i, 7) * 80).springify()}
+                >
                   <ProviderCard provider={p} />
                 </Animated.View>
               ))}
             </View>
           )}
-        </View>
+        </ScreenContainer>
       </ScrollView>
 
       <FilterPanel

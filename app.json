@@ -23,7 +23,7 @@
       "backgroundColor": "#1C2B2A"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.malaaz.app",
       "buildNumber": "1",
       "infoPlist": {
@@ -41,8 +41,6 @@
       "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO"

@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AddressesSection, FamilySection } from "@/components/client/AccountSections";
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { PrimaryButton } from "@/components/ui";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -111,6 +112,14 @@ export default function ProfileScreen() {
       Alert.alert("تنبيه", "يرجى إدخال الاسم ورقم الهاتف");
       return;
     }
+    if (!/^01[0125]\d{8}$/.test(phone.trim())) {
+      Alert.alert("تنبيه", "رقم الهاتف غير صحيح — أدخل رقماً مصرياً صحيحاً (مثال: 01012345678)");
+      return;
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Alert.alert("تنبيه", "صيغة البريد الإلكتروني غير صحيحة");
+      return;
+    }
     if (!terms) {
       Alert.alert("تنبيه", "يرجى الموافقة على الشروط وسياسة الخصوصية أولاً");
       return;
@@ -173,7 +182,8 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 100, gap: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingVertical: 20, paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScreenContainer style={{ gap: 16, paddingHorizontal: 20 }}>
 
         {/* ─── حساب العميل ─── */}
         {client ? (
@@ -367,6 +377,7 @@ export default function ProfileScreen() {
             دخول مقدمي الخدمة
           </Text>
         </Pressable>
+        </ScreenContainer>
       </ScrollView>
     </View>
   );

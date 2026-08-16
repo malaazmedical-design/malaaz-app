@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BookingCard } from "@/components/provider/BookingCard";
+import { ScreenContainer } from "@/components/ScreenContainer";
 import { Card } from "@/components/ui";
 import { useProvider } from "@/contexts/ProviderContext";
 import { useColors } from "@/hooks/useColors";
@@ -96,11 +97,12 @@ export default function ProviderOverviewScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 30 }}
+        contentContainerStyle={{ paddingVertical: 16, paddingBottom: insets.bottom + 30 }}
         refreshControl={<RefreshControl refreshing={loadingBookings} onRefresh={refreshAll} />}
       >
+        <ScreenContainer style={{ paddingHorizontal: 16, gap: 16 }}>
         {/* Stats */}
-        <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 16 }}>
+        <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 0 }}>
           <StatCard emoji="📋" value={total} label="إجمالي حجوزاتي" />
           <StatCard emoji="⏳" value={pending} label="حجوزات جديدة" color="#DC2626" />
           <StatCard emoji="✅" value={completed} label="مكتملة" color="#16A34A" />
@@ -123,6 +125,7 @@ export default function ProviderOverviewScreen() {
         ) : (
           bookings.slice(0, 5).map((b) => <BookingCard key={b.id} booking={b} compact />)
         )}
+        </ScreenContainer>
       </ScrollView>
     </View>
   );
