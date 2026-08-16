@@ -147,6 +147,14 @@ export default function QuickRequestScreen() {
     if (step === 2) {
       if (!name.trim())    { Alert.alert("تنبيه", "يرجى إدخال اسم المريض"); return; }
       if (!phone.trim())   { Alert.alert("تنبيه", "يرجى إدخال رقم الموبايل"); return; }
+      if (!/^01[0125]\d{8}$/.test(phone.trim())) {
+        Alert.alert("تنبيه", "رقم الموبايل غير صحيح — أدخل رقماً مصرياً صحيحاً (مثال: 01012345678)");
+        return;
+      }
+      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        Alert.alert("تنبيه", "صيغة البريد الإلكتروني غير صحيحة");
+        return;
+      }
       if (!area)           { Alert.alert("تنبيه", "يرجى اختيار المنطقة"); return; }
       if (!address.trim()) { Alert.alert("تنبيه", "يرجى كتابة العنوان التفصيلي أو تحديد موقعك"); return; }
     }

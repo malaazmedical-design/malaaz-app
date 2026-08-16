@@ -112,6 +112,14 @@ export default function ProfileScreen() {
       Alert.alert("تنبيه", "يرجى إدخال الاسم ورقم الهاتف");
       return;
     }
+    if (!/^01[0125]\d{8}$/.test(phone.trim())) {
+      Alert.alert("تنبيه", "رقم الهاتف غير صحيح — أدخل رقماً مصرياً صحيحاً (مثال: 01012345678)");
+      return;
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      Alert.alert("تنبيه", "صيغة البريد الإلكتروني غير صحيحة");
+      return;
+    }
     if (!terms) {
       Alert.alert("تنبيه", "يرجى الموافقة على الشروط وسياسة الخصوصية أولاً");
       return;
