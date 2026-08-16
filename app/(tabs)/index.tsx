@@ -321,11 +321,11 @@ export default function HomeScreen() {
                     transform: [{ scale: pressed ? 0.96 : 1 }],
                   })}
                 >
-                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: isActive ? "#C9A84C22" : "#1C2B2A12", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: isActive ? "#C9A84C22" : colors.muted, alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
                     <MaterialCommunityIcons
                       name={cat.icon as React.ComponentProps<typeof MaterialCommunityIcons>["name"]}
                       size={22}
-                      color={isActive ? "#C9A84C" : "#1C2B2A"}
+                      color={isActive ? "#C9A84C" : colors.foreground}
                     />
                   </View>
                   <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 12, textAlign: "center" }}>
@@ -561,8 +561,8 @@ function ProviderCard({ provider }: { provider: Provider }) {
                 ) : null}
               </View>
               {cat ? (
-                <View style={{ backgroundColor: "#1C2B2A12", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: "#C9A84C44" }}>
-                  <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_600SemiBold", fontSize: 10 }}>{cat.name}</Text>
+                <View style={{ backgroundColor: colors.muted, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: "#C9A84C44" }}>
+                  <Text style={{ color: colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 10 }}>{cat.name}</Text>
                 </View>
               ) : null}
             </View>
