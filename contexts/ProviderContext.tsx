@@ -441,9 +441,13 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     id: string,
     status: "confirmed" | "completed" | "cancelled"
   ) => {
+    const updatePayload: Record<string, unknown> = { status };
+    if (status === "confirmed" && provider?.id) {
+      updatePayload.provider_id = provider.id;
+    }
     const { data, error } = await supabase
       .from("bookings")
-      .update({ status })
+      .update(updatePayload)
       .eq("id", id)
       .select();
     if (error) throw new Error(error.message);
