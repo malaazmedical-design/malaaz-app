@@ -55,6 +55,7 @@
     "@babel/core": "^7.25.2",
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
+    "babel-preset-expo": "~54.0.12",
     "playwright": "^1.56.1",
     "serve": "^14.2.6",
     "typescript": "~5.9.2"
