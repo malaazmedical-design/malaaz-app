@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router } from "expo-router";
+import * as Updates from "expo-updates";
 import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
@@ -337,7 +338,8 @@ export default function ProfileScreen() {
             <InfoLine icon="whatsapp" text="واتساب: 01039091989" />
           </Pressable>
           <InfoLine icon="information" text="خدمات طبية منزلية — القاهرة والجيزة" />
-          <InfoLine icon="shield-check" text="الإصدار 1.0.0" />
+          <InfoLine icon="shield-check" text={`الإصدار 1.0.0 · runtime: ${Updates.runtimeVersion ?? "—"}`} />
+          <InfoLine icon="update" text={`قناة: ${(Updates as any).channel ?? "—"} · OTA: ${Updates.isEmbeddedLaunch ? "مدمج" : Updates.updateId?.slice(0, 8) ?? "—"}`} />
         </View>
 
         {/* تذكير الأدوية */}
