@@ -379,6 +379,21 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider?.id]);
 
+  // Realtime: تحديث حجوزات المقدم تلقائياً (مثلاً لو عميل ألغى)
+  useEffect(() => {
+    if (!provider?.id) return;
+    const channel = supabase
+      .channel(`provider_bookings_${provider.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bookings", filter: `provider_id=eq.${provider.id}` },
+        () => { refreshAll(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider?.id]);
+
   const dismissIncomingOffer = useCallback(() => setIncomingOffer(null), []);
 
   const respondToOffer = async (

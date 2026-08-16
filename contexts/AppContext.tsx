@@ -570,11 +570,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (profile.phone || client) {
       refreshBookings();
-      // تسجيل توكن الإشعارات — عشان توصله تحديثات حجوزاته push بدل الإيميل
       if (profile.phone) registerClientPushToken(profile.phone).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.phone, client?.id]);
+
+  // Realtime: تحديث حجوزات العميل تلقائياً بدون refresh يدوي
+  useEffect(() => {
+    if (!client?.id) return;
+    const channel = supabase
+      .channel(`client_bookings_${client.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bookings", filter: `client_id=eq.${client.id}` },
+        () => { refreshBookings(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client?.id]);
 
   // ─── Profile actions ─────────────────────────────────────────────────────
   const updateProfile = async (next: Partial<CustomerProfile>) => {

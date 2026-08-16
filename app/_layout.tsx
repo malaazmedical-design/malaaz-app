@@ -119,6 +119,8 @@ export default function RootLayout() {
       const data = response.notification.request.content.data as Record<string, unknown> | undefined;
       if (data?.type === "medicine") {
         router.push("/medicines");
+      } else if (data?.type === "OFFER_INSERT") {
+        router.push("/provider-portal");
       } else {
         router.push("/(tabs)/bookings");
       }
