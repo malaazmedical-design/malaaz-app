@@ -155,6 +155,16 @@ export default function RootLayout() {
     const handleUrl = async (url: string) => {
       if (!url.includes("reset-password")) return;
       try {
+        // PKCE flow (Supabase v2 default): ?code=XXX in query string
+        const queryString = url.split("?")[1]?.split("#")[0] ?? "";
+        const qp = new URLSearchParams(queryString);
+        const code = qp.get("code");
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+          router.push("/reset-password");
+          return;
+        }
+        // Implicit flow fallback: #access_token=XXX in fragment
         const fragment = url.split("#")[1] ?? "";
         const params = new URLSearchParams(fragment);
         const accessToken = params.get("access_token");
