@@ -9,7 +9,7 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { Linking } from "react-native";
+import { AppState, Linking, Platform } from "react-native";
 
 import { sendMalaazEmail } from "@/lib/emailjs";
 import { clientHasPushToken, registerProviderPushToken } from "@/lib/push";
@@ -310,11 +310,19 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (provider?.id) {
       refreshAll();
-      // تسجيل توكن الإشعارات عشان توصله الحجوزات الجديدة
       registerProviderPushToken(provider.id).catch(() => {});
       if (provider.is_available) updateMyLocation();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider?.id]);
+
+  // إعادة تسجيل push token عند كل عودة للتطبيق (foreground) لضمان التوكن محدّث دايماً
+  useEffect(() => {
+    if (!provider?.id || Platform.OS === "web") return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") registerProviderPushToken(provider.id).catch(() => {});
+    });
+    return () => sub.remove();
   }, [provider?.id]);
 
   // ─── عروض الحجوزات القريبة ────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import React, {
   useState,
   ReactNode,
 } from "react";
+import { AppState, Platform } from "react-native";
 
 import { registerClientPushToken, notifyProviderCancellation } from "@/lib/push";
 import { sendMalaazEmail } from "@/lib/emailjs";
@@ -578,6 +579,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.phone, client?.id]);
 
+  // إعادة تسجيل push token عند كل عودة للتطبيق (foreground) لضمان التوكن محدّث دايماً
+  useEffect(() => {
+    if (!profile.phone || Platform.OS === "web") return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") registerClientPushToken(profile.phone).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [profile.phone]);
+
   // ref يضمن أن Realtime دايماً بيستدعي آخر نسخة من refreshBookings (تجنب stale closure)
   const refreshBookingsRef = useRef(refreshBookings);
   useEffect(() => { refreshBookingsRef.current = refreshBookings; }, [refreshBookings]);
@@ -675,9 +685,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (error) throw error;
 
-    // لو الحجز من غير مقدم محدد ومعانا إحداثيات: ابعت عروض لأقرب مقدمي الخدمة المتاحين
+    // لو الحجز من غير مقدم محدد: ابعت عروض لكل مقدمي الخدمة النشطين
     // (fire-and-forget — الحجز نفسه ينجح بغض النظر عن نتيجة ده)
-    if (!bookingData.provider_id && coords) {
+    if (!bookingData.provider_id) {
       supabase.rpc("create_booking_offers", { p_booking_id: id }).then(
         () => {},
         () => {}
