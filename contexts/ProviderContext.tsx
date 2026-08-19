@@ -396,7 +396,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!provider?.id) return;
     const channel = supabase
-      .channel(`provider_bookings_${provider.id}`)
+      .channel(`provider_bookings_${provider.id}_${Date.now()}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "bookings", filter: `provider_id=eq.${provider.id}` },
