@@ -358,7 +358,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     if (!provider?.id) return;
     refreshOffers();
     const channel = supabase
-      .channel(`booking_offers_${provider.id}`)
+      .channel(`booking_offers_${provider.id}_${Date.now()}`)
       .on(
         "postgres_changes",
         {
