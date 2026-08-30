@@ -110,7 +110,13 @@ export default function RootLayout() {
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
 
   useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync();
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+      return;
+    }
+    // إذا الـ fonts اتعلقت (بيئة اختبار أو مشكلة شبكة)، نخفي الـ splash بعد 4 ثوان على الأقصى
+    const fallback = setTimeout(() => SplashScreen.hideAsync(), 4000);
+    return () => clearTimeout(fallback);
   }, [fontsLoaded, fontError]);
 
   // فتح شاشة الحجوزات لما المستخدم يضغط على أي إشعار
