@@ -9,4 +9,19 @@ module.exports = ({ config }) => ({
       ? "com.malaaz.homecare.mizotest"
       : config.android.package,
   },
+  plugins: [
+    ...(config.plugins ?? []),
+    [
+      "react-native-fbsdk-next",
+      {
+        appID: process.env.FACEBOOK_APP_ID ?? "",
+        clientToken: process.env.FACEBOOK_CLIENT_TOKEN ?? "",
+        displayName: isMizoTest ? "Malaaz ReVoice" : "ملاذ",
+        scheme: `fb${process.env.FACEBOOK_APP_ID ?? ""}`,
+        advertiserIDCollectionEnabled: false,
+        autoLogAppEventsEnabled: true,
+        isAutoInitEnabled: true,
+      },
+    ],
+  ],
 });

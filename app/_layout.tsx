@@ -1,4 +1,5 @@
 import "react-native-url-polyfill/auto";
+import { AppEventsLogger, Settings } from "react-native-fbsdk-next";
 import {
   Cairo_400Regular,
   Cairo_500Medium,
@@ -108,6 +109,12 @@ export default function RootLayout() {
   });
   // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    Settings.initializeSDK();
+    AppEventsLogger.logEvent("fb_mobile_activate_app");
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
