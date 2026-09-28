@@ -6,13 +6,19 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
+  UIManager,
   View,
 } from "react-native";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { FieldLabel, PrimaryButton } from "@/components/ui";
@@ -51,6 +57,8 @@ export default function ProviderProfileScreen() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [areaSearch, setAreaSearch] = useState("");
+  const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!provider) return;
@@ -63,16 +71,53 @@ export default function ProviderProfileScreen() {
     setGrade(provider.grade ?? "أخصائي");
     setSpecialty(provider.specialty ?? null);
     setPhotoUrl(provider.photo_url ?? null);
-    setSelectedAreas(
-      (provider.areas ?? provider.area ?? "").split(",").map((a) => a.trim()).filter(Boolean)
-    );
-  }, [provider]);
+    const saved = (provider.areas ?? provider.area ?? "").split(",").map((a) => a.trim()).filter(Boolean);
+    setSelectedAreas(saved);
+    // افتح المحافظات اللي فيها مناطق محددة تلقائياً
+    if (saved.length > 0 && areas.length > 0) {
+      const cities = new Set(areas.filter((a) => saved.includes(a.name)).map((a) => a.city));
+      setExpandedCities(cities);
+    }
+  }, [provider, areas]);
 
   // تخصصات الكشف المنزلي من sub_services (نفس مصدر الموقع)
   const specialties = useMemo(
     () => subServices.filter((s) => s.service_name === "كشف منزلي" && s.group_name === "specialty"),
     [subServices]
   );
+
+  // تجميع المناطق حسب المحافظة مع دعم البحث
+  const groupedAreas = useMemo(() => {
+    const q = areaSearch.trim();
+    const filtered = q
+      ? areas.filter((a) => a.name.includes(q) || a.city.includes(q))
+      : areas;
+    const map = new Map<string, typeof areas>();
+    for (const a of filtered) {
+      if (!map.has(a.city)) map.set(a.city, []);
+      map.get(a.city)!.push(a);
+    }
+    return map;
+  }, [areas, areaSearch]);
+
+  const toggleCity = (city: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCities((prev) => {
+      const next = new Set(prev);
+      next.has(city) ? next.delete(city) : next.add(city);
+      return next;
+    });
+  };
+
+  const toggleAllInCity = (city: string, cityAreas: typeof areas) => {
+    const names = cityAreas.map((a) => a.name);
+    const allSelected = names.every((n) => selectedAreas.includes(n));
+    if (allSelected) {
+      setSelectedAreas((prev) => prev.filter((a) => !names.includes(a)));
+    } else {
+      setSelectedAreas((prev) => [...new Set([...prev, ...names])]);
+    }
+  };
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -290,19 +335,90 @@ export default function ProviderProfileScreen() {
 
         {/* مناطق الخدمة */}
         <SectionTitle icon="map-marker" label={`مناطق الخدمة (${selectedAreas.length} مختارة)`} />
-        <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
-          {areas.map((a) => {
-            const active = selectedAreas.includes(a.name);
+
+        {/* بحث */}
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", backgroundColor: colors.card, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, gap: 8 }}>
+          <MaterialCommunityIcons name="magnify" size={18} color={colors.mutedForeground} />
+          <TextInput
+            style={{ flex: 1, fontSize: 13, fontFamily: "Cairo_400Regular", color: colors.foreground, textAlign: "right" }}
+            value={areaSearch}
+            onChangeText={setAreaSearch}
+            placeholder="ابحث عن منطقة أو محافظة..."
+            placeholderTextColor={colors.mutedForeground}
+          />
+          {areaSearch.length > 0 && (
+            <Pressable onPress={() => setAreaSearch("")}>
+              <MaterialCommunityIcons name="close-circle" size={16} color={colors.mutedForeground} />
+            </Pressable>
+          )}
+        </View>
+
+        {/* أكورديون المحافظات */}
+        <View style={{ gap: 8, marginBottom: 20 }}>
+          {[...groupedAreas.entries()].map(([city, cityAreas]) => {
+            const selectedCount = cityAreas.filter((a) => selectedAreas.includes(a.name)).length;
+            const allSelected = selectedCount === cityAreas.length;
+            const expanded = expandedCities.has(city) || areaSearch.length > 0;
+
             return (
-              <Pressable
-                key={a.id}
-                onPress={() => toggleArea(a.name)}
-                style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: active ? GOLD : colors.border, backgroundColor: active ? "rgba(201,168,76,0.12)" : colors.card }}
-              >
-                <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: active ? "#b8860b" : colors.mutedForeground }}>
-                  {active ? "✓ " : ""}{a.name}
-                </Text>
-              </Pressable>
+              <View key={city} style={{ borderRadius: 14, borderWidth: 1.5, borderColor: selectedCount > 0 ? "rgba(201,168,76,0.4)" : colors.border, overflow: "hidden", backgroundColor: colors.card }}>
+                {/* رأس المحافظة */}
+                <Pressable
+                  onPress={() => toggleCity(city)}
+                  style={{ flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, gap: 8 }}
+                >
+                  <MaterialCommunityIcons name="map-marker-outline" size={16} color={selectedCount > 0 ? GOLD : colors.mutedForeground} />
+                  <Text style={{ flex: 1, fontSize: 14, fontFamily: "Cairo_700Bold", color: selectedCount > 0 ? colors.foreground : colors.mutedForeground, textAlign: "right" }}>
+                    {city}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={{ fontSize: 12, fontFamily: "Cairo_400Regular", color: selectedCount > 0 ? GOLD : colors.mutedForeground }}>
+                      {selectedCount}/{cityAreas.length}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name={expanded ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color={colors.mutedForeground}
+                    />
+                  </View>
+                </Pressable>
+
+                {/* مناطق المحافظة */}
+                {expanded && (
+                  <View style={{ paddingHorizontal: 12, paddingBottom: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                    {/* زر اختر الكل */}
+                    <Pressable
+                      onPress={() => toggleAllInCity(city, cityAreas)}
+                      style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingVertical: 8, marginBottom: 4 }}
+                    >
+                      <View style={{ width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: allSelected ? GOLD : colors.border, backgroundColor: allSelected ? GOLD : "transparent", alignItems: "center", justifyContent: "center" }}>
+                        {allSelected && <MaterialCommunityIcons name="check" size={12} color="#fff" />}
+                      </View>
+                      <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: allSelected ? GOLD : colors.mutedForeground }}>
+                        اختر الكل
+                      </Text>
+                    </Pressable>
+
+                    {/* chips المناطق */}
+                    <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 }}>
+                      {cityAreas.map((a) => {
+                        const active = selectedAreas.includes(a.name);
+                        return (
+                          <Pressable
+                            key={a.id}
+                            onPress={() => toggleArea(a.name)}
+                            style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 18, borderWidth: 1.5, borderColor: active ? GOLD : colors.border, backgroundColor: active ? "rgba(201,168,76,0.12)" : colors.background }}
+                          >
+                            <Text style={{ fontSize: 11, fontFamily: "Cairo_600SemiBold", color: active ? "#b8860b" : colors.mutedForeground }}>
+                              {active ? "✓ " : ""}{a.name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
             );
           })}
         </View>
