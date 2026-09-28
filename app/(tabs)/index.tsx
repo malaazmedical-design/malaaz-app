@@ -26,7 +26,6 @@ import {
   ServiceType,
   getCategoryById,
   providerCities,
-  ALL_CITIES,
 } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -83,6 +82,15 @@ export default function HomeScreen() {
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const firstName = profile.name ? profile.name.split(" ")[0] : null;
+
+  // قائمة المدن ديناميكياً من coverage_areas
+  const availableCities = useMemo(() => {
+    const seen = new Set<string>();
+    for (const a of coverageAreas) {
+      if (a.city) seen.add(a.city);
+    }
+    return Array.from(seen).sort();
+  }, [coverageAreas]);
 
   // أعلى سعر فعلي بين خدمات مقدمي الخدمة الحاليين، مقرّب لأقرب 50 ج.م
   const maxPriceLimit = useMemo(() => {
@@ -141,7 +149,7 @@ export default function HomeScreen() {
         const match = coverageAreas.find(
           (a) => district.includes(a.name) || a.name.includes(district)
         );
-        if (match && ALL_CITIES.includes(match.city)) {
+        if (match && match.city) {
           // ما نغيّرش الفلتر لو العميل غيّره يدوي وهو منتظر نتيجة تحديد الموقع
           setCityFilter((prev) => (prev === "الكل" ? match.city : prev));
         }
@@ -392,7 +400,7 @@ export default function HomeScreen() {
         <View style={{ paddingTop: 18 }}>
           <SectionHeader title="المدينة" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, flexDirection: "row-reverse" }}>
-            {["الكل", ...ALL_CITIES].map((city) => {
+            {["الكل", ...availableCities].map((city) => {
               const isActive = cityFilter === city;
               return (
                 <Pressable
