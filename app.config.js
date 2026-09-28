@@ -11,17 +11,19 @@ module.exports = ({ config }) => ({
   },
   plugins: [
     ...(config.plugins ?? []),
-    [
-      "react-native-fbsdk-next",
-      {
-        appID: process.env.FACEBOOK_APP_ID ?? "",
-        clientToken: process.env.FACEBOOK_CLIENT_TOKEN ?? "",
-        displayName: isMizoTest ? "Malaaz ReVoice" : "ملاذ",
-        scheme: `fb${process.env.FACEBOOK_APP_ID ?? ""}`,
-        advertiserIDCollectionEnabled: false,
-        autoLogAppEventsEnabled: true,
-        isAutoInitEnabled: true,
-      },
-    ],
+    ...(process.env.FACEBOOK_APP_ID
+      ? [[
+          "react-native-fbsdk-next",
+          {
+            appID: process.env.FACEBOOK_APP_ID,
+            clientToken: process.env.FACEBOOK_CLIENT_TOKEN ?? "",
+            displayName: isMizoTest ? "Malaaz ReVoice" : "ملاذ",
+            scheme: `fb${process.env.FACEBOOK_APP_ID}`,
+            advertiserIDCollectionEnabled: false,
+            autoLogAppEventsEnabled: true,
+            isAutoInitEnabled: true,
+          },
+        ]]
+      : []),
   ],
 });
