@@ -1,5 +1,12 @@
 import "react-native-url-polyfill/auto";
-import { AppEventsLogger, Settings } from "react-native-fbsdk-next";
+let AppEventsLogger: { logEvent: (e: string) => void } | null = null;
+let Settings: { initializeSDK: () => void } | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fbsdk = require("react-native-fbsdk-next");
+  AppEventsLogger = fbsdk.AppEventsLogger;
+  Settings = fbsdk.Settings;
+} catch {}
 import {
   Cairo_400Regular,
   Cairo_500Medium,
@@ -112,8 +119,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (Platform.OS === "web") return;
-    Settings.initializeSDK();
-    AppEventsLogger.logEvent("fb_mobile_activate_app");
+    Settings?.initializeSDK();
+    AppEventsLogger?.logEvent("fb_mobile_activate_app");
   }, []);
 
   useEffect(() => {
