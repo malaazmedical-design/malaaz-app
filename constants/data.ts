@@ -237,7 +237,7 @@ export function getCategoryById(id: ServiceType): ServiceCategory | undefined {
 // المقدمين بيكتبوا مناطقهم بصيغ مختلفة ("جيزه"، "6 أكتوبر"، "التجمع الأول"...)
 // فبنطبّع النص وبنستعين بجدول مناطق التغطية عشان نعرف منطقة دي تبع أنهي مدينة
 
-function normalizeArabic(s: string): string {
+export function normalizeArabic(s: string): string {
   return s
     .replace(/[أإآ]/g, "ا")
     .replace(/ة/g, "ه")

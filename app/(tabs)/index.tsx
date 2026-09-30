@@ -25,6 +25,7 @@ import {
   SERVICE_CATEGORIES,
   ServiceType,
   getCategoryById,
+  normalizeArabic,
   providerCities,
 } from "@/constants/data";
 import { useApp } from "@/contexts/AppContext";
@@ -175,11 +176,13 @@ export default function HomeScreen() {
         return cities.size === 0 || cities.has(cityFilter);
       });
     }
-    if (search.trim()) {
-      const q = search.trim();
+    const nq = normalizeArabic(search.trim());
+    if (nq) {
       list = list.filter((p) =>
-        p.name.includes(q) || p.title.includes(q) || p.city.includes(q) ||
-        p.areas.some((a) => a.includes(q))
+        normalizeArabic(p.name).includes(nq) ||
+        normalizeArabic(p.title).includes(nq) ||
+        normalizeArabic(p.bio).includes(nq) ||
+        p.areas.some((a) => normalizeArabic(a).includes(nq))
       );
     }
     if (filters.minRating > 0) list = list.filter((p) => p.rating >= filters.minRating);
@@ -189,7 +192,21 @@ export default function HomeScreen() {
       );
     if (filters.onlyAvailable) list = list.filter((p) => p.available);
 
+    const relevance = (p: Provider): number => {
+      if (!nq) return 0;
+      const nn = normalizeArabic(p.name);
+      if (nn === nq) return 4;
+      if (nn.includes(nq)) return 3;
+      if (normalizeArabic(p.title).includes(nq)) return 2;
+      return 1;
+    };
+
     return [...list].sort((a, b) => {
+      if (nq && filters.sortBy === "rating") {
+        const diff = relevance(b) - relevance(a);
+        if (diff !== 0) return diff;
+        return b.rating - a.rating;
+      }
       switch (filters.sortBy) {
         case "rating":     return b.rating - a.rating;
         case "price_asc":  return Math.min(...a.services.map((s) => s.price)) - Math.min(...b.services.map((s) => s.price));
