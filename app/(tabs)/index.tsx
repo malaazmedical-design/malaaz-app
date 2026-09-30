@@ -296,7 +296,7 @@ export default function HomeScreen() {
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="ابحث عن طبيب أو ممرض..."
+                placeholder="ابحث بالاسم أو التخصص أو المنطقة..."
                 placeholderTextColor={colors.mutedForeground}
                 style={{ flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: colors.foreground, textAlign: "right" }}
               />
