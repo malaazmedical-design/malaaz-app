@@ -533,6 +533,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshProviders();
   }, [refreshProviders]);
 
+  // Realtime: تحديث مناطق التغطية فور تغييرها من الأدمن (بدون إعادة تشغيل التطبيق)
+  useEffect(() => {
+    const channel = supabase
+      .channel("coverage_areas_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "coverage_areas" },
+        async () => {
+          const { data } = await supabase
+            .from("coverage_areas")
+            .select("*")
+            .eq("is_active", true)
+            .order("name");
+          if (data) setCoverageAreas(data as DbCoverageArea[]);
+        }
+      )
+      .subscribe();
+    return () => { channel.unsubscribe(); supabase.removeChannel(channel); };
+  }, []);
+
   // ─── Load bookings (by phone) ───────────────────────────────────────────
   // ملحوظة: RLS بيرجّع قائمة فاضية للزائر، فبندمج نتيجة السيرفر مع الكاش المحلي
   const refreshBookings = useCallback(async () => {
