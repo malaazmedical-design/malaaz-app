@@ -253,16 +253,10 @@ export function providerCities(
   coverage: { name: string; city: string }[]
 ): Set<string> {
   const cities = new Set<string>();
-  const cairoN = normalizeArabic("القاهرة");
-  const gizaN = normalizeArabic("الجيزة");
 
   for (const raw of areas) {
     const na = normalizeArabic(raw);
     if (!na) continue;
-
-    // ذكر المدينة نفسها في النص ("الجيزه والقاهره")
-    if (na.includes(cairoN)) cities.add("القاهرة");
-    if (na.includes(gizaN)) cities.add("الجيزة");
 
     // مطابقة مع مناطق التغطية المعروفة (بالاحتواء أو تقاطع الكلمات)
     const words = na.split(" ").filter((w) => w.length >= 3);
@@ -274,11 +268,7 @@ export function providerCities(
         na.includes(nc) ||
         nc.includes(na) ||
         words.some((w) => ncWords.includes(w));
-      if (hit) {
-        const cityN = normalizeArabic(c.city);
-        if (cityN === cairoN) cities.add("القاهرة");
-        else if (cityN === gizaN) cities.add("الجيزة");
-      }
+      if (hit) cities.add(c.city);
     }
   }
   return cities;
