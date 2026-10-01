@@ -26,8 +26,8 @@ import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Updates from "expo-updates";
-import React, { useEffect, useState } from "react";
-import { AppState, Platform, Text } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { AppState, Platform, Text, TouchableOpacity } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -116,6 +116,8 @@ export default function RootLayout() {
   });
   // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
+  const [updateReady, setUpdateReady] = useState(false);
+  const updateReadyRef = useRef(false);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -153,14 +155,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === "web" || !Updates.isEnabled) return;
 
-    let reloadScheduled = false;
-
     const checkUpdate = async () => {
       try {
         const check = await Updates.checkForUpdateAsync();
         if (!check.isAvailable) return;
         await Updates.fetchUpdateAsync();
-        reloadScheduled = true;
+        updateReadyRef.current = true;
+        setUpdateReady(true);
         // لو التطبيق في الخلفية دلوقت، نطبّق فوراً
         if (AppState.currentState !== "active") {
           Updates.reloadAsync().catch(() => {});
@@ -169,9 +170,9 @@ export default function RootLayout() {
     };
 
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active" && !reloadScheduled) {
+      if (state === "active" && !updateReadyRef.current) {
         checkUpdate();
-      } else if (state === "background" && reloadScheduled) {
+      } else if (state === "background" && updateReadyRef.current) {
         Updates.reloadAsync().catch(() => {});
       }
     });
@@ -224,6 +225,31 @@ export default function RootLayout() {
                 <OfflineBanner />
                 <RootLayoutNav />
                 {!introDone ? <AnimatedSplash onDone={() => setIntroDone(true)} /> : null}
+                {updateReady && introDone ? (
+                  <TouchableOpacity
+                    onPress={() => Updates.reloadAsync().catch(() => {})}
+                    style={{
+                      position: "absolute",
+                      bottom: 90,
+                      left: 16,
+                      right: 16,
+                      backgroundColor: "#C9A84C",
+                      borderRadius: 14,
+                      paddingVertical: 13,
+                      alignItems: "center",
+                      zIndex: 9999,
+                      elevation: 6,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 3 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 6,
+                    }}
+                  >
+                    <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>
+                      ✦ تحديث جديد متاح — اضغط للتحديث الآن
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </AppProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
