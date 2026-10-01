@@ -149,27 +149,29 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
-  // فحص OTA تلقائي — ينزّل التحديث في الخلفية ويطبّقه لما التطبيق يدخل الخلفية
-  // (مش فوراً عشان المستخدم ميشوفش الـ splash screen مرة تانية)
+  // فحص OTA تلقائي — ينزّل التحديث وبعد كده يطبّقه لما التطبيق يروح الخلفية
   useEffect(() => {
     if (Platform.OS === "web" || !Updates.isEnabled) return;
 
-    let updateReady = false;
+    let reloadScheduled = false;
 
     const checkUpdate = async () => {
       try {
         const check = await Updates.checkForUpdateAsync();
         if (!check.isAvailable) return;
         await Updates.fetchUpdateAsync();
-        updateReady = true;
+        reloadScheduled = true;
+        // لو التطبيق في الخلفية دلوقت، نطبّق فوراً
+        if (AppState.currentState !== "active") {
+          Updates.reloadAsync().catch(() => {});
+        }
       } catch {}
     };
 
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
+      if (state === "active" && !reloadScheduled) {
         checkUpdate();
-      } else if (state === "background" && updateReady) {
-        // نطبّق التحديث لما التطبيق يروح الخلفية — المستخدم مش هيحس بحاجة
+      } else if (state === "background" && reloadScheduled) {
         Updates.reloadAsync().catch(() => {});
       }
     });
