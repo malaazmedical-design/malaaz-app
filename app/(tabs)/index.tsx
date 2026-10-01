@@ -42,7 +42,7 @@ type Filters = {
 };
 const DEFAULT_FILTERS: Filters = {
   minRating: 0,
-  maxPrice: 9999,
+  maxPrice: Infinity,
   onlyAvailable: false,
   sortBy: "rating",
 };
@@ -188,7 +188,7 @@ export default function HomeScreen() {
     if (filters.minRating > 0) list = list.filter((p) => p.rating >= filters.minRating);
     if (filters.maxPrice < maxPriceLimit)
       list = list.filter((p) =>
-        Math.min(...p.services.map((s) => s.price)) <= filters.maxPrice
+        (p.services.length ? Math.min(...p.services.map((s) => s.price)) : 0) <= filters.maxPrice
       );
     if (filters.onlyAvailable) list = list.filter((p) => p.available);
 
@@ -209,8 +209,8 @@ export default function HomeScreen() {
       }
       switch (filters.sortBy) {
         case "rating":     return b.rating - a.rating;
-        case "price_asc":  return Math.min(...a.services.map((s) => s.price)) - Math.min(...b.services.map((s) => s.price));
-        case "price_desc": return Math.min(...b.services.map((s) => s.price)) - Math.min(...a.services.map((s) => s.price));
+        case "price_asc":  return (a.services.length ? Math.min(...a.services.map((s) => s.price)) : 0) - (b.services.length ? Math.min(...b.services.map((s) => s.price)) : 0);
+        case "price_desc": return (b.services.length ? Math.min(...b.services.map((s) => s.price)) : 0) - (a.services.length ? Math.min(...a.services.map((s) => s.price)) : 0);
         case "experience": return b.yearsExperience - a.yearsExperience;
       }
     });
@@ -558,7 +558,7 @@ function SubFilterRow({ label, items, selected, onSelect }: {
 function ProviderCard({ provider }: { provider: Provider }) {
   const colors = useColors();
   const cat = getCategoryById(provider.serviceType);
-  const minPrice = Math.min(...provider.services.map((s) => s.price));
+  const minPrice = provider.services.length ? Math.min(...provider.services.map((s) => s.price)) : 0;
 
   return (
     <Pressable

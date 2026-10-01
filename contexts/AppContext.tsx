@@ -405,7 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteFamilyMember = async (id: string) => {
     if (!client) return;
-    await supabase.from("family_members").delete().eq("id", id);
+    await supabase.from("family_members").delete().eq("id", id).eq("client_id", client.id);
     loadClientData(client.id);
   };
 
@@ -536,7 +536,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Realtime: تحديث مناطق التغطية فور تغييرها من الأدمن (بدون إعادة تشغيل التطبيق)
   useEffect(() => {
     const channel = supabase
-      .channel("coverage_areas_realtime")
+      .channel(`coverage_areas_realtime_${Date.now()}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "coverage_areas" },
