@@ -1,0 +1,30 @@
+name: EAS Update — Revoice (OTA)
+
+on:
+  push:
+    branches: [revoice]
+
+jobs:
+  update:
+    name: OTA Update (mizo-test channel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Push OTA update to mizo-test channel
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: eas update --channel mizo-test --message "$(echo "$COMMIT_MSG" | head -1)" --non-interactive
