@@ -6,6 +6,7 @@ export default function MizoLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="locked" options={{ gestureEnabled: false }} />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="voice" />
       <Stack.Screen name="history" />
       <Stack.Screen name="care-report" />
       <Stack.Screen name="family" />

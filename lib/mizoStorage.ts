@@ -17,7 +17,7 @@ export type VoiceType =
   | "child_1" | "child_2" | "child_3"
   | "male" | "female" | "child"; // backward compat
 
-export type TtsMode = "device" | "azure" | "recorded" | "elevenlabs";
+export type TtsMode = "device" | "azure" | "recorded" | "elevenlabs" | "clone";
 export type AzureVoice = "ar-EG-SalmaNeural" | "ar-EG-ShakirNeural";
 
 // Conditions that auto-enable scanning mode
@@ -41,6 +41,7 @@ export type MizoProfile = {
   elevenApiKey: string;        // ElevenLabs xi-api-key
   elevenVoiceId: string;       // ElevenLabs voice_id from voice library
   elevenGender: "male" | "female";
+  voiceProfileId: string;      // active cloned-voice profile (ttsMode "clone")
   scanningMode: boolean;       // auto-scan cards for hands-free use
   scanSpeed: number;           // ms per card: 800 | 1500 | 2500
 };
@@ -63,6 +64,7 @@ const DEFAULT_PROFILE: MizoProfile = {
   elevenApiKey: "",
   elevenVoiceId: "",
   elevenGender: "male",
+  voiceProfileId: "",
   scanningMode: false,
   scanSpeed: 1500,
 };

@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, TextInput, StyleSheet, SafeAreaView,
   Pressable, ScrollView, Alert, Switch,
 } from "react-native";
 import * as Speech from "expo-speech";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   getProfile, saveProfile, clearLocalEvents, getVoiceOptions,
@@ -44,6 +44,12 @@ const TTS_MODES: { id: TtsMode; emoji: string; label: string; desc: string }[] =
     emoji: "🌐",
     label: "صوت Azure",
     desc: "أصوات مصرية Neural عالية الجودة — محتاج إنترنت ومفتاح Azure",
+  },
+  {
+    id: "clone",
+    emoji: "🧬",
+    label: "بصمة صوت المريض",
+    desc: "كل البطاقات تتنطق بصوت المريض الأصلي من ريكورد — محتاج إنترنت أول مرة بس",
   },
   {
     id: "recorded",
@@ -127,7 +133,7 @@ export default function MizoSettingsScreen() {
     dwellTime: 0, quietHoursEnabled: false, quietHoursStart: 22, quietHoursEnd: 7,
     oneHandedMode: false, userType: "",
     ttsMode: "device", azureVoice: "ar-EG-SalmaNeural", azureKey: "", azureRegion: "eastus",
-    elevenApiKey: "", elevenVoiceId: "", elevenGender: "male",
+    elevenApiKey: "", elevenVoiceId: "", elevenGender: "male", voiceProfileId: "",
     scanningMode: false, scanSpeed: 1500,
   });
   const [saving, setSaving] = useState(false);
@@ -135,6 +141,11 @@ export default function MizoSettingsScreen() {
   useEffect(() => {
     getProfile().then(setProfile);
   }, []);
+
+  // The voice screen changes the active profile directly in storage; pick it up on return.
+  useFocusEffect(useCallback(() => {
+    getProfile().then((p) => setProfile((cur) => ({ ...cur, voiceProfileId: p.voiceProfileId })));
+  }, []));
 
   const handleSave = async () => {
     setSaving(true);
@@ -412,6 +423,17 @@ export default function MizoSettingsScreen() {
               <Text style={styles.secondaryBtnText}>مسح كاش ElevenLabs</Text>
             </Pressable>
           </>
+        )}
+
+        {/* ── بصمة الصوت ── */}
+        {profile.ttsMode === "clone" && (
+          <Pressable style={styles.familyNavBtn} onPress={() => router.push("/mizo/voice")}>
+            <MaterialCommunityIcons name="account-voice" size={20} color="#C9A84C" />
+            <Text style={styles.familyNavBtnText}>
+              {profile.voiceProfileId ? "إدارة بصمات الصوت" : "إنشاء بصمة صوت"}
+            </Text>
+            <MaterialCommunityIcons name="chevron-left" size={20} color="#C9A84C" />
+          </Pressable>
         )}
 
         {/* ── تعليمات صوت المريض ── */}

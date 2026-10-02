@@ -71,3 +71,15 @@ export async function deleteRecording(wordId: string): Promise<void> {
   delete map[wordId];
   await saveMap(map);
 }
+
+// Stops the active recording and returns its temp URI without touching the
+// per-word recordings map (used for voice-profile samples).
+export async function stopRecordingToUri(): Promise<string> {
+  if (!activeRecording) throw new Error("No active recording");
+  await activeRecording.stopAndUnloadAsync();
+  const uri = activeRecording.getURI();
+  activeRecording = null;
+  if (Audio) await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+  if (!uri) throw new Error("Recording URI is null");
+  return uri;
+}
