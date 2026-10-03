@@ -197,6 +197,41 @@ export type DbCoverageArea = {
   created_at: string;
 };
 
+export type DbAskDoctorCase = {
+  id: string;
+  case_number: string | null;
+  client_id: string | null;
+  patient_name: string | null;
+  patient_phone: string | null;
+  message: string;
+  intent: "symptoms" | "specialty" | "file_review" | "location_search" | "unknown";
+  suggested_specialty: string | null;
+  location: string | null;
+  urgency_flag: boolean;
+  status: "new" | "accepted" | "in_progress" | "completed" | "cancelled";
+  assigned_doctor_id: string | null;
+  communication_type: "chat" | "voice" | "video" | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DbAskDoctorMessage = {
+  id: string;
+  case_id: string;
+  sender_id: string;
+  sender_type: "patient" | "doctor" | "system";
+  content: string;
+  created_at: string;
+};
+
+export type DbAskDoctorAttachment = {
+  id: string;
+  case_id: string;
+  storage_path: string;
+  file_type: string;
+  created_at: string;
+};
+
 export type DbBookingOffer = {
   id: string;
   booking_id: string;

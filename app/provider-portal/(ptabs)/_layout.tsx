@@ -47,6 +47,13 @@ export default function ProviderTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="cases"
+        options={{
+          title: "استشارات",
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="stethoscope" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="services"
         options={{
           title: "خدماتي",

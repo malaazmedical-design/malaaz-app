@@ -105,6 +105,10 @@ function RootLayoutNav() {
         name="reset-password"
         options={{ headerShown: false, presentation: "modal", animation: "slide_from_bottom" }}
       />
+      <Stack.Screen
+        name="ask-doctor"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }

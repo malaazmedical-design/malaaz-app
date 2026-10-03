@@ -79,6 +79,25 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ask-doctor-entry"
+        options={{
+          title: "إسأل طبيب",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="stethoscope" size={24} color={color} />
+          ),
+          tabBarButton: (props) => (
+            <Pressable
+              style={props.style}
+              onPress={() => router.push("/ask-doctor")}
+              accessibilityRole="button"
+              accessibilityLabel="إسأل طبيب"
+            >
+              {props.children}
+            </Pressable>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="mizo-entry"
         options={{
           title: "ميزو",
