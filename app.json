@@ -9,9 +9,7 @@
     "scheme": "malaaz",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1",
     "updates": {
       "url": "https://u.expo.dev/a2dcbf20-8580-4220-b882-8477c635aba0",
       "checkAutomatically": "ON_LOAD",
