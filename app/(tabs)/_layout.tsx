@@ -7,6 +7,7 @@ import { useColors } from "@/hooks/useColors";
 import { supabase } from "@/lib/supabase";
 import { getProfile } from "@/lib/mizoStorage";
 import { useApp } from "@/contexts/AppContext";
+import MalazTabBar from "@/components/MalazTabBar";
 
 export default function TabLayout() {
   const colors = useColors();
@@ -45,6 +46,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <MalazTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: "#C9A84C",
         tabBarInactiveTintColor: "#7A8A89",

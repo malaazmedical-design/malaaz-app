@@ -14,6 +14,12 @@ import {
   Cairo_700Bold,
 } from "@expo-google-fonts/cairo";
 import {
+  Tajawal_400Regular,
+  Tajawal_500Medium,
+  Tajawal_700Bold,
+  Tajawal_800ExtraBold,
+} from "@expo-google-fonts/tajawal";
+import {
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
@@ -113,6 +119,7 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
     Cairo_400Regular, Cairo_500Medium, Cairo_600SemiBold, Cairo_700Bold,
+    Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold,
   });
   // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
