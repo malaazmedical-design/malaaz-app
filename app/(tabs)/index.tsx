@@ -6,7 +6,6 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   BackHandler,
   FlatList,
   Modal,
@@ -95,8 +94,6 @@ export default function HomeScreen() {
   const [pendingFilters, setPendingFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [viewAll, setViewAll] = useState(false);
   const [shown, setShown] = useState(PAGE);
-  const [askOpen, setAskOpen] = useState(false);
-  const [askText, setAskText] = useState("");
   const [rowIdx, setRowIdx] = useState(0);
   const rowRef = useRef<FlatList<CarouselItem>>(null);
   const rowIdxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -283,11 +280,6 @@ export default function HomeScreen() {
 
   const showCities = serviceFilter !== "all" || cityFilter !== "الكل";
 
-  const sendAsk = () => {
-    // No backend for this yet — be explicit instead of pretending the question was sent.
-    Alert.alert("قريباً", "ميزة «إسأل طبيب» لسه تحت التجهيز، ومفيش سؤال اتبعت.");
-  };
-
   const Section = ({ title }: { title: string }) => (
     <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right", paddingHorizontal: 20, marginBottom: 10 }}>
       {title}
@@ -415,7 +407,7 @@ export default function HomeScreen() {
 
         {/* ─── Ask a doctor ─── */}
         <Pressable
-          onPress={() => setAskOpen(true)}
+          onPress={() => router.push("/ask-doctor")}
           style={({ pressed }) => ({
             marginHorizontal: 16, marginTop: 16, backgroundColor: t.card, borderWidth: 1.5, borderColor: t.gold,
             borderRadius: 20, padding: 14, flexDirection: "row-reverse", alignItems: "center", gap: 14,
@@ -589,29 +581,6 @@ export default function HomeScreen() {
           />
         </View>
       )}
-
-      {/* ─── Ask a doctor sheet ─── */}
-      <Modal visible={askOpen} transparent animationType="slide" onRequestClose={() => setAskOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,.45)" }} onPress={() => setAskOpen(false)} />
-        <View style={{ backgroundColor: t.hdr, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 20, paddingBottom: insets.bottom + 24 }}>
-          <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 22, textAlign: "center", marginBottom: 14 }}>إسأل طبيب</Text>
-          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginBottom: 8 }}>اكتب سؤالك أو وصف حالتك...</Text>
-          <TextInput
-            value={askText}
-            onChangeText={setAskText}
-            multiline
-            textAlignVertical="top"
-            style={{ height: 130, backgroundColor: t.bg, borderWidth: 1, borderColor: t.border, borderRadius: 16, padding: 14, color: t.text, fontFamily: TJ.medium, fontSize: 14, textAlign: "right" }}
-          />
-          <Pressable
-            onPress={sendAsk}
-            disabled={!askText.trim()}
-            style={{ marginTop: 18, height: 54, borderRadius: 16, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: askText.trim() ? 1 : 0.45 }}
-          >
-            <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>إرسال</Text>
-          </Pressable>
-        </View>
-      </Modal>
 
       <FilterPanel
         visible={showFilterPanel}
