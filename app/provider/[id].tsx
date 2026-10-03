@@ -37,7 +37,7 @@ export default function ProviderScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { providers, profile, createBooking, providerReviews } = useApp();
+  const { providers, profile, client, createBooking, providerReviews } = useApp();
   const provider = providers.find((p) => p.id === id);
   const reviews = (id && providerReviews[id]) || [];
 
@@ -94,6 +94,11 @@ export default function ProviderScreen() {
   }
 
   const handleBook = async () => {
+    // الحجز يتطلب حساب — الزائر يتحول لشاشة الدخول
+    if (!client) {
+      router.push("/client-auth");
+      return;
+    }
     if (!selectedService) { Alert.alert("تنبيه", "اختار الخدمة أولاً"); return; }
     if (!paymentMethod) { Alert.alert("تنبيه", "اختار طريقة الدفع"); return; }
     if (!profile.name || !profile.phone) {

@@ -28,6 +28,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
+import { applyStoredTheme } from "@/constants/malazTheme";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -80,6 +81,10 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card", animation: "slide_from_right" }}
       />
       <Stack.Screen
+        name="edit-profile"
+        options={{ headerShown: false, presentation: "card", animation: "slide_from_right" }}
+      />
+      <Stack.Screen
         name="quick-request"
         options={{ headerShown: false, presentation: "card", animation: "slide_from_bottom" }}
       />
@@ -127,6 +132,7 @@ export default function RootLayout() {
   });
   // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
+  useEffect(() => { applyStoredTheme(); }, []);
   const [updateReady, setUpdateReady] = useState(false);
   const updateReadyRef = useRef(false);
 

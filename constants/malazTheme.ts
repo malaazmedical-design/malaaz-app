@@ -1,4 +1,5 @@
-import { useColorScheme } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Appearance, useColorScheme } from "react-native";
 
 // Design tokens for the redesigned (Malaz Home handoff) client UI.
 // Kept separate from constants/colors.ts so screens not yet redesigned are unaffected.
@@ -54,4 +55,20 @@ export const TJ = {
 export function useMalaz() {
   const isDark = useColorScheme() === "dark";
   return { ...(isDark ? dark : light), ...MALAZ_COMMON, isDark };
+}
+
+// User override for the whole app theme (account → dark mode toggle).
+// null = follow the system setting.
+const THEME_KEY = "malaz.theme.v1";
+
+export async function applyStoredTheme(): Promise<void> {
+  try {
+    const v = await AsyncStorage.getItem(THEME_KEY);
+    if (v === "dark" || v === "light") Appearance.setColorScheme(v);
+  } catch {}
+}
+
+export async function setThemeOverride(scheme: "dark" | "light"): Promise<void> {
+  Appearance.setColorScheme(scheme);
+  try { await AsyncStorage.setItem(THEME_KEY, scheme); } catch {}
 }
