@@ -80,13 +80,16 @@ export default function AccountScreen() {
                   )}
                 </View>
               </View>
-              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 22, marginTop: 12 }}>{displayName || "عميل ملاذ"}</Text>
-              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, marginTop: 2 }}>مريض</Text>
               <Pressable
                 onPress={() => router.push("/edit-profile")}
-                style={{ marginTop: 12, borderWidth: 1.5, borderColor: t.gold, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 7 }}
+                accessibilityRole="button"
+                accessibilityLabel="تعديل الملف"
+                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 12 }}
               >
-                <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 13.5 }}>تعديل الملف</Text>
+                <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 22 }}>{displayName || "عميل ملاذ"}</Text>
+                <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
+                  <MaterialCommunityIcons name="pencil" size={14} color={t.gold} />
+                </View>
               </Pressable>
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 14, backgroundColor: t.ic, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}>
                 <MaterialCommunityIcons name="map-marker-outline" size={15} color={t.gold} />

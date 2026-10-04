@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
+import { matchCoverageArea } from "@/lib/areaMatch";
+import { digitsOnly } from "@/lib/digits";
 
 type T = ReturnType<typeof useMalaz>;
 
@@ -81,11 +83,16 @@ export function AddressesSection() {
       const [geo] = await Location.reverseGeocodeAsync(loc.coords);
       const label = [geo.street, geo.district, geo.city].filter(Boolean).join("، ");
       if (label) setAddress(label);
-      const district = geo.district || geo.subregion || geo.city;
-      const match = district
-        ? coverageAreas.find((a) => district.includes(a.name) || a.name.includes(district))
-        : undefined;
-      if (match) setArea(match.name);
+      const match = matchCoverageArea(
+        [geo.district, geo.subregion, geo.name, geo.street, geo.city, geo.region],
+        coverageAreas,
+      );
+      if (match) {
+        setArea(match.name);
+      } else {
+        // couldn't tell the area from the location — let the user pick it right away
+        setAreaOpen(true);
+      }
     } catch {
       Alert.alert("تنبيه", "اسمح بالوصول للموقع وحاول تاني");
     } finally {
@@ -288,7 +295,7 @@ export function FamilySection() {
             </Pressable>
           ))}
         </View>
-        <TextInput value={birthYear} onChangeText={(v) => setBirthYear(v.replace(/[^\d]/g, ""))} placeholder="سنة الميلاد (اختياري)" placeholderTextColor={t.muted} keyboardType="numeric" style={inputStyle(t)} />
+        <TextInput value={birthYear} onChangeText={(v) => setBirthYear(digitsOnly(v, 4))} placeholder="سنة الميلاد (اختياري)" placeholderTextColor={t.muted} keyboardType="numeric" style={inputStyle(t)} />
         <TextInput value={notes} onChangeText={setNotes} placeholder="ملاحظات صحية (أمراض مزمنة، حساسية...) — اختياري" placeholderTextColor={t.muted} multiline style={[inputStyle(t), { minHeight: 64, textAlignVertical: "top" }]} />
         <Pressable onPress={save} disabled={busy || !name.trim()} style={{ height: 50, backgroundColor: t.gold, borderRadius: 16, alignItems: "center", justifyContent: "center", opacity: busy || !name.trim() ? 0.45 : 1 }}>
           <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>{busy ? "جاري الحفظ..." : "حفظ"}</Text>

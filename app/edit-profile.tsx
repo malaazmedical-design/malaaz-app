@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddressesSection } from "@/components/client/AccountSections";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
+import { digitsOnly } from "@/lib/digits";
 
 export default function EditProfileScreen() {
   const t = useMalaz();
@@ -28,7 +29,12 @@ export default function EditProfileScreen() {
   const [whatsapp, setWhatsapp] = useState(base.whatsapp);
   const [phone2, setPhone2] = useState(base.phone2);
   const [notes, setNotes] = useState(base.notes);
-  const [birthDate, setBirthDate] = useState(base.birthDate);
+  const [bd, setBd] = useState(() => {
+    const [y = "", m = "", d = ""] = base.birthDate.split("-");
+    return { y, m, d };
+  });
+  const pad2 = (v: string) => (v.length === 1 ? `0${v}` : v);
+  const birthDate = bd.y || bd.m || bd.d ? `${bd.y}-${pad2(bd.m)}-${pad2(bd.d)}` : "";
   const [gender, setGender] = useState(base.gender);
   const [avatarUri, setAvatarUri] = useState(profile.avatarUri ?? "");
   const [saving, setSaving] = useState(false);
@@ -45,7 +51,13 @@ export default function EditProfileScreen() {
       Alert.alert("تنبيه", "يجب تسجيل الدخول من التطبيق لإضافة صورة");
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.6 });
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.6 });
+    } catch (e: any) {
+      Alert.alert("تعذّر فتح المعرض", String(e?.message ?? e));
+      return;
+    }
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
     const previous = avatarUri;
@@ -54,9 +66,10 @@ export default function EditProfileScreen() {
       const { supabase: sb } = await import("@/lib/supabase");
       const ext = asset.uri.split(".").pop()?.toLowerCase().replace(/[^a-z]/g, "") || "jpg";
       const path = `${client.id}/avatar.${ext}`;
-      const blob = await (await fetch(asset.uri)).blob();
+      // arrayBuffer is more reliable than Blob for React Native uploads
+      const body = await (await fetch(asset.uri)).arrayBuffer();
       const contentType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
-      const { error } = await sb.storage.from("avatars").upload(path, blob, { upsert: true, contentType });
+      const { error } = await sb.storage.from("avatars").upload(path, body, { upsert: true, contentType });
       if (error) throw error;
       const { data } = sb.storage.from("avatars").getPublicUrl(path);
       if (data?.publicUrl) {
@@ -64,9 +77,9 @@ export default function EditProfileScreen() {
         setAvatarUri(url);
         updateProfile({ avatarUri: url });
       }
-    } catch {
+    } catch (e: any) {
       setAvatarUri(previous);
-      Alert.alert("خطأ", "تعذّر رفع الصورة، حاول مرة أخرى");
+      Alert.alert("تعذّر رفع الصورة", String(e?.message ?? e ?? "حاول مرة أخرى"));
     }
   };
 
@@ -74,9 +87,16 @@ export default function EditProfileScreen() {
     if (!name.trim()) { Alert.alert("تنبيه", "أدخل الاسم"); return; }
     const wa = whatsapp.trim();
     if (wa && !/^01[0125]\d{8}$/.test(wa)) { Alert.alert("تنبيه", "رقم الواتساب غير صحيح (مثال: 01012345678)"); return; }
-    if (birthDate && (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || Number.isNaN(Date.parse(birthDate)) || new Date(birthDate) > new Date())) {
-      Alert.alert("تنبيه", "تاريخ الميلاد غير صحيح (مثال: 1990-05-23)");
-      return;
+    if (birthDate) {
+      const y = Number(bd.y), m = Number(bd.m), d = Number(bd.d);
+      const dt = new Date(y, m - 1, d);
+      const valid =
+        bd.y.length === 4 && y >= 1900 && m >= 1 && m <= 12 && d >= 1 &&
+        dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d && dt <= new Date();
+      if (!valid) {
+        Alert.alert("تنبيه", "تاريخ الميلاد غير صحيح. اكتبي اليوم والشهر والسنة (مثال: 23 / 5 / 1990)");
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -145,29 +165,35 @@ export default function EditProfileScreen() {
 
         <View>
           {label("رقم الواتساب", true)}
-          <TextInput value={whatsapp} onChangeText={(v) => setWhatsapp(v.replace(/[^\d]/g, "").slice(0, 11))} placeholder="01xxxxxxxxx" placeholderTextColor={t.muted} keyboardType="number-pad" style={field} />
+          <TextInput value={whatsapp} onChangeText={(v) => setWhatsapp(digitsOnly(v, 11))} placeholder="01xxxxxxxxx" placeholderTextColor={t.muted} keyboardType="number-pad" style={field} />
         </View>
 
         <View>
           {label("رقم اتصال إضافي", true)}
-          <TextInput value={phone2} onChangeText={(v) => setPhone2(v.replace(/[^\d]/g, "").slice(0, 11))} placeholder="01xxxxxxxxx" placeholderTextColor={t.muted} keyboardType="number-pad" style={field} />
+          <TextInput value={phone2} onChangeText={(v) => setPhone2(digitsOnly(v, 11))} placeholder="01xxxxxxxxx" placeholderTextColor={t.muted} keyboardType="number-pad" style={field} />
         </View>
 
         {client ? <AddressesSection /> : null}
 
-        <View style={{ flexDirection: "row-reverse", gap: 12 }}>
-          <View style={{ flex: 1 }}>
+        <View style={{ gap: 18 }}>
+          <View>
             {label("تاريخ الميلاد", true)}
-            <TextInput
-              value={birthDate}
-              onChangeText={(v) => setBirthDate(v.replace(/[^\d-]/g, "").slice(0, 10))}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={t.muted}
-              keyboardType="numbers-and-punctuation"
-              style={[field, { textAlign: "center", writingDirection: "ltr" }]}
-            />
+            <View style={{ flexDirection: "row-reverse", gap: 6 }}>
+              {([["d", "يوم", 2], ["m", "شهر", 2], ["y", "سنة", 4]] as const).map(([k, ph, max]) => (
+                <TextInput
+                  key={k}
+                  value={bd[k]}
+                  onChangeText={(v) => setBd((cur) => ({ ...cur, [k]: digitsOnly(v, max) }))}
+                  placeholder={ph}
+                  placeholderTextColor={t.muted}
+                  keyboardType="number-pad"
+                  maxLength={max}
+                  style={[field, { flex: k === "y" ? 1.6 : 1, width: 0, minWidth: 0, paddingHorizontal: 4, textAlign: "center" }]}
+                />
+              ))}
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
+          <View>
             {label("النوع", true)}
             <View style={{ flexDirection: "row-reverse", gap: 8 }}>
               {([["male", "ذكر"], ["female", "أنثى"]] as const).map(([k, text]) => {
