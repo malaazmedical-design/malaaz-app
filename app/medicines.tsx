@@ -2,260 +2,378 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
-import {
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useColors } from "@/hooks/useColors";
+import { Toggle } from "@/components/account/AccountUI";
+import { TJ, useMalaz } from "@/constants/malazTheme";
+import { toEnglishDigits } from "@/lib/digits";
 
-const DARK = "#1C2B2A";
-const GOLD = "#C9A84C";
 const STORAGE_KEY = "malaaz.medicines.v1";
 
 type Medicine = {
   id: string;
   name: string;
-  dose: string;
-  times: string[]; // "08:00"
+  dose: string;          // "½" | "1" | "1½" | "2" | "3" | free text (older records)
+  unit?: string;         // قرص | كبسولة | مللي | نقطة (absent on older records)
+  times: string[];       // "08:00" (24h), 1–4 per day
+  on?: boolean;          // reminders enabled (absent = enabled)
   notificationIds: string[];
 };
 
-// أوقات جاهزة للاختيار السريع
-const QUICK_TIMES = ["06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
+const DOSES = [
+  { value: "½", label: "نصف" },
+  { value: "1", label: "1" },
+  { value: "1½", label: "1½" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+];
+const UNITS = ["قرص", "كبسولة", "مللي", "نقطة"];
+const FREQS = [
+  { n: 1, label: "مرة" },
+  { n: 2, label: "مرتين" },
+  { n: 3, label: "3 مرات" },
+  { n: 4, label: "4 مرات" },
+];
+const DEFAULT_TIMES = ["08:00", "14:00", "20:00", "23:00"];
+const SLOT_NAMES = ["الأولى", "الثانية", "الثالثة", "الرابعة"];
 
-function formatTime(t: string): string {
+const freqLabel = (n: number) => (n === 1 ? "مرة يوميًا" : n === 2 ? "مرتين يوميًا" : `${n} مرات يوميًا`);
+const doseLabel = (m: Pick<Medicine, "dose" | "unit">) => {
+  const d = m.dose === "½" ? "نصف" : m.dose;
+  return [d, m.unit].filter(Boolean).join(" ");
+};
+const shortTime = (t: string) => {
   const [h, m] = t.split(":").map(Number);
-  const period = h < 12 ? "صباحاً" : "مساءً";
   const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
-}
+  return `${h12}:${String(m).padStart(2, "0")} ${h < 12 ? "ص" : "م"}`;
+};
+
+// A time slot edited as 12h hour + minutes + AM/PM (no native picker needed).
+type Slot = { h: string; m: string; pm: boolean };
+const toSlot = (t: string): Slot => {
+  const [h, m] = t.split(":").map(Number);
+  return { h: String(h % 12 === 0 ? 12 : h % 12), m: String(m).padStart(2, "0"), pm: h >= 12 };
+};
+const slotTo24 = (s: Slot): string | null => {
+  const h = Number(s.h), m = Number(s.m);
+  if (!s.h || !s.m || !(h >= 1 && h <= 12) || !(m >= 0 && m <= 59)) return null;
+  const h24 = (h % 12) + (s.pm ? 12 : 0);
+  return `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
 
 export default function MedicinesScreen() {
-  const colors = useColors();
+  const t = useMalaz();
   const insets = useSafeAreaInsets();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [dose, setDose] = useState("");
-  const [times, setTimes] = useState<string[]>([]);
+  const [form, setForm] = useState<null | { id: string | null; name: string; dose: string; unit: string; count: number; slots: Slot[] }>(null);
   const [busy, setBusy] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const webTopInset = Platform.OS === "web" ? 67 : 0;
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then(async (raw) => {
-      if (raw) {
-        setMedicines(JSON.parse(raw));
-      } else if (Platform.OS !== "web") {
-        // بعد إعادة التثبيت — إلغاء أي إشعارات دوائية متبقية من النسخة السابقة
+      if (raw) setMedicines(JSON.parse(raw));
+      else if (Platform.OS !== "web") {
+        // after a reinstall, cancel any leftover medicine notifications from the previous install
         await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
       }
     }).catch(() => {});
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
   }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 2200);
+  };
 
   const persist = async (next: Medicine[]) => {
     setMedicines(next);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   };
 
-  const toggleTime = (t: string) => {
-    setTimes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t].sort()));
+  const cancelIds = async (ids: string[]) => {
+    for (const id of ids) await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
   };
 
-  const openEdit = (m: Medicine) => {
-    setEditingId(m.id);
-    setName(m.name);
-    setDose(m.dose);
-    setTimes(m.times);
-    setOpen(true);
+  // schedules one repeating daily notification per time; returns their ids
+  const schedule = async (m: Pick<Medicine, "name" | "dose" | "unit" | "times">): Promise<string[]> => {
+    if (Platform.OS === "web") return [];
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("تنبيه", "فعّل الإشعارات من إعدادات الهاتف عشان التذكير يشتغل");
+      return [];
+    }
+    const ids: string[] = [];
+    const label = doseLabel(m);
+    for (const time of m.times) {
+      const [hour, minute] = time.split(":").map(Number);
+      ids.push(await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `💊 ميعاد الدواء: ${m.name}`,
+          body: label ? `الجرعة: ${label}` : "متنساش جرعتك — صحتك أولوية 💙",
+          sound: "default",
+          data: { type: "medicine" },
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
+      }));
+    }
+    return ids;
   };
 
-  const addMedicine = async () => {
-    if (!name.trim()) { Alert.alert("تنبيه", "اكتب اسم الدواء"); return; }
-    if (!times.length) { Alert.alert("تنبيه", "اختر وقت واحد على الأقل"); return; }
+  const openForm = (m?: Medicine) => {
+    if (m) {
+      setForm({ id: m.id, name: m.name, dose: m.dose, unit: m.unit ?? "", count: Math.min(4, Math.max(1, m.times.length)), slots: m.times.map(toSlot) });
+    } else {
+      setForm({ id: null, name: "", dose: "1", unit: "قرص", count: 1, slots: [toSlot(DEFAULT_TIMES[0])] });
+    }
+  };
+
+  // changing times-per-day keeps the times already entered and fills the rest with defaults
+  const setCount = (n: number) =>
+    setForm((f) => f && {
+      ...f, count: n,
+      slots: Array.from({ length: n }, (_, i) => f.slots[i] ?? toSlot(DEFAULT_TIMES[i])),
+    });
+
+  const patchSlot = (i: number, patch: Partial<Slot>) =>
+    setForm((f) => f && { ...f, slots: f.slots.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
+
+  const save = async () => {
+    if (!form) return;
+    const times = form.slots.map(slotTo24);
+    if (!form.name.trim() || !form.dose.trim() || times.some((x) => !x)) {
+      Alert.alert("تنبيه", "اكتب اسم الدواء والجرعة وكل مواعيد التذكير بشكل صحيح");
+      return;
+    }
+    const sorted = (times as string[]).slice().sort();
     setBusy(true);
     try {
-      // إذن الإشعارات
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== "granted" && Platform.OS !== "web") {
-        Alert.alert("تنبيه", "فعّل الإشعارات من إعدادات الهاتف عشان التذكير يشتغل");
-      }
-
-      // جدولة إشعار يومي متكرر لكل وقت
-      const notificationIds: string[] = [];
-      if (Platform.OS !== "web" && status === "granted") {
-        for (const t of times) {
-          const [hour, minute] = t.split(":").map(Number);
-          const nid = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `💊 ميعاد الدواء: ${name.trim()}`,
-              body: dose.trim() ? `الجرعة: ${dose.trim()}` : "متنساش جرعتك — صحتك أولوية 💙",
-              sound: "default",
-              data: { type: "medicine" },
-            },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DAILY,
-              hour,
-              minute,
-            },
-          });
-          notificationIds.push(nid);
-        }
-      }
-
-      if (editingId) {
-        // تعديل: إلغاء الإشعارات القديمة وتحديث بيانات الدواء
-        const existing = medicines.find((m) => m.id === editingId);
-        if (existing) {
-          for (const nid of existing.notificationIds) {
-            await Notifications.cancelScheduledNotificationAsync(nid).catch(() => {});
-          }
-        }
-        const updated = medicines.map((m) =>
-          m.id === editingId
-            ? { ...m, name: name.trim(), dose: dose.trim(), times, notificationIds }
-            : m
-        );
-        await persist(updated);
+      const existing = form.id ? medicines.find((m) => m.id === form.id) : undefined;
+      if (existing) await cancelIds(existing.notificationIds);
+      const base = { name: form.name.trim(), dose: form.dose.trim(), unit: form.unit || undefined, times: sorted };
+      const enabled = existing ? existing.on !== false : true;
+      const notificationIds = enabled ? await schedule(base) : [];
+      if (existing) {
+        await persist(medicines.map((m) => (m.id === existing.id ? { ...m, ...base, notificationIds } : m)));
+        showToast("تم حفظ التعديل");
       } else {
-        const med: Medicine = {
-          id: Date.now().toString(),
-          name: name.trim(),
-          dose: dose.trim(),
-          times,
-          notificationIds,
-        };
-        await persist([...medicines, med]);
+        await persist([...medicines, { id: Date.now().toString(), ...base, on: true, notificationIds }]);
+        showToast("تمت إضافة التذكير");
       }
-      setEditingId(null); setOpen(false); setName(""); setDose(""); setTimes([]);
+      setForm(null);
     } catch (e: any) {
-      Alert.alert("خطأ", e.message ?? "تعذر الحفظ");
+      Alert.alert("خطأ", e?.message ?? "تعذر الحفظ");
     } finally {
       setBusy(false);
     }
   };
 
-  const removeMedicine = async (med: Medicine) => {
+  const remove = () => {
+    const med = form?.id ? medicines.find((m) => m.id === form.id) : undefined;
+    if (!med) return;
     Alert.alert("حذف", `إيقاف تذكير "${med.name}"؟`, [
       { text: "إلغاء", style: "cancel" },
       {
-        text: "حذف",
-        style: "destructive",
+        text: "حذف", style: "destructive",
         onPress: async () => {
-          for (const nid of med.notificationIds) {
-            await Notifications.cancelScheduledNotificationAsync(nid).catch(() => {});
-          }
+          await cancelIds(med.notificationIds);
           await persist(medicines.filter((m) => m.id !== med.id));
+          setForm(null);
+          showToast("تم حذف الدواء");
         },
       },
     ]);
   };
 
+  const toggleOn = async (m: Medicine, on: boolean) => {
+    if (on) {
+      const ids = await schedule(m);
+      await persist(medicines.map((x) => (x.id === m.id ? { ...x, on: true, notificationIds: ids } : x)));
+    } else {
+      await cancelIds(m.notificationIds);
+      await persist(medicines.map((x) => (x.id === m.id ? { ...x, on: false, notificationIds: [] } : x)));
+    }
+  };
+
+  const chip = (active: boolean) => ({
+    paddingHorizontal: 18, paddingVertical: 11, borderRadius: 22, borderWidth: 1.5, alignItems: "center" as const,
+    backgroundColor: active ? t.goldTint : t.card, borderColor: active ? t.gold : t.border,
+  });
+  const chipText = (active: boolean) => ({ color: active ? t.gold : t.text, fontFamily: TJ.bold, fontSize: 14 });
+  const label = (text: string) => (
+    <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14.5, textAlign: "right", marginBottom: 10 }}>{text}</Text>
+  );
+  const inputStyle = {
+    backgroundColor: t.bg, borderRadius: 16, borderWidth: 1, borderColor: t.border, paddingHorizontal: 14, height: 52,
+    color: t.text, fontFamily: TJ.medium, fontSize: 14.5, textAlign: "right" as const,
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       {/* Header */}
-      <View style={{ backgroundColor: DARK, paddingTop: insets.top + 12, paddingBottom: 18, paddingHorizontal: 20 }}>
-        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF15", alignItems: "center", justifyContent: "center" }}>
-            <MaterialCommunityIcons name="chevron-right" size={24} color={GOLD} />
-          </Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: GOLD, fontFamily: "Cairo_700Bold", fontSize: 18, textAlign: "right" }}>💊 تذكير الأدوية</Text>
-            <Text style={{ color: "#FFFFFF66", fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right" }}>
-              التطبيق يفكّرك بمواعيد أدويتك يومياً
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}>
-        {medicines.length === 0 ? (
-          <View style={{ alignItems: "center", padding: 40 }}>
-            <Text style={{ fontSize: 44, marginBottom: 12 }}>💊</Text>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "center" }}>
-              مفيش أدوية متسجلة
-            </Text>
-            <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "center", marginTop: 6, lineHeight: 22 }}>
-              أضف أدويتك ومواعيدها وهيوصلك إشعار يومي{"\n"}في معاد كل جرعة
-            </Text>
-          </View>
-        ) : (
-          medicines.map((m) => (
-            <View key={m.id} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, marginBottom: 10 }}>
-              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "right" }}>💊 {m.name}</Text>
-                  {m.dose ? (
-                    <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 2 }}>{m.dose}</Text>
-                  ) : null}
-                </View>
-                <View style={{ flexDirection: "row", gap: 6 }}>
-                  <Pressable onPress={() => openEdit(m)} style={{ backgroundColor: "rgba(201,168,76,0.12)", borderRadius: 8, padding: 7, marginRight: 6 }}>
-                    <MaterialCommunityIcons name="pencil-outline" size={16} color="#b8860b" />
-                  </Pressable>
-                  <Pressable onPress={() => removeMedicine(m)} style={{ backgroundColor: "#FEE2E2", borderRadius: 8, padding: 7 }}>
-                    <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
-                  </Pressable>
-                </View>
-              </View>
-              <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-                {m.times.map((t) => (
-                  <View key={t} style={{ backgroundColor: "rgba(201,168,76,0.1)", borderWidth: 1, borderColor: "rgba(201,168,76,0.3)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ color: "#b8860b", fontFamily: "Cairo_600SemiBold", fontSize: 11 }}>⏰ {formatTime(t)}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
-
-      {/* زرار إضافة */}
-      <View style={{ position: "absolute", bottom: insets.bottom + 20, left: 20, right: 20 }}>
-        <Pressable onPress={() => setOpen(true)} style={({ pressed }) => ({ backgroundColor: GOLD, borderRadius: 16, padding: 16, alignItems: "center", flexDirection: "row-reverse", justifyContent: "center", gap: 8, opacity: pressed ? 0.9 : 1 })}>
-          <MaterialCommunityIcons name="plus-circle" size={20} color={DARK} />
-          <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 15 }}>إضافة دواء</Text>
+      <View style={{ paddingTop: insets.top + 12 + webTopInset, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+        <Pressable onPress={() => router.back()} accessibilityLabel="رجوع" style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+          <MaterialCommunityIcons name="arrow-right" size={22} color={t.text} />
+        </Pressable>
+        <Text style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 26, textAlign: "right" }}>تذكير الأدوية</Text>
+        <Pressable onPress={() => openForm()} style={{ backgroundColor: t.gold, borderRadius: 22, paddingHorizontal: 18, height: 44, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>+ دواء</Text>
         </Pressable>
       </View>
 
-      {/* مودال إضافة دواء */}
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => { setOpen(false); setEditingId(null); setName(""); setDose(""); setTimes([]); }}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => { setOpen(false); setEditingId(null); setName(""); setDose(""); setTimes([]); }}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 }}>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 14 }}>{editingId ? "تعديل دواء" : "إضافة دواء"}</Text>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+        {medicines.length === 0 ? (
+          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "center", paddingVertical: 60, lineHeight: 24 }}>
+            لا توجد أدوية. اضغط + دواء للإضافة
+          </Text>
+        ) : (
+          medicines.map((m) => {
+            const on = m.on !== false;
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => openForm(m)}
+                style={({ pressed }) => ({
+                  backgroundColor: t.card, borderRadius: 24, borderWidth: 1, borderColor: t.border, padding: 16, gap: 12,
+                  opacity: on ? 1 : 0.55, transform: [{ scale: pressed ? 0.99 : 1 }],
+                })}
+              >
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 14 }}>
+                  <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
+                    <MaterialCommunityIcons name="pill" size={26} color={t.gold} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>{m.name}</Text>
+                    <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>
+                      {[doseLabel(m), freqLabel(m.times.length)].filter(Boolean).join(" · ")}
+                    </Text>
+                  </View>
+                  <Toggle on={on} onChange={(v) => toggleOn(m, v)} />
+                </View>
+                <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+                  {m.times.map((x) => (
+                    <View key={x} style={{ backgroundColor: t.goldTint, borderRadius: 18, borderWidth: 1, borderColor: t.goldRing, paddingHorizontal: 14, paddingVertical: 5 }}>
+                      <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13 }}>{shortTime(x)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </Pressable>
+            );
+          })
+        )}
+      </ScrollView>
 
-            <TextInput value={name} onChangeText={setName} placeholder="اسم الدواء *" placeholderTextColor={colors.mutedForeground}
-              style={{ backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 12, textAlign: "right", fontFamily: "Cairo_400Regular", fontSize: 13, color: colors.foreground, borderWidth: 1.5, borderColor: colors.border, marginBottom: 10 }} />
+      {/* Toast */}
+      {toast ? (
+        <View pointerEvents="none" style={{ position: "absolute", top: insets.top + 8 + webTopInset, left: 24, right: 24, backgroundColor: t.gold, borderRadius: 16, paddingVertical: 12, alignItems: "center" }}>
+          <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 14 }}>{toast}</Text>
+        </View>
+      ) : null}
 
-            <TextInput value={dose} onChangeText={setDose} placeholder="الجرعة (مثال: قرص واحد بعد الأكل) — اختياري" placeholderTextColor={colors.mutedForeground}
-              style={{ backgroundColor: colors.surfaceMuted, borderRadius: 12, padding: 12, textAlign: "right", fontFamily: "Cairo_400Regular", fontSize: 13, color: colors.foreground, borderWidth: 1.5, borderColor: colors.border, marginBottom: 12 }} />
+      {/* Add / edit sheet */}
+      <Modal visible={!!form} transparent animationType="slide" onRequestClose={() => setForm(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,.45)", justifyContent: "flex-end" }} onPress={() => setForm(null)}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: t.hdr, borderTopLeftRadius: 30, borderTopRightRadius: 30, maxHeight: "92%" }}>
+            {form ? (
+              <>
+                <ScrollView contentContainerStyle={{ padding: 20, gap: 18 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                  <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 22, textAlign: "center" }}>{form.id ? "تعديل الدواء" : "إضافة دواء"}</Text>
 
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 13, textAlign: "right", marginBottom: 8 }}>
-              مواعيد التذكير اليومي ({times.length} مختار)
-            </Text>
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-              {QUICK_TIMES.map((t) => {
-                const active = times.includes(t);
-                return (
-                  <Pressable key={t} onPress={() => toggleTime(t)}
-                    style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1.5, backgroundColor: active ? DARK : colors.surfaceMuted, borderColor: active ? GOLD : colors.border }}>
-                    <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: active ? GOLD : colors.foreground }}>{formatTime(t)}</Text>
+                  <View>
+                    {label("اسم الدواء")}
+                    <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder="مثال: ميتفورمين" placeholderTextColor={t.muted} style={inputStyle} />
+                  </View>
+
+                  <View>
+                    {label("الجرعة في كل مرة")}
+                    <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                      {DOSES.map((d) => (
+                        <Pressable key={d.value} onPress={() => setForm({ ...form, dose: d.value })} style={[chip(form.dose === d.value), { minWidth: 56 }]}>
+                          <Text style={chipText(form.dose === d.value)}>{d.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <TextInput
+                      value={form.dose}
+                      onChangeText={(v) => setForm({ ...form, dose: toEnglishDigits(v) })}
+                      placeholder="أو اكتب أي كمية (مثال: 2.5)"
+                      placeholderTextColor={t.muted}
+                      keyboardType="decimal-pad"
+                      style={inputStyle}
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+                    {UNITS.map((u) => (
+                      <Pressable key={u} onPress={() => setForm({ ...form, unit: u })} style={chip(form.unit === u)}>
+                        <Text style={chipText(form.unit === u)}>{u}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  <View>
+                    {label("كام مرة في اليوم")}
+                    <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+                      {FREQS.map((f) => (
+                        <Pressable key={f.n} onPress={() => setCount(f.n)} style={chip(form.count === f.n)}>
+                          <Text style={chipText(form.count === f.n)}>{f.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View>
+                    {label("مواعيد التذكير")}
+                    <View style={{ gap: 10 }}>
+                      {form.slots.map((s, i) => (
+                        <View key={i} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                          <Text style={{ width: 52, color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right" }}>{SLOT_NAMES[i]}</Text>
+                          <TextInput
+                            value={s.h}
+                            onChangeText={(v) => patchSlot(i, { h: toEnglishDigits(v).replace(/[^\d]/g, "").slice(0, 2) })}
+                            placeholder="س" placeholderTextColor={t.muted} keyboardType="number-pad" maxLength={2}
+                            style={[inputStyle, { width: 62, textAlign: "center", paddingHorizontal: 4 }]}
+                          />
+                          <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 18 }}>:</Text>
+                          <TextInput
+                            value={s.m}
+                            onChangeText={(v) => patchSlot(i, { m: toEnglishDigits(v).replace(/[^\d]/g, "").slice(0, 2) })}
+                            placeholder="د" placeholderTextColor={t.muted} keyboardType="number-pad" maxLength={2}
+                            style={[inputStyle, { width: 62, textAlign: "center", paddingHorizontal: 4 }]}
+                          />
+                          <View style={{ flexDirection: "row-reverse", gap: 6, flex: 1 }}>
+                            {([["ص", false], ["م", true]] as const).map(([txt, pm]) => (
+                              <Pressable key={txt} onPress={() => patchSlot(i, { pm })} style={[chip(s.pm === pm), { flex: 1, paddingHorizontal: 0, paddingVertical: 14 }]}>
+                                <Text style={chipText(s.pm === pm)}>{txt}</Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </ScrollView>
+
+                <View style={{ flexDirection: "row-reverse", gap: 10, padding: 16, paddingBottom: insets.bottom + 16, borderTopWidth: 1, borderTopColor: t.border }}>
+                  <Pressable
+                    onPress={save}
+                    disabled={busy}
+                    style={{ flex: 1, height: 54, borderRadius: 16, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: busy ? 0.6 : 1 }}
+                  >
+                    <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>{busy ? "جاري الحفظ..." : "حفظ"}</Text>
                   </Pressable>
-                );
-              })}
-            </View>
-
-            <Pressable onPress={addMedicine} disabled={busy} style={{ backgroundColor: GOLD, borderRadius: 12, padding: 14, alignItems: "center", opacity: busy ? 0.6 : 1 }}>
-              <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 14 }}>{busy ? "جاري الحفظ..." : editingId ? "حفظ التعديلات" : "حفظ وتفعيل التذكير"}</Text>
-            </Pressable>
+                  {form.id ? (
+                    <Pressable onPress={remove} style={{ height: 54, paddingHorizontal: 26, borderRadius: 16, borderWidth: 1.5, borderColor: t.destructive, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ color: t.destructive, fontFamily: TJ.heavy, fontSize: 16 }}>حذف</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </>
+            ) : null}
           </Pressable>
         </Pressable>
       </Modal>
