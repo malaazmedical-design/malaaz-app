@@ -260,4 +260,7 @@ export type DbClient = {
   whatsapp: string | null;
   email: string | null;
   created_at: string;
+  // test project only (see supabase/test-project/05_new_columns.sql)
+  birth_date?: string | null;
+  gender?: "male" | "female" | null;
 };

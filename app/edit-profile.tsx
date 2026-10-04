@@ -21,18 +21,22 @@ export default function EditProfileScreen() {
     whatsapp: profile.whatsapp ?? "",
     phone2: profile.phone2 ?? "",
     notes: profile.notes ?? "",
+    birthDate: profile.birthDate ?? "",
+    gender: (profile.gender ?? "") as "" | "male" | "female",
   };
   const [name, setName] = useState(base.name);
   const [whatsapp, setWhatsapp] = useState(base.whatsapp);
   const [phone2, setPhone2] = useState(base.phone2);
   const [notes, setNotes] = useState(base.notes);
+  const [birthDate, setBirthDate] = useState(base.birthDate);
+  const [gender, setGender] = useState(base.gender);
   const [avatarUri, setAvatarUri] = useState(profile.avatarUri ?? "");
   const [saving, setSaving] = useState(false);
 
   // the client record can arrive after first render (e.g. app cold start on this screen)
   useEffect(() => { if (!name && base.name) setName(base.name); }, [base.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const changed = name !== base.name || whatsapp !== base.whatsapp || phone2 !== base.phone2 || notes !== base.notes;
+  const changed = name !== base.name || whatsapp !== base.whatsapp || phone2 !== base.phone2 || notes !== base.notes || birthDate !== base.birthDate || gender !== base.gender;
   const phone = client?.phone || profile.phone;
 
   // Upload the picked photo straight away (same storage path/policy as before).
@@ -70,6 +74,10 @@ export default function EditProfileScreen() {
     if (!name.trim()) { Alert.alert("تنبيه", "أدخل الاسم"); return; }
     const wa = whatsapp.trim();
     if (wa && !/^01[0125]\d{8}$/.test(wa)) { Alert.alert("تنبيه", "رقم الواتساب غير صحيح (مثال: 01012345678)"); return; }
+    if (birthDate && (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || Number.isNaN(Date.parse(birthDate)) || new Date(birthDate) > new Date())) {
+      Alert.alert("تنبيه", "تاريخ الميلاد غير صحيح (مثال: 1990-05-23)");
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile({
@@ -77,6 +85,8 @@ export default function EditProfileScreen() {
         whatsapp: wa || undefined,
         phone2: phone2.trim() || undefined,
         notes: notes.trim(),
+        birthDate: birthDate || undefined,
+        gender: gender || undefined,
       });
       router.back();
     } catch {
@@ -144,6 +154,37 @@ export default function EditProfileScreen() {
         </View>
 
         {client ? <AddressesSection /> : null}
+
+        <View style={{ flexDirection: "row-reverse", gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            {label("تاريخ الميلاد", true)}
+            <TextInput
+              value={birthDate}
+              onChangeText={(v) => setBirthDate(v.replace(/[^\d-]/g, "").slice(0, 10))}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={t.muted}
+              keyboardType="numbers-and-punctuation"
+              style={[field, { textAlign: "center", writingDirection: "ltr" }]}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            {label("النوع", true)}
+            <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+              {([["male", "ذكر"], ["female", "أنثى"]] as const).map(([k, text]) => {
+                const active = gender === k;
+                return (
+                  <Pressable
+                    key={k}
+                    onPress={() => setGender(active ? "" : k)}
+                    style={{ flex: 1, height: 54, borderRadius: 16, borderWidth: 1.5, alignItems: "center", justifyContent: "center", backgroundColor: active ? t.goldTint : t.card, borderColor: active ? t.gold : t.border }}
+                  >
+                    <Text style={{ color: active ? t.gold : t.text, fontFamily: TJ.bold, fontSize: 14 }}>{text}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
 
         <View>
           {label("ملاحظات طبية", true)}

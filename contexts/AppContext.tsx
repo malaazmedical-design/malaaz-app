@@ -49,6 +49,8 @@ export type CustomerProfile = {
   phone2?: string;
   avatarUri?: string;
   termsAccepted?: boolean;
+  birthDate?: string; // YYYY-MM-DD
+  gender?: "male" | "female";
 };
 
 export type Review = {
@@ -279,6 +281,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         phone2: c.phone2 ?? prev.phone2,
         // استعادة الصورة من DB لو مش موجودة محلياً (مثلاً بعد إعادة تثبيت التطبيق)
         avatarUri: prev.avatarUri || (c as any).avatar_url || undefined,
+        birthDate: c.birth_date ?? prev.birthDate,
+        gender: c.gender ?? prev.gender,
         isGuest: false,
       };
       AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged)).catch(() => {});
@@ -646,6 +650,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", client.id)
         .then(() => {});
+      // Optional columns that only exist where 05_new_columns.sql was applied.
+      // Kept in a separate call so a missing column can never break the main sync.
+      supabase
+        .from("clients")
+        .update({ birth_date: merged.birthDate || null, gender: merged.gender || null })
+        .eq("id", client.id)
+        .then(() => {}, () => {});
     }
   };
 
