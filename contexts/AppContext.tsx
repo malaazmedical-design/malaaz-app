@@ -185,6 +185,10 @@ type AppContextValue = {
   client: DbClient | null;
   clientLogin: (email: string, password: string) => Promise<void>;
   clientRegister: (input: ClientRegisterInput) => Promise<void>;
+  // phone + one-time code login (see supabase/test-project/07_phone_auth.sql)
+  clientSendOtp: (phone: string) => Promise<void>;
+  clientVerifyOtp: (phone: string, code: string) => Promise<{ needsName: boolean }>;
+  clientCompleteSignup: (name: string) => Promise<void>;
   clientLogout: () => Promise<void>;
   clientResetPassword: (email: string) => Promise<void>;
 
@@ -358,6 +362,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const cleared: CustomerProfile = { ...DEFAULT_PROFILE };
     setProfile(cleared);
     AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(cleared)).catch(() => {});
+  };
+
+  // Egyptian mobile (01012345678 / 1012345678) -> E.164 (+201012345678)
+  const toE164 = (phone: string) => `+20${phone.replace(/\D/g, "").replace(/^0+/, "")}`;
+
+  const clientSendOtp = async (phone: string) => {
+    const { error } = await supabase.auth.signInWithOtp({ phone: toE164(phone), options: { channel: "sms" } });
+    if (error) throw new Error(error.message);
+  };
+
+  const claimClient = async (name: string | null) => {
+    const { data, error } = await supabase.rpc("claim_my_client", { p_name: name });
+    if (error) throw new Error(error.message);
+    await onClientReady(data as DbClient);
+  };
+
+  const clientVerifyOtp = async (phone: string, code: string) => {
+    const { error } = await supabase.auth.verifyOtp({ phone: toE164(phone), token: code, type: "sms" });
+    if (error) throw new Error(error.message);
+    try {
+      await claimClient(null);
+      return { needsName: false };
+    } catch (e: any) {
+      // verified, but a brand-new number: the app now asks for a name
+      if (String(e?.message).includes("name_required")) return { needsName: true };
+      throw e;
+    }
+  };
+
+  const clientCompleteSignup = async (name: string) => {
+    await claimClient(name.trim());
   };
 
   const clientResetPassword = async (email: string) => {
@@ -837,6 +872,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       client,
       clientLogin,
       clientRegister,
+      clientSendOtp,
+      clientVerifyOtp,
+      clientCompleteSignup,
       clientLogout,
       clientResetPassword,
       addresses,
