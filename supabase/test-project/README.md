@@ -8,8 +8,9 @@
    `01_tables.sql` ← `02_functions.sql` ← `03_rls_policies.sql` ← `04_storage_realtime.sql` ← `05_new_columns.sql`
 3. (اختياري) بيانات مرجعية: شغّل `export-reference-data.sql` على المشروع **الأصلي** (قراءة فقط)،
    وانسخ الناتج `reference_data_sql` وشغّله على المشروع التجريبي.
-4. Authentication ← Providers ← Email: أوقف **Confirm email** لتسهيل إنشاء حسابات التجربة.
-5. أعط المطوّر `Project URL` و`anon public key` فقط. **لا تشارك `service_role` أبدًا.**
+4. `06_seed_test_providers.sql`: ٩ مقدمي خدمة وهميين (إيميلاتهم @example.invalid) مع خدماتهم وتقييمات تجريبية. آمن لإعادة التشغيل.
+5. Authentication ← Providers ← Email: أوقف **Confirm email** لتسهيل إنشاء حسابات التجربة.
+6. أعط المطوّر `Project URL` و`anon public key` فقط. **لا تشارك `service_role` أبدًا.**
 
 ## ما الذي تغيّر عن الأصلي عمدًا
 - دوال `notify_booking_change` و`notify_booking_offer_change` أصبحت لا تفعل شيئًا،
