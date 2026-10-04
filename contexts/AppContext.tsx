@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import React, {
   createContext,
@@ -183,12 +184,13 @@ type AppContextValue = {
 
   // ─── حساب العميل (زي client.html) ─────────────────────────────────────
   client: DbClient | null;
-  clientLogin: (email: string, password: string) => Promise<void>;
+  clientLogin: (email: string, password: string) => Promise<{ needsPhone: boolean }>;
   clientRegister: (input: ClientRegisterInput) => Promise<void>;
-  // phone + one-time code login (see supabase/test-project/07_phone_auth.sql)
-  clientSendOtp: (phone: string) => Promise<void>;
-  clientVerifyOtp: (phone: string, code: string) => Promise<{ needsName: boolean }>;
-  clientCompleteSignup: (name: string) => Promise<void>;
+  // true when someone is signed in (email / Google) but has no client record yet — the app
+  // then asks for a mobile number (see supabase/test-project/07_register_client.sql)
+  needsPhone: boolean;
+  clientSignInWithGoogle: () => Promise<void>;
+  clientCompleteProfile: (phone: string, name?: string) => Promise<void>;
   clientLogout: () => Promise<void>;
   clientResetPassword: (email: string) => Promise<void>;
 
@@ -221,6 +223,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [client, setClient] = useState<DbClient | null>(null);
   const [addresses, setAddresses] = useState<DbClientAddress[]>([]);
+  const [needsPhone, setNeedsPhone] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<DbFamilyMember[]>([]);
 
   // الكاش المحلي ممكن يحتوي حجوزات اتعملت من نفس الجهاز بهويات مختلفة (أرقام مختلفة
@@ -253,28 +256,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // ─── حساب العميل: استرجاع الجلسة المحفوظة ────────────────────────────────
+  // ─── حساب العميل: استرجاع الجلسة المحفوظة + أي تسجيل دخول جديد (إيميل / جوجل) ────
+  // Loads the client row for the current session; if there is a session but no client yet,
+  // flags that the mobile number is still needed.
+  const syncClientFromSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { setNeedsPhone(false); return; }
+      const { data } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("auth_id", session.user.id)
+        .maybeSingle();
+      if (data) await onClientReady(data as DbClient);
+      else setNeedsPhone(true);
+    } catch {
+      // مفيش جلسة عميل — وضع الزائر عادي
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
-        const { data } = await supabase
-          .from("clients")
-          .select("*")
-          .eq("auth_id", session.user.id)
-          .single();
-        if (data) await onClientReady(data as DbClient);
-      } catch {
-        // مفيش جلسة عميل — وضع الزائر عادي
-      }
-    })();
+    syncClientFromSession();
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      // SIGNED_IN also fires after OAuth deep links and password logins
+      if (event === "SIGNED_IN") setTimeout(() => { syncClientFromSession(); }, 0);
+    });
+    return () => sub.subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // بعد تسجيل الدخول/الاسترجاع: مزامنة البروفايل + ربط الحجوزات القديمة + تحميل بياناته
   const onClientReady = async (c: DbClient) => {
     setClient(c);
+    setNeedsPhone(false);
     setProfile((prev) => {
       const merged: CustomerProfile = {
         ...prev,
@@ -324,12 +338,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .from("clients")
       .select("*")
       .eq("auth_id", authData.user.id)
-      .single();
+      .maybeSingle();
     if (!data) {
-      await supabase.auth.signOut();
-      throw new Error("لم يتم العثور على حسابك — جرّب إنشاء حساب جديد");
+      // signed in but never gave a mobile number: keep the session and ask for it
+      setNeedsPhone(true);
+      return { needsPhone: true };
     }
     await onClientReady(data as DbClient);
+    return { needsPhone: false };
   };
 
   const clientRegister = async (input: ClientRegisterInput) => {
@@ -343,20 +359,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
     }
     const userId = authData?.user?.id ?? authData?.session?.user?.id;
-    if (!userId) throw new Error("✅ تم إنشاء الحساب — تحقق من بريدك الإلكتروني لتأكيده ثم سجّل دخول");
-
-    const { data: newClient, error: cErr } = await supabase
-      .from("clients")
-      .insert([{ auth_id: userId, name: input.name, phone: input.phone, email: input.email }])
-      .select()
-      .single();
-    if (cErr) throw new Error(cErr.message);
-    await onClientReady(newClient as DbClient);
+    if (!userId || !authData?.session) throw new Error("✅ تم إنشاء الحساب — تحقق من بريدك الإلكتروني لتأكيده ثم سجّل دخول");
+    // one client per mobile number, enforced on the server
+    await clientCompleteProfile(input.phone, input.name);
   };
 
   const clientLogout = async () => {
     await supabase.auth.signOut();
     setClient(null);
+    setNeedsPhone(false);
     setAddresses([]);
     setFamilyMembers([]);
     const cleared: CustomerProfile = { ...DEFAULT_PROFILE };
@@ -364,40 +375,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(cleared)).catch(() => {});
   };
 
-  // Egyptian mobile (01012345678 / 1012345678) -> E.164 (+201012345678)
-  const toE164 = (phone: string) => `+20${phone.replace(/\D/g, "").replace(/^0+/, "")}`;
-
-  const clientSendOtp = async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ phone: toE164(phone), options: { channel: "sms" } });
-    if (error) throw new Error(error.message);
-  };
-
-  const claimClient = async (name: string | null) => {
-    const { data, error } = await supabase.rpc("claim_my_client", { p_name: name });
-    if (error) throw new Error(error.message);
+  // Creates / links the client record for the signed-in user and the given mobile number.
+  // Server rules (07_register_client.sql): one account per number; an unlinked old record with
+  // the same number is linked; a number owned by another login is rejected.
+  const clientCompleteProfile = async (phone: string, name?: string) => {
+    const { data, error } = await supabase.rpc("register_my_client", { p_phone: phone, p_name: name ?? null });
+    if (error) {
+      const msg = error.message ?? "";
+      if (msg.includes("phone_taken")) {
+        const hint = msg.split("phone_taken:")[1]?.trim();
+        throw new Error(
+          hint
+            ? `الرقم ده مسجّل بحساب تاني (${hint}). سجّل دخول بنفس الحساب بدل ما تعمل حساب جديد.`
+            : "الرقم ده مسجّل بحساب تاني. سجّل دخول بنفس الحساب.",
+        );
+      }
+      if (msg.includes("invalid_phone")) throw new Error("رقم الموبايل غير صحيح (مثال: 01012345678)");
+      throw new Error(msg);
+    }
     await onClientReady(data as DbClient);
   };
 
-  const clientVerifyOtp = async (phone: string, code: string) => {
-    const { error } = await supabase.auth.verifyOtp({ phone: toE164(phone), token: code, type: "sms" });
-    if (error) throw new Error(error.message);
-    try {
-      await claimClient(null);
-      return { needsName: false };
-    } catch (e: any) {
-      // verified, but a brand-new number: the app now asks for a name
-      if (String(e?.message).includes("name_required")) return { needsName: true };
-      throw e;
-    }
-  };
-
-  const clientCompleteSignup = async (name: string) => {
-    await claimClient(name.trim());
+  // Google sign-in through the system browser; the app comes back via the auth-callback deep link
+  // handled in app/_layout.tsx (no extra native module needed).
+  const clientSignInWithGoogle = async () => {
+    const redirectTo = Linking.createURL("auth-callback");
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (error || !data?.url) throw new Error(error?.message ?? "تعذّر بدء الدخول بجوجل");
+    await Linking.openURL(data.url);
   };
 
   const clientResetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "malaaz://reset-password",
+      redirectTo: Linking.createURL("reset-password"),
     });
     if (error) throw new Error(error.message);
   };
@@ -872,9 +885,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       client,
       clientLogin,
       clientRegister,
-      clientSendOtp,
-      clientVerifyOtp,
-      clientCompleteSignup,
+      needsPhone,
+      clientSignInWithGoogle,
+      clientCompleteProfile,
       clientLogout,
       clientResetPassword,
       addresses,
@@ -887,7 +900,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateFamilyMember,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, visibleBookings, loadingBookings, client, addresses, familyMembers]
+    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, visibleBookings, loadingBookings, client, addresses, familyMembers, needsPhone]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

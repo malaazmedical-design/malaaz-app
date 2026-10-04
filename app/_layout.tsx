@@ -34,7 +34,7 @@ import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Updates from "expo-updates";
 import React, { useEffect, useRef, useState } from "react";
-import { AppState, Platform, Text, TouchableOpacity } from "react-native";
+import { Alert, AppState, Platform, Text, TouchableOpacity } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -79,6 +79,10 @@ function RootLayoutNav() {
       <Stack.Screen
         name="provider/[id]"
         options={{ headerShown: false, presentation: "card", animation: "slide_from_right" }}
+      />
+      <Stack.Screen
+        name="auth-callback"
+        options={{ headerShown: false, animation: "none" }}
       />
       <Stack.Screen
         name="edit-profile"
@@ -201,6 +205,22 @@ export default function RootLayout() {
   // معالجة deep link لإعادة تعيين كلمة المرور
   useEffect(() => {
     const handleUrl = async (url: string) => {
+      // Google sign-in comes back here with the session tokens in the URL fragment
+      if (url.includes("auth-callback")) {
+        try {
+          const fragment = new URLSearchParams(url.split("#")[1] ?? "");
+          const query = new URLSearchParams(url.split("?")[1]?.split("#")[0] ?? "");
+          const accessToken = fragment.get("access_token");
+          const refreshToken = fragment.get("refresh_token");
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          } else {
+            const reason = fragment.get("error_description") ?? query.get("error_description");
+            if (reason) Alert.alert("تعذّر الدخول بجوجل", reason.replace(/\+/g, " "));
+          }
+        } catch {}
+        return;
+      }
       if (!url.includes("reset-password")) return;
       try {
         // PKCE flow (Supabase v2 default): ?code=XXX in query string

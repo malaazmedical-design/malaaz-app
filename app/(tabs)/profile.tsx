@@ -18,7 +18,7 @@ const MEDICINES_KEY = "malaaz.medicines.v1";
 export default function AccountScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { profile, client, clientLogout, addresses } = useApp();
+  const { profile, client, needsPhone, clientLogout, addresses } = useApp();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const [medCount, setMedCount] = useState(0);
 
@@ -123,11 +123,21 @@ export default function AccountScreen() {
               <View style={{ width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderStyle: "dashed", borderColor: t.gold, alignItems: "center", justifyContent: "center" }}>
                 <MaterialCommunityIcons name="account-outline" size={40} color={t.gold} />
               </View>
-              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 21, marginTop: 14 }}>أهلاً بيك في ملاذ</Text>
-              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 4, textAlign: "center" }}>سجّل دخولك عشان تتابع حجوزاتك</Text>
+              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 21, marginTop: 14 }}>
+                {needsPhone ? "كمّل بياناتك" : "أهلاً بيك في ملاذ"}
+              </Text>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 4, textAlign: "center" }}>
+                {needsPhone ? "ناقص رقم موبايلك عشان نكمّل إنشاء حسابك" : "سجّل دخولك عشان تتابع حجوزاتك"}
+              </Text>
               <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 18, alignSelf: "stretch" }}>
-                <GoldButton flex label="تسجيل الدخول" onPress={() => router.push("/client-auth")} />
-                <GoldButton flex outline label="إنشاء حساب" onPress={() => router.push("/client-auth")} />
+                {needsPhone ? (
+                  <GoldButton flex label="إضافة رقم الموبايل" onPress={() => router.push("/client-auth")} />
+                ) : (
+                  <>
+                    <GoldButton flex label="تسجيل الدخول" onPress={() => router.push("/client-auth")} />
+                    <GoldButton flex outline label="إنشاء حساب" onPress={() => router.push("/client-auth")} />
+                  </>
+                )}
               </View>
             </Animated.View>
 

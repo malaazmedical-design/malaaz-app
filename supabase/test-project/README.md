@@ -9,7 +9,7 @@
 3. (اختياري) بيانات مرجعية: شغّل `export-reference-data.sql` على المشروع **الأصلي** (قراءة فقط)،
    وانسخ الناتج `reference_data_sql` وشغّله على المشروع التجريبي.
 4. `06_seed_test_providers.sql`: ٩ مقدمي خدمة وهميين (إيميلاتهم @example.invalid) مع خدماتهم وتقييمات تجريبية. آمن لإعادة التشغيل.
-5. `07_phone_auth.sql`: دالة `claim_my_client` لربط الدخول بالموبايل (OTP) بجدول `clients`.
+5. `07_register_client.sql`: دالة `register_my_client` لإنشاء/ربط صف العميل بعد أي تسجيل دخول (إيميل أو جوجل) مع رقم الموبايل، ومنع حسابين بنفس الرقم. بدون SMS.
 6. Authentication ← Providers ← Email: أوقف **Confirm email** لتسهيل إنشاء حسابات التجربة.
 7. أعط المطوّر `Project URL` و`anon public key` فقط. **لا تشارك `service_role` أبدًا.**
 
