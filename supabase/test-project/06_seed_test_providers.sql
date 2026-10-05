@@ -24,12 +24,38 @@ select v.* from (values
 ) as v(name, email, phone, service_type, specialty, grade, area, areas, bio, experience, rating, price, status, is_available, commission_rate, lat, lng)
 where not exists (select 1 from public.providers p where p.email = v.email);
 
+-- Each demo provider gets only ITS OWN services (not every service of its type):
+--   * if a sub-service has exactly the provider's specialty name, only that one is linked;
+--   * otherwise up to 3 sub-services of the provider's service type are picked (stable pseudo-random).
+-- "grade" rows (consultant / specialist) are filters, not bookable services, so they are skipped.
+-- Safe to re-run: it first resets the demo providers' services.
+delete from public.provider_services
+where provider_id in (select id from public.providers where email like '%@example.invalid');
+
 insert into public.provider_services (provider_id, sub_service_id, custom_price, is_active)
-select p.id, ss.id, coalesce(ss.price_min, p.price, 300), true
+select p.id, ss.id,
+       coalesce(case when p.grade = 'استشاري' then ss.price_min_consultant else ss.price_min_specialist end,
+                ss.price_min, p.price, 300),
+       true
 from public.providers p
-join public.sub_services ss on ss.service_name = p.service_type and ss.is_active
-where p.email like '%@example.invalid'
-  and not exists (select 1 from public.provider_services x where x.provider_id = p.id and x.sub_service_id = ss.id);
+join lateral (
+  select s.*
+  from public.sub_services s
+  where s.service_name = p.service_type
+    and s.is_active
+    and coalesce(s.group_name, '') <> 'grade'
+    and (
+      s.name = p.specialty
+      or not exists (
+        select 1 from public.sub_services m
+        where m.service_name = p.service_type and m.is_active
+          and coalesce(m.group_name, '') <> 'grade' and m.name = p.specialty
+      )
+    )
+  order by md5(p.id::text || s.id::text)
+  limit 3
+) ss on true
+where p.email like '%@example.invalid';
 
 insert into public.reviews (client_name, service_type, rating, text, is_approved, provider_id)
 select r.n, p.service_type, 5, r.t, true, p.id
