@@ -279,6 +279,7 @@ export default function HomeScreen() {
   };
 
   const showCities = serviceFilter !== "all" || cityFilter !== "الكل";
+  const hasSelection = serviceFilter !== "all" || !!gradeFilter || !!subServiceFilter || search.trim().length > 0 || activeCount > 0;
 
   const Section = ({ title }: { title: string }) => (
     <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right", paddingHorizontal: 20, marginBottom: 10 }}>
@@ -406,6 +407,7 @@ export default function HomeScreen() {
         </View>
 
         {/* ─── Ask a doctor ─── */}
+        {!hasSelection && (
         <Pressable
           onPress={() => router.push("/ask-doctor")}
           style={({ pressed }) => ({
@@ -423,6 +425,7 @@ export default function HomeScreen() {
           </View>
           <MaterialCommunityIcons name="chevron-left" size={24} color={t.gold} />
         </Pressable>
+        )}
 
         {/* ─── Sub-filters (visible once a service is picked) ─── */}
         {serviceFilter === "doctor" && doctorGrades.length > 0 && (

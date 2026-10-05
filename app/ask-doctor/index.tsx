@@ -133,12 +133,6 @@ export default function AskDoctorScreen() {
           <Text style={{ color: "#FFFFFF44", fontFamily: "Cairo_400Regular", fontSize: 14, marginTop: 8, textAlign: "center" }}>
             اكتب سؤالك أو صف حالتك وهنوصّلك لأقرب طبيب متاح
           </Text>
-          <Pressable
-            onPress={() => router.push("/ask-doctor/new")}
-            style={{ marginTop: 24, backgroundColor: GOLD, borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14 }}
-          >
-            <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 16 }}>ابدأ استشارة</Text>
-          </Pressable>
         </View>
       ) : (
         <FlatList
