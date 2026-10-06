@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PText, Select } from "@/components/provider/PUI";
@@ -188,9 +188,18 @@ export default function ProviderLoginScreen() {
             </PText>
             <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14.5, textAlign: "center", lineHeight: 23, paddingHorizontal: 10 }}>
               {mode === "pending"
-                ? "استلمنا بياناتك وستراجعها الإدارة. سنراسلك على بريدك عند تفعيل الحساب.\nجهّز المستندات المطلوبة وأرسلها واتساب 01039091989."
+                ? "استلمنا بياناتك وستراجعها الإدارة.\nجهّز المستندات المطلوبة وأرسلها على واتساب 01039097982."
                 : `أرسلنا رابط استرجاع كلمة المرور إلى ${email.trim()}`}
             </PText>
+            {mode === "pending" ? (
+              <Pressable
+                onPress={() => Linking.openURL("https://wa.me/201039097982").catch(() => {})}
+                style={({ pressed }) => ({ alignSelf: "stretch", flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 16, backgroundColor: "rgba(37,211,102,.14)", transform: [{ scale: pressed ? 0.98 : 1 }] })}
+              >
+                <MaterialCommunityIcons name="whatsapp" size={20} color={t.whatsapp} />
+                <PText style={{ color: t.whatsapp, fontFamily: TJ.heavy, fontSize: 15 }}>تواصل مع الإدارة</PText>
+              </Pressable>
+            ) : null}
             <View style={{ alignSelf: "stretch", marginTop: 8 }}>
               {gold("العودة لتسجيل الدخول", () => { clearGoogle().catch(() => {}); go("login"); })}
             </View>
