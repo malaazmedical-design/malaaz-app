@@ -138,8 +138,6 @@ export default function RootLayout() {
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
   useEffect(() => { applyStoredTheme(); }, []);
   const [updateReady, setUpdateReady] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [applyStuck, setApplyStuck] = useState(false);
   const updateReadyRef = useRef(false);
 
   useEffect(() => {
@@ -174,16 +172,8 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
-  // تطبيق التحديث من الزرار: شاشة داكنة بدل الأبيض أثناء إعادة التشغيل،
-  // ولو إعادة التشغيل الفورية علقت نطلب من المستخدم يقفل التطبيق ويفتحه (التحديث نازل فعلاً)
-  const applyUpdateNow = () => {
-    setApplying(true);
-    setApplyStuck(false);
-    setTimeout(() => setApplyStuck(true), 6000);
-    setTimeout(() => { Updates.reloadAsync().catch(() => setApplyStuck(true)); }, 250);
-  };
-
-  // فحص OTA تلقائي — ينزّل التحديث وبعد كده يطبّقه لما التطبيق يروح الخلفية
+  // فحص OTA تلقائي — ينزّل التحديث ويتطبّق عند أول فتح بعد قفل التطبيق خالص.
+  // مفيش reloadAsync() وإحنا شغّالين: على الأندرويد (New Architecture) بيسيب شاشة بيضا.
   useEffect(() => {
     if (Platform.OS === "web" || !Updates.isEnabled) return;
 
@@ -194,18 +184,12 @@ export default function RootLayout() {
         await Updates.fetchUpdateAsync();
         updateReadyRef.current = true;
         setUpdateReady(true);
-        // لو التطبيق في الخلفية دلوقت، نطبّق فوراً
-        if (AppState.currentState !== "active") {
-          Updates.reloadAsync().catch(() => {});
-        }
       } catch {}
     };
 
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active" && !updateReadyRef.current) {
         checkUpdate();
-      } else if (state === "background" && updateReadyRef.current) {
-        Updates.reloadAsync().catch(() => {});
       }
     });
 
@@ -275,7 +259,7 @@ export default function RootLayout() {
                 {!introDone ? <AnimatedSplash onDone={() => setIntroDone(true)} /> : null}
                 {updateReady && introDone ? (
                   <TouchableOpacity
-                    onPress={applyUpdateNow}
+                    onPress={() => setUpdateReady(false)}
                     style={{
                       position: "absolute",
                       bottom: 90,
@@ -294,17 +278,9 @@ export default function RootLayout() {
                     }}
                   >
                     <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>
-                      ✦ تحديث جديد متاح — اضغط للتحديث الآن
+                      ✦ نزل تحديث جديد — هيتفعّل لما تقفل التطبيق وتفتحه
                     </Text>
                   </TouchableOpacity>
-                ) : null}
-                {applying ? (
-                  <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000, backgroundColor: "#1C2B2A", alignItems: "center", justifyContent: "center", paddingHorizontal: 30 }}>
-                    <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 22 }}>ملاذ</Text>
-                    <Text style={{ color: "#FFFFFFAA", fontFamily: "Cairo_600SemiBold", fontSize: 15, marginTop: 10, textAlign: "center" }}>
-                      {applyStuck ? "التحديث نزل. أغلق التطبيق وافتحه من جديد لإكمال التحديث." : "جاري تطبيق التحديث…"}
-                    </Text>
-                  </View>
                 ) : null}
               </AppProvider>
             </KeyboardProvider>

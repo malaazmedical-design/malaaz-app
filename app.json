@@ -8,6 +8,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "malaaz",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#1C2B2A",
     "newArchEnabled": true,
     "runtimeVersion": "1",
     "updates": {
