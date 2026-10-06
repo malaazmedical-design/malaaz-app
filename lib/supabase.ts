@@ -94,6 +94,7 @@ export type DbBooking = {
   patient_email: string | null;
   client_id: string | null;
   on_way_at: string | null;
+  cancel_reason?: string | null;
   created_at: string;
 };
 

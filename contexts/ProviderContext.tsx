@@ -76,8 +76,11 @@ type ProviderContextValue = {
   toggleAvailability: (value: boolean) => Promise<void>;
   updateBookingStatus: (
     id: string,
-    status: "confirmed" | "completed" | "cancelled"
+    status: "confirmed" | "completed" | "cancelled",
+    cancelReason?: string
   ) => Promise<void>;
+  // ملاحظة بعد الزيارة — بتوصل للإدارة بس (المقدم مبيقدرش يقراها تاني)
+  sendVisitNote: (bookingId: string, note: string) => Promise<void>;
   // "في الطريق إليك" — بيوصل إشعار للعميل تلقائياً من السيرفر
   setOnWay: (id: string) => Promise<void>;
   saveProfile: (input: ProviderProfileInput) => Promise<void>;
@@ -470,7 +473,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   // ─── تحديث حالة الحجز + إشعارات العميل (نفس منطق الموقع) ────────────────
   const updateBookingStatus = async (
     id: string,
-    status: "confirmed" | "completed" | "cancelled"
+    status: "confirmed" | "completed" | "cancelled",
+    cancelReason?: string
   ) => {
     const updatePayload: Record<string, unknown> = { status };
     if (status === "confirmed" && provider?.id) {
@@ -487,7 +491,11 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       throw new Error("لم يتم التحديث — تحقق من الصلاحيات");
 
     const booking = bookings.find((b) => b.id === id);
-    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
+    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status, ...(cancelReason ? { cancel_reason: cancelReason } : {}) } : b)));
+    if (status === "cancelled" && cancelReason) {
+      // best-effort: العمود موجود في مشروع الاختبار بس (08_provider_app.sql)
+      await supabase.from("bookings").update({ cancel_reason: cancelReason, cancelled_by: "provider" }).eq("id", id);
+    }
     if (!booking) return;
 
     // الـ push بيتبعت تلقائياً من السيرفر (تريجر) — الإيميل fallback بس لو العميل معندوش التطبيق
@@ -545,6 +553,14 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   };
 
   // ─── "في الطريق إليك" ────────────────────────────────────────────────────
+  const sendVisitNote = async (bookingId: string, note: string) => {
+    if (!provider?.id) throw new Error("غير مسجل");
+    const { error } = await supabase
+      .from("booking_visit_notes")
+      .insert({ booking_id: bookingId, provider_id: provider.id, note });
+    if (error) throw new Error(error.message);
+  };
+
   const setOnWay = async (id: string) => {
     const now = new Date().toISOString();
     const { data, error } = await supabase
@@ -626,6 +642,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       subServices,
       areas,
       myServices,
+      sendVisitNote,
       offers,
       loadingOffers,
       incomingOffer,
