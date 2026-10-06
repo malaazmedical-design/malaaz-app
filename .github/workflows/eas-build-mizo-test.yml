@@ -7,6 +7,10 @@ on:
         description: 'الـ branch'
         required: true
         default: 'feature/mizo-aac'
+      profile:
+        description: 'EAS build profile (mizo-test أو mizo-provider)'
+        required: true
+        default: 'mizo-test'
 
 jobs:
   build:
@@ -29,8 +33,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build APK (mizo-test profile)
-        run: eas build --platform android --profile mizo-test --non-interactive
+      - name: Build APK
+        run: eas build --platform android --profile ${{ github.event.inputs.profile }} --non-interactive
 
       - name: Done
         run: echo "✅ APK جاهز — حمّله من https://expo.dev/accounts/malaazapp/projects/malaaz/builds"
