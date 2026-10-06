@@ -177,7 +177,6 @@ export default function ProviderProfileScreen() {
         serviceType,
         grade,
         specialty: serviceType === "كشف منزلي" ? specialty : (specialty ?? provider?.specialty ?? null),
-        price: price ? parseFloat(price) : null,
         photoUrl,
       });
       burst.show("تم حفظ الحساب");
@@ -265,7 +264,13 @@ export default function ProviderProfileScreen() {
             <View style={{ flex: 1.6 }}>{label("رقم الموبايل")}<TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={[input, { writingDirection: "ltr" }]} /></View>
             <View style={{ flex: 1 }}>{label("سنوات الخبرة")}<TextInput value={exp} onChangeText={(v) => setExp(v.replace(/[^\d.]/g, ""))} keyboardType="numeric" style={input} /></View>
           </View>
-          <View>{label("السعر الأساسي (ج.م) · يظهر للعملاء كسعر بداية")}<TextInput value={price} onChangeText={(v) => setPrice(v.replace(/[^\d.]/g, ""))} keyboardType="numeric" style={input} /></View>
+          <View>
+            {label("السعر الأساسي (ج.م) · يظهر للعملاء كسعر بداية")}
+            <View style={{ height: 48, borderRadius: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.ic, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+              <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15 }}>{price ? `${price} ج.م` : "—"}</PText>
+              <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>أقل سعر في خدماتي وأسعاري (تلقائي)</PText>
+            </View>
+          </View>
           <View>
             <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginHorizontal: 4, marginBottom: 6 }}>
               <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>نبذة عنك</PText>

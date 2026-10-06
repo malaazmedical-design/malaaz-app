@@ -52,7 +52,7 @@ export type ProviderProfileInput = {
   serviceType: string;
   grade: string;
   specialty: string | null;
-  price: number | null;
+  price?: number | null;
   photoUrl?: string | null;
 };
 
@@ -664,8 +664,9 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       service_type: input.serviceType,
       grade: input.grade,
       specialty: input.specialty,
-      price: input.price,
     };
+    // السعر الأساسي بيتحسب تلقائي من خدماتي وأسعاري — مش بيتكتب يدوي
+    if (input.price !== undefined) payload.price = input.price;
     if (input.photoUrl) payload.photo_url = input.photoUrl;
 
     const { error } = await supabase
@@ -709,6 +710,14 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("provider_id", provider.id);
     setMyServices((data ?? []) as DbProviderService[]);
+
+    // السعر الأساسي = أقل سعر بين خدماته المفعّلة (بيظهر للعملاء "من X ج.م")
+    const prices = rows.map((r) => r.custom_price).filter((p): p is number => p != null && p > 0);
+    if (prices.length) {
+      const base = Math.min(...prices);
+      const { error: pErr } = await supabase.from("providers").update({ price: base }).eq("id", provider.id);
+      if (!pErr) setProvider((prev) => (prev ? { ...prev, price: base } : prev));
+    }
   };
 
   const value = useMemo<ProviderContextValue>(
