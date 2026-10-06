@@ -10,6 +10,7 @@ export default function ProviderPortalLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" />
         <Stack.Screen name="(ptabs)" />
+        <Stack.Screen name="edit-account" />
       </Stack>
       <IncomingOfferModal />
     </ProviderProvider>
