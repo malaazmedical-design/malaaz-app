@@ -134,8 +134,8 @@ export default function AccountScreen() {
                   <GoldButton flex label="إضافة رقم الموبايل" onPress={() => router.push("/client-auth")} />
                 ) : (
                   <>
-                    <GoldButton flex label="تسجيل الدخول" onPress={() => router.push("/client-auth")} />
-                    <GoldButton flex outline label="إنشاء حساب" onPress={() => router.push("/client-auth")} />
+                    <GoldButton flex label="تسجيل الدخول" onPress={() => router.push({ pathname: "/client-auth", params: { mode: "login" } })} />
+                    <GoldButton flex outline label="إنشاء حساب" onPress={() => router.push({ pathname: "/client-auth", params: { mode: "register" } })} />
                   </>
                 )}
               </View>
