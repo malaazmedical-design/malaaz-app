@@ -130,14 +130,11 @@ export default function AccountScreen() {
                 {needsPhone ? "ناقص رقم موبايلك عشان نكمّل إنشاء حسابك" : "سجّل دخولك عشان تتابع حجوزاتك"}
               </Text>
               <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 18, alignSelf: "stretch" }}>
-                {needsPhone ? (
-                  <GoldButton flex label="إضافة رقم الموبايل" onPress={() => router.push("/client-auth")} />
-                ) : (
-                  <>
-                    <GoldButton flex label="تسجيل الدخول" onPress={() => router.push({ pathname: "/client-auth", params: { mode: "login" } })} />
-                    <GoldButton flex outline label="إنشاء حساب" onPress={() => router.push({ pathname: "/client-auth", params: { mode: "register" } })} />
-                  </>
-                )}
+                <GoldButton
+                  flex
+                  label={needsPhone ? "إضافة رقم الموبايل" : "تسجيل الدخول"}
+                  onPress={() => router.push("/client-auth")}
+                />
               </View>
             </Animated.View>
 

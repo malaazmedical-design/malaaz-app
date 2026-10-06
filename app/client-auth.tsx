@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View,
@@ -22,9 +22,7 @@ export default function ClientAuthScreen() {
     clientLogin, clientRegister, clientResetPassword, clientSignInWithGoogle, clientCompleteProfile, clientLogout,
   } = useApp();
 
-  const params = useLocalSearchParams<{ mode?: string }>();
-  // يفتح على تبويب الدخول أو إنشاء الحساب حسب الزر اللي اتضغط عليه من حسابي
-  const [tab, setTab] = useState<"login" | "register">(params.mode === "register" ? "register" : "login");
+  const [tab, setTab] = useState<"login" | "register">("login");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
