@@ -105,3 +105,48 @@ function CheckBurstView({ msg, scale, opacity }: { msg: string; scale: Animated.
     </View>
   );
 }
+
+// ─── Price slider (RTL: min on the right, step 10) ────────────────────────────
+export function PriceSlider({ value, min, max, step = 10, onChange, disabled }: {
+  value: number; min: number; max: number; step?: number; onChange: (v: number) => void; disabled?: boolean;
+}) {
+  const t = useMalaz();
+  const [w, setW] = React.useState(0);
+  const cb = React.useRef(onChange);
+  cb.current = onChange;
+  const range = Math.max(max - min, 1);
+  const frac = Math.min(1, Math.max(0, (value - min) / range));
+
+  const setFromX = React.useCallback((x: number, width: number) => {
+    if (width <= 0) return;
+    const f = 1 - Math.min(1, Math.max(0, x / width));
+    const raw = min + f * (max - min);
+    const snapped = Math.round(raw / step) * step;
+    cb.current(Math.min(max, Math.max(min, snapped)));
+  }, [min, max, step]);
+
+  const pan = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => !disabled,
+        onMoveShouldSetPanResponder: () => !disabled,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: (e) => setFromX(e.nativeEvent.locationX, w),
+        onPanResponderMove: (e) => setFromX(e.nativeEvent.locationX, w),
+      }),
+    [disabled, setFromX, w],
+  );
+
+  return (
+    <View
+      onLayout={(e) => setW(e.nativeEvent.layout.width)}
+      {...pan.panHandlers}
+      style={{ height: 34, justifyContent: "center", marginTop: 6 }}
+    >
+      <View pointerEvents="none" style={{ height: 6, borderRadius: 3, backgroundColor: t.btn }}>
+        <View style={{ position: "absolute", right: 0, height: 6, borderRadius: 3, width: `${frac * 100}%`, backgroundColor: t.gold }} />
+      </View>
+      <View pointerEvents="none" style={{ position: "absolute", right: Math.max(0, frac * (w - 22)), width: 22, height: 22, borderRadius: 11, backgroundColor: t.gold, borderWidth: 3, borderColor: t.card }} />
+    </View>
+  );
+}

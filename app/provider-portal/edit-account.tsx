@@ -21,27 +21,23 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { FieldLabel, PrimaryButton } from "@/components/ui";
+import { PText, useCheckBurst } from "@/components/provider/PUI";
+import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
-import { useColors } from "@/hooks/useColors";
 import { supabase } from "@/lib/supabase";
 
 const DARK = "#1C2B2A";
 const GOLD = "#C9A84C";
 
-const SERVICE_TYPES = [
-  { key: "كشف منزلي", icon: "stethoscope" },
-  { key: "تمريض منزلي", icon: "heart-pulse" },
-  { key: "أشعة منزلية", icon: "radioactive" },
-] as const;
+const DOCTOR_GRADES = ["أخصائي", "استشاري"];
+const NURSE_GRADES = ["أخصائي تمريض", "فني تمريض"];
 
-const GRADES = [
-  { key: "أخصائي", icon: "school", desc: "خبرة متخصصة" },
-  { key: "استشاري", icon: "medal", desc: "أعلى درجة مهنية" },
-] as const;
+const TYPE_LABEL: Record<string, string> = { "كشف منزلي": "كشف منزلي", "تمريض منزلي": "تمريض منزلي", "أشعة منزلية": "أشعة منزلية" };
 
 export default function ProviderProfileScreen() {
-  const colors = useColors();
+  const t = useMalaz();
+  const burst = useCheckBurst();
+  const [micOn, setMicOn] = useState(false);
   const insets = useSafeAreaInsets();
   const { provider, areas, subServices, saveProfile, logout } = useProvider();
 
@@ -184,7 +180,7 @@ export default function ProviderProfileScreen() {
         price: price ? parseFloat(price) : null,
         photoUrl,
       });
-      Alert.alert("تم", "✅ تم حفظ الملف الشخصي");
+      burst.show("تم حفظ الحساب");
     } catch (e: any) {
       Alert.alert("خطأ", e.message ?? "تعذر الحفظ");
     } finally {
@@ -192,252 +188,154 @@ export default function ProviderProfileScreen() {
     }
   };
 
-  const inputStyle = {
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 13,
-    fontFamily: "Cairo_400Regular",
-    color: colors.foreground,
-    textAlign: "right" as const,
+  const isDoctor = serviceType === "كشف منزلي";
+  const isNurse = serviceType === "تمريض منزلي";
+  const grades = isDoctor ? DOCTOR_GRADES : isNurse ? NURSE_GRADES : [];
+
+  // الإملاء الصوتي: Web Speech API على الويب فقط — على الموبايل رسالة بديلة
+  const toggleMic = () => {
+    const SR = Platform.OS === "web" ? ((globalThis as any).SpeechRecognition ?? (globalThis as any).webkitSpeechRecognition) : null;
+    if (!SR) {
+      Alert.alert("الإملاء الصوتي", "الإملاء الصوتي غير مدعوم على جهازك. استخدم ميكروفون الكيبورد للكتابة بصوتك.");
+      return;
+    }
+    if (micOn) { setMicOn(false); return; }
+    const rec = new SR();
+    rec.lang = "ar-EG";
+    rec.onresult = (e: any) => setBio((prev) => (prev ? prev + " " : "") + e.results[0][0].transcript);
+    rec.onend = () => setMicOn(false);
+    rec.onerror = () => setMicOn(false);
+    setMicOn(true);
+    rec.start();
   };
 
+  const input = {
+    height: 48, borderRadius: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.card,
+    color: t.text, paddingHorizontal: 14, fontSize: 15, fontFamily: TJ.medium, textAlign: "right" as const,
+  };
+  const label = (txt: string) => (
+    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginHorizontal: 4, marginBottom: 6 }}>{txt}</PText>
+  );
+  const title = (txt: string, count?: number, sub?: string) => (
+    <View style={{ marginTop: 22, marginBottom: 8, marginHorizontal: 4 }}>
+      <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>
+        {txt}{count != null ? <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 15 }}>{` (${count})`}</PText> : null}
+      </PText>
+      {sub ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{sub}</PText> : null}
+    </View>
+  );
+  const chip = (txt: string, on: boolean, onPress: () => void) => (
+    <Pressable key={txt} onPress={onPress}
+      style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: on ? t.gold : t.card, borderWidth: 1, borderColor: on ? t.gold : t.border }}>
+      <PText style={{ color: on ? t.onGold : t.text2, fontFamily: TJ.bold, fontSize: 14 }}>{txt}</PText>
+    </Pressable>
+  );
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <View style={{ backgroundColor: DARK, paddingTop: insets.top + 12, paddingBottom: 16, paddingHorizontal: 20 }}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={{ position: "absolute", left: 16, top: insets.top + 14 }}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color="#FFFFFF" />
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12 }}>
+        <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+          <MaterialCommunityIcons name="chevron-right" size={24} color={t.gold} />
         </Pressable>
-        <Text style={{ color: "#FFFFFF", fontFamily: "Cairo_700Bold", fontSize: 18, textAlign: "right" }}>تعديل الحساب</Text>
-        <Text style={{ color: "rgba(255,255,255,0.5)", fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 2 }}>
-          المعلومات التي تظهر للعملاء
-        </Text>
+        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 21 }}>تعديل الحساب</PText>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
-        {/* الصورة */}
-        <SectionTitle icon="camera" label="الصورة الشخصية" />
-        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 16, marginBottom: 20 }}>
-          <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: colors.surfaceMuted, borderWidth: 2, borderColor: colors.border, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
-            {photoUrl ? (
-              <Image source={{ uri: photoUrl }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
-            ) : (
-              <MaterialCommunityIcons name="doctor" size={36} color={colors.mutedForeground} />
-            )}
-          </View>
-          <View style={{ flex: 1 }}>
-            <PrimaryButton
-              label={uploading ? "جاري الرفع..." : photoUrl ? "تغيير الصورة" : "رفع صورة"}
-              icon="upload"
-              variant="outline"
-              onPress={pickPhoto}
-              loading={uploading}
-            />
-          </View>
-        </View>
-
-        {/* المعلومات الأساسية */}
-        <SectionTitle icon="account" label="المعلومات الأساسية" />
-        <FieldLabel label="الاسم الكامل *" />
-        <TextInput style={[inputStyle, { marginBottom: 12 }]} value={name} onChangeText={setName} placeholder="اسمك كاملاً" placeholderTextColor={colors.mutedForeground} />
-        <View style={{ flexDirection: "row-reverse", gap: 10, marginBottom: 12 }}>
-          <View style={{ flex: 1 }}>
-            <FieldLabel label="رقم الموبايل" />
-            <TextInput style={inputStyle} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="01xxxxxxxxx" placeholderTextColor={colors.mutedForeground} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <FieldLabel label="سنوات الخبرة" />
-            <TextInput style={inputStyle} value={exp} onChangeText={(t) => setExp(t.replace(/[^\d.]/g, ""))} keyboardType="numeric" placeholder="مثال: 10" placeholderTextColor={colors.mutedForeground} />
-          </View>
-        </View>
-        <FieldLabel label="نبذة عنك" />
-        <TextInput
-          style={[inputStyle, { minHeight: 80, textAlignVertical: "top", marginBottom: 16 }]}
-          value={bio} onChangeText={setBio} multiline
-          placeholder="اكتب نبذة قصيرة تظهر للعملاء..." placeholderTextColor={colors.mutedForeground}
-        />
-
-        {/* نوع الخدمة */}
-        <SectionTitle icon="medical-bag" label="نوع الخدمة" />
-        <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 16 }}>
-          {SERVICE_TYPES.map((st) => {
-            const active = serviceType === st.key;
-            return (
-              <Pressable
-                key={st.key}
-                onPress={() => setServiceType(st.key)}
-                style={{ flex: 1, padding: 12, borderRadius: 12, alignItems: "center", borderWidth: 2, borderColor: active ? GOLD : colors.border, backgroundColor: active ? "rgba(201,168,76,0.06)" : colors.card }}
-              >
-                <MaterialCommunityIcons name={st.icon as any} size={22} color={active ? GOLD : colors.mutedForeground} />
-                <Text style={{ fontSize: 11, fontFamily: "Cairo_700Bold", color: active ? colors.foreground : colors.mutedForeground, marginTop: 4, textAlign: "center" }}>{st.key}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* الدرجة والتخصص — للكشف المنزلي */}
-        {serviceType === "كشف منزلي" ? (
-          <>
-            <SectionTitle icon="medal" label="الدرجة المهنية" />
-            <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 12 }}>
-              {GRADES.map((g) => {
-                const active = grade === g.key;
-                return (
-                  <Pressable
-                    key={g.key}
-                    onPress={() => setGrade(g.key)}
-                    style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 2, borderColor: active ? GOLD : colors.border, backgroundColor: active ? "rgba(201,168,76,0.06)" : colors.card }}
-                  >
-                    <MaterialCommunityIcons name={g.icon as any} size={20} color={active ? GOLD : colors.mutedForeground} />
-                    <Text style={{ fontSize: 13, fontFamily: "Cairo_700Bold", color: colors.foreground, marginTop: 4, textAlign: "right" }}>{g.key}</Text>
-                    <Text style={{ fontSize: 10, fontFamily: "Cairo_400Regular", color: colors.mutedForeground, textAlign: "right" }}>{g.desc}</Text>
-                  </Pressable>
-                );
-              })}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+        <View style={{ alignItems: "center", marginTop: 6 }}>
+          <View>
+            <View style={{ width: 148, height: 148, borderRadius: 74, backgroundColor: t.ic, borderWidth: 3, borderColor: t.goldRing, alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+              ) : (
+                <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 56 }}>{(name || "؟").trim().charAt(0)}</PText>
+              )}
             </View>
-
-            <SectionTitle icon="stethoscope" label="التخصص" />
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-              {specialties.map((s) => {
-                const active = specialty === s.name;
-                const consultant = grade === "استشاري";
-                const min = (consultant ? s.price_min_consultant : s.price_min_specialist) ?? s.price_min ?? 0;
-                const max = (consultant ? s.price_max_consultant : s.price_max_specialist) ?? s.price_max ?? 0;
-                return (
-                  <Pressable
-                    key={s.id}
-                    onPress={() => setSpecialty(s.name)}
-                    style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: active ? GOLD : colors.border, backgroundColor: active ? "rgba(201,168,76,0.1)" : colors.card }}
-                  >
-                    <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: active ? "#b8860b" : colors.foreground }}>
-                      {s.name} <Text style={{ fontSize: 10, color: colors.mutedForeground }}>({min}–{max} ج.م)</Text>
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
-        ) : (
-          <>
-            <FieldLabel label="التخصص" />
-            <TextInput
-              style={[inputStyle, { marginBottom: 16 }]}
-              value={specialty ?? ""}
-              onChangeText={setSpecialty}
-              placeholder="مثال: تمريض حالات حرجة"
-              placeholderTextColor={colors.mutedForeground}
-            />
-          </>
-        )}
-
-        {/* السعر الأساسي */}
-        <FieldLabel label="السعر الأساسي (ج.م)" hint="يظهر للعملاء كسعر بداية" />
-        <TextInput style={[inputStyle, { marginBottom: 16 }]} value={price} onChangeText={(t) => setPrice(t.replace(/[^\d.]/g, ""))} keyboardType="numeric" placeholder="مثال: 400" placeholderTextColor={colors.mutedForeground} />
-
-        {/* مناطق الخدمة */}
-        <SectionTitle icon="map-marker" label={`مناطق الخدمة (${selectedAreas.length} مختارة)`} />
-
-        {/* بحث */}
-        <View style={{ flexDirection: "row-reverse", alignItems: "center", backgroundColor: colors.card, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, gap: 8 }}>
-          <MaterialCommunityIcons name="magnify" size={18} color={colors.mutedForeground} />
-          <TextInput
-            style={{ flex: 1, fontSize: 13, fontFamily: "Cairo_400Regular", color: colors.foreground, textAlign: "right" }}
-            value={areaSearch}
-            onChangeText={setAreaSearch}
-            placeholder="ابحث عن منطقة أو محافظة..."
-            placeholderTextColor={colors.mutedForeground}
-          />
-          {areaSearch.length > 0 && (
-            <Pressable onPress={() => setAreaSearch("")}>
-              <MaterialCommunityIcons name="close-circle" size={16} color={colors.mutedForeground} />
+            <Pressable onPress={pickPhoto} disabled={uploading}
+              style={({ pressed }) => ({ position: "absolute", bottom: 2, left: 2, height: 38, paddingHorizontal: 14, borderRadius: 19, backgroundColor: t.gold, flexDirection: "row-reverse", alignItems: "center", gap: 6, transform: [{ scale: pressed ? 0.95 : 1 }], opacity: uploading ? 0.6 : 1 })}>
+              <MaterialCommunityIcons name="pencil" size={15} color={t.onGold} />
+              <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 14 }}>{uploading ? "جاري الرفع" : "تعديل"}</PText>
             </Pressable>
-          )}
+          </View>
         </View>
 
-        {/* أكورديون المحافظات */}
-        <View style={{ gap: 8, marginBottom: 20 }}>
-          {[...groupedAreas.entries()].map(([city, cityAreas]) => {
-            const selectedCount = cityAreas.filter((a) => selectedAreas.includes(a.name)).length;
-            const allSelected = selectedCount === cityAreas.length;
-            const expanded = expandedCities.has(city) || areaSearch.length > 0;
+        {title("المعلومات الأساسية")}
+        <View style={{ gap: 10 }}>
+          <View>{label("الاسم الكامل")}<TextInput value={name} onChangeText={setName} style={input} placeholderTextColor={t.muted} /></View>
+          <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+            <View style={{ flex: 1.6 }}>{label("رقم الموبايل")}<TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={[input, { writingDirection: "ltr" }]} /></View>
+            <View style={{ flex: 1 }}>{label("سنوات الخبرة")}<TextInput value={exp} onChangeText={(v) => setExp(v.replace(/[^\d.]/g, ""))} keyboardType="numeric" style={input} /></View>
+          </View>
+          <View>{label("السعر الأساسي (ج.م) · يظهر للعملاء كسعر بداية")}<TextInput value={price} onChangeText={(v) => setPrice(v.replace(/[^\d.]/g, ""))} keyboardType="numeric" style={input} /></View>
+          <View>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginHorizontal: 4, marginBottom: 6 }}>
+              <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>نبذة عنك</PText>
+              <Pressable onPress={toggleMic}
+                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 14, backgroundColor: micOn ? t.destructive : t.btn }}>
+                <MaterialCommunityIcons name="microphone-outline" size={15} color={micOn ? "#fff" : t.gold} />
+                <PText style={{ color: micOn ? "#fff" : t.gold, fontFamily: TJ.bold, fontSize: 13 }}>{micOn ? "جارٍ الاستماع…" : "إملاء صوتي"}</PText>
+              </Pressable>
+            </View>
+            <TextInput value={bio} onChangeText={setBio} multiline numberOfLines={3}
+              style={[input, { height: undefined, minHeight: 88, paddingTop: 12, fontSize: 14.5, textAlignVertical: "top" }]} />
+          </View>
+        </View>
 
+        {grades.length ? (
+          <>
+            {title("الدرجة")}
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+              {grades.map((g) => chip(g, grade === g, () => setGrade(g)))}
+            </View>
+          </>
+        ) : null}
+
+        {isDoctor && specialties.length > 0 ? (
+          <>
+            {title("التخصص", specialty ? 1 : 0, "حدد تخصصك من القائمة المعتمدة")}
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+              {specialties.map((s) => chip(s.name, specialty === s.name, () => setSpecialty(specialty === s.name ? null : s.name)))}
+            </View>
+          </>
+        ) : null}
+
+        {title("مناطق التغطية", selectedAreas.length, "المحافظات والمدن المفعّلة من الإدارة")}
+        <View style={{ gap: 8 }}>
+          {[...groupedAreas.entries()].map(([city, list]) => {
+            const open = expandedCities.has(city);
+            const sel = list.filter((a) => selectedAreas.includes(a.name)).length;
+            const all = sel === list.length;
             return (
-              <View key={city} style={{ borderRadius: 14, borderWidth: 1.5, borderColor: selectedCount > 0 ? "rgba(201,168,76,0.4)" : colors.border, overflow: "hidden", backgroundColor: colors.card }}>
-                {/* رأس المحافظة */}
-                <Pressable
-                  onPress={() => toggleCity(city)}
-                  style={{ flexDirection: "row-reverse", alignItems: "center", paddingHorizontal: 14, paddingVertical: 12, gap: 8 }}
-                >
-                  <MaterialCommunityIcons name="map-marker-outline" size={16} color={selectedCount > 0 ? GOLD : colors.mutedForeground} />
-                  <Text style={{ flex: 1, fontSize: 14, fontFamily: "Cairo_700Bold", color: selectedCount > 0 ? colors.foreground : colors.mutedForeground, textAlign: "right" }}>
-                    {city}
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Text style={{ fontSize: 12, fontFamily: "Cairo_400Regular", color: selectedCount > 0 ? GOLD : colors.mutedForeground }}>
-                      {selectedCount}/{cityAreas.length}
-                    </Text>
-                    <MaterialCommunityIcons
-                      name={expanded ? "chevron-up" : "chevron-down"}
-                      size={18}
-                      color={colors.mutedForeground}
-                    />
+              <View key={city} style={{ backgroundColor: t.card, borderRadius: 20, borderWidth: 1, borderColor: sel ? t.goldRing : t.border }}>
+                <Pressable onPress={() => toggleCity(city)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 14 }}>
+                  <PText style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{city}</PText>
+                  <View style={{ backgroundColor: sel ? t.gold : t.btn, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 2 }}>
+                    <PText style={{ color: sel ? t.onGold : t.muted, fontFamily: TJ.heavy, fontSize: 12.5 }}>{sel}/{list.length}</PText>
                   </View>
+                  <MaterialCommunityIcons name={open ? "chevron-up" : "chevron-down"} size={20} color={t.muted} />
                 </Pressable>
-
-                {/* مناطق المحافظة */}
-                {expanded && (
-                  <View style={{ paddingHorizontal: 12, paddingBottom: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                    {/* زر اختر الكل */}
-                    <Pressable
-                      onPress={() => toggleAllInCity(city, cityAreas)}
-                      style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingVertical: 8, marginBottom: 4 }}
-                    >
-                      <View style={{ width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: allSelected ? GOLD : colors.border, backgroundColor: allSelected ? GOLD : "transparent", alignItems: "center", justifyContent: "center" }}>
-                        {allSelected && <MaterialCommunityIcons name="check" size={12} color="#fff" />}
-                      </View>
-                      <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: allSelected ? GOLD : colors.mutedForeground }}>
-                        اختر الكل
-                      </Text>
+                {open ? (
+                  <View style={{ paddingHorizontal: 14, paddingBottom: 14 }}>
+                    <Pressable onPress={() => toggleAllInCity(city, list)}>
+                      <PText style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right", marginBottom: 10 }}>{all ? "مسح الكل" : "اختيار كل المدن"}</PText>
                     </Pressable>
-
-                    {/* chips المناطق */}
-                    <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6 }}>
-                      {cityAreas.map((a) => {
-                        const active = selectedAreas.includes(a.name);
-                        return (
-                          <Pressable
-                            key={a.id}
-                            onPress={() => toggleArea(a.name)}
-                            style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 18, borderWidth: 1.5, borderColor: active ? GOLD : colors.border, backgroundColor: active ? "rgba(201,168,76,0.12)" : colors.background }}
-                          >
-                            <Text style={{ fontSize: 11, fontFamily: "Cairo_600SemiBold", color: active ? "#b8860b" : colors.mutedForeground }}>
-                              {active ? "✓ " : ""}{a.name}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
+                    <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+                      {list.map((a) => chip(a.name, selectedAreas.includes(a.name), () => toggleArea(a.name)))}
                     </View>
                   </View>
-                )}
+                ) : null}
               </View>
             );
           })}
         </View>
-
-        <PrimaryButton label={saving ? "جاري الحفظ..." : "حفظ الملف الشخصي"} icon="content-save" onPress={handleSave} loading={saving} />
       </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
 
-function SectionTitle({ icon, label }: { icon: any; label: string }) {
-  const colors = useColors();
-  return (
-    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <MaterialCommunityIcons name={icon} size={15} color={GOLD} />
-      <Text style={{ fontSize: 14, fontFamily: "Cairo_700Bold", color: colors.foreground }}>{label}</Text>
-    </View>
+      <View style={{ backgroundColor: t.nav, borderTopWidth: 1, borderTopColor: t.border, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 16) }}>
+        <Pressable onPress={handleSave} disabled={saving}
+          style={({ pressed }) => ({ borderRadius: 18, paddingVertical: 15, alignItems: "center", backgroundColor: t.gold, opacity: saving ? 0.6 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+          <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15.5 }}>{saving ? "جاري الحفظ..." : "حفظ"}</PText>
+        </Pressable>
+      </View>
+      {burst.node}
+    </KeyboardAvoidingView>
   );
 }
