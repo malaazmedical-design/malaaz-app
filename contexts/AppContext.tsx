@@ -269,7 +269,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .eq("auth_id", session.user.id)
         .maybeSingle();
       if (data) await onClientReady(data as DbClient);
-      else setNeedsPhone(true);
+      else {
+        // حساب مقدم خدمة مش عميل — منطلبش منه رقم موبايل عميل
+        const { data: prov } = await supabase.from("providers").select("id").eq("user_id", session.user.id).maybeSingle();
+        setNeedsPhone(!prov);
+      }
     } catch {
       // مفيش جلسة عميل — وضع الزائر عادي
     }

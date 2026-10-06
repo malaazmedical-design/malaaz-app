@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ExpoLinking from "expo-linking";
 import * as Location from "expo-location";
 import React, {
   createContext,
@@ -26,6 +28,8 @@ import {
 
 export type ProviderOffer = DbBookingOffer & Partial<OfferDetails>;
 
+const GOOGLE_INTENT = "malaz.provider.googleIntent";
+
 export const SITE_URL = "https://malaaz-plum.vercel.app";
 
 export type ProviderRegisterInput = {
@@ -35,7 +39,8 @@ export type ProviderRegisterInput = {
   phone: string;
   serviceType: string;
   specialty: string;
-  areas: string;
+  grade?: string;
+  areas?: string;
 };
 
 export type ProviderProfileInput = {
@@ -64,6 +69,13 @@ type ProviderContextValue = {
   // عرض جديد لسه واصل دلوقت — لعرض popup فوري (زي بوابة الموقع)
   incomingOffer: ProviderOffer | null;
   dismissIncomingOffer: () => void;
+
+  // دخول/تسجيل بجوجل (بيرجع من المتصفح عن طريق deep link)
+  googleProfile: { name: string; email: string } | null;
+  googleNotice: "pending" | "suspended" | null;
+  clearGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  completeGoogleRegistration: (input: Omit<ProviderRegisterInput, "email" | "password">) => Promise<string>;
 
   login: (email: string, password: string) => Promise<void>;
   register: (input: ProviderRegisterInput) => Promise<string>;
@@ -102,12 +114,28 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   const [offers, setOffers] = useState<ProviderOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [incomingOffer, setIncomingOffer] = useState<ProviderOffer | null>(null);
+  const [googleProfile, setGoogleProfile] = useState<{ name: string; email: string } | null>(null);
+  const [googleNotice, setGoogleNotice] = useState<"pending" | "suspended" | null>(null);
   const providerRef = useRef<DbProvider | null>(null);
   useEffect(() => {
     providerRef.current = provider;
   }, [provider]);
 
   // ─── استرجاع الجلسة المحفوظة ──────────────────────────────────────────────
+  // رجوع جوجل: لو المستخدم بدأ الدخول من بوابة المقدم (GOOGLE_INTENT) بنحدد حالته من جدول providers
+  const handleGoogleReturn = async (user: { id: string; email?: string | null; user_metadata?: any }) => {
+    const intent = await AsyncStorage.getItem(GOOGLE_INTENT).catch(() => null);
+    if (!intent) return false;
+    const { data } = await supabase.from("providers").select("*").eq("user_id", user.id).maybeSingle();
+    await AsyncStorage.removeItem(GOOGLE_INTENT).catch(() => {});
+    if (data?.status === "active") { setProvider(data as DbProvider); return true; }
+    if (data?.status === "pending") { setGoogleNotice("pending"); await supabase.auth.signOut(); return true; }
+    if (data?.status === "suspended") { setGoogleNotice("suspended"); await supabase.auth.signOut(); return true; }
+    const meta = user.user_metadata ?? {};
+    setGoogleProfile({ name: meta.full_name ?? meta.name ?? "", email: user.email ?? "" });
+    return true;
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -119,6 +147,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
             .eq("user_id", session.user.id)
             .single();
           if (data && data.status === "active") setProvider(data as DbProvider);
+          else await handleGoogleReturn(session.user);
         }
       } catch {
         // ignore
@@ -126,13 +155,41 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
         setInitializing(false);
       }
     })();
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        const u = session.user;
+        setTimeout(() => { handleGoogleReturn(u).catch(() => {}); }, 0);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
+
+  const signInWithGoogle = async () => {
+    await AsyncStorage.setItem(GOOGLE_INTENT, "1");
+    const redirectTo = ExpoLinking.createURL("provider-auth-callback");
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (error || !data?.url) {
+      await AsyncStorage.removeItem(GOOGLE_INTENT).catch(() => {});
+      throw new Error(error?.message ?? "تعذّر بدء الدخول بجوجل");
+    }
+    await Linking.openURL(data.url);
+  };
+
+  const clearGoogle = async () => {
+    setGoogleProfile(null);
+    setGoogleNotice(null);
+    await AsyncStorage.removeItem(GOOGLE_INTENT).catch(() => {});
+    await supabase.auth.signOut();
+  };
 
   // ─── تسجيل الدخول (نفس منطق provider.html) ───────────────────────────────
   const login = async (email: string, password: string) => {
     const { data: authData, error: authErr } =
       await supabase.auth.signInWithPassword({ email, password });
-    if (authErr) throw new Error("بيانات الدخول غلط — تحقق من البريد وكلمة المرور");
+    if (authErr) throw new Error("البريد أو كلمة المرور غير صحيحة.");
 
     const { data, error } = await supabase
       .from("providers")
@@ -146,7 +203,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     }
     if (data.status === "pending") {
       await supabase.auth.signOut();
-      throw new Error("حسابك قيد المراجعة من الأدمن");
+      throw Object.assign(new Error("حسابك قيد المراجعة من الإدارة. سنراسلك على بريدك عند التفعيل."), { code: "pending" });
     }
     if (data.status === "suspended") {
       await supabase.auth.signOut();
@@ -174,15 +231,25 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       return "✅ تم إنشاء الحساب — تحقق من بريدك الإلكتروني لتأكيد الحساب";
     }
 
-    const areasList = input.areas.split(",").map((a) => a.trim()).filter(Boolean);
+    return createPendingProvider(userId, input.email, input);
+  };
+
+  // صف providers بحالة pending + إشعار الأدمن + إيميل المستندات (مشترك بين الإيميل وجوجل)
+  const createPendingProvider = async (
+    userId: string,
+    email: string,
+    input: Omit<ProviderRegisterInput, "email" | "password">
+  ): Promise<string> => {
+    const areasList = (input.areas ?? "").split(",").map((a) => a.trim()).filter(Boolean);
     const { error: provErr } = await supabase.from("providers").insert([{
       user_id: userId,
       name: input.name,
-      email: input.email,
+      email,
       phone: input.phone,
       service_type: input.serviceType,
-      specialty: input.specialty,
-      area: areasList[0] ?? input.areas,
+      specialty: input.specialty || null,
+      grade: input.grade || null,
+      area: areasList[0] ?? "",
       areas: areasList.join(", "),
       status: "pending",
       is_available: false,
@@ -200,7 +267,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       details:
         `👤 الاسم: ${input.name}<br>` +
         `📱 الموبايل: ${input.phone}<br>` +
-        `✉️ الإيميل: ${input.email}<br>` +
+        `✉️ الإيميل: ${email}<br>` +
         `⚕️ نوع الخدمة: ${input.serviceType || "—"}<br>` +
         `🩺 التخصص: ${input.specialty || "—"}<br>` +
         `📍 المناطق: ${areasList.join("، ") || "—"}`,
@@ -211,7 +278,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
 
     // إيميل ترحيب للمقدم بطلب المستندات المطلوبة
     sendMalaazEmail({
-      to_email: input.email,
+      to_email: email,
       subject: "مرحباً بك في ملاذ 🏥 — المستندات المطلوبة للانضمام",
       title: "أهلاً بك في شبكة ملاذ!",
       title_color: "#1C2B2A",
@@ -250,6 +317,17 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       "5) صورة شخصية\n" +
       "6) السيرة الذاتية (CV)"
     );
+  };
+
+  const completeGoogleRegistration = async (
+    input: Omit<ProviderRegisterInput, "email" | "password">
+  ): Promise<string> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error("انتهت جلسة جوجل — حاول من جديد");
+    const msg = await createPendingProvider(session.user.id, session.user.email ?? "", input);
+    setGoogleProfile(null);
+    await supabase.auth.signOut();
+    return msg;
   };
 
   const resetPassword = async (email: string) => {
@@ -650,6 +728,11 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       login,
       register,
       resetPassword,
+      googleProfile,
+      googleNotice,
+      clearGoogle,
+      signInWithGoogle,
+      completeGoogleRegistration,
       logout,
       refreshAll,
       refreshOffers,
@@ -664,6 +747,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     [
       initializing,
       provider,
+      googleProfile,
+      googleNotice,
       bookings,
       loadingBookings,
       subServices,

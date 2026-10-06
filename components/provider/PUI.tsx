@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, LayoutChangeEvent, PanResponder, StyleSheet, Text, TextProps, View } from "react-native";
+import { Animated, LayoutChangeEvent, PanResponder, Pressable, StyleSheet, Text, TextProps, View } from "react-native";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProviderPrefs } from "@/lib/providerPrefs";
@@ -147,6 +147,37 @@ export function PriceSlider({ value, min, max, step = 10, onChange, disabled }: 
         <View style={{ position: "absolute", right: 0, height: 6, borderRadius: 3, width: `${frac * 100}%`, backgroundColor: t.gold }} />
       </View>
       <View pointerEvents="none" style={{ position: "absolute", right: Math.max(0, frac * (w - 22)), width: 22, height: 22, borderRadius: 11, backgroundColor: t.gold, borderWidth: 3, borderColor: t.card }} />
+    </View>
+  );
+}
+
+// ─── Custom dropdown (trigger + inline list with ✓ on the selected item) ──────
+export function Select({ label, value, options, onChange, placeholder = "اختر" }: {
+  label: string; value: string; options: string[]; onChange: (v: string) => void; placeholder?: string;
+}) {
+  const t = useMalaz();
+  const [open, setOpen] = React.useState(false);
+  return (
+    <View>
+      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginHorizontal: 4, marginBottom: 6 }}>{label}</PText>
+      <Pressable
+        onPress={() => setOpen(!open)}
+        style={{ height: 48, borderRadius: 14, borderWidth: 1, borderColor: open ? t.gold : t.border, backgroundColor: t.card, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}
+      >
+        <PText style={{ color: value ? t.text : t.muted, fontFamily: TJ.medium, fontSize: 15 }}>{value || placeholder}</PText>
+        <MaterialCommunityIcons name={open ? "chevron-up" : "chevron-down"} size={20} color={t.muted} />
+      </Pressable>
+      {open ? (
+        <View style={{ marginTop: 6, borderRadius: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.card, overflow: "hidden" }}>
+          {options.map((o, i) => (
+            <Pressable key={o} onPress={() => { onChange(o); setOpen(false); }}
+              style={({ pressed }) => ({ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, backgroundColor: pressed ? t.ic : "transparent", borderBottomWidth: i === options.length - 1 ? 0 : 1, borderBottomColor: t.border })}>
+              <PText style={{ color: t.text, fontFamily: o === value ? TJ.heavy : TJ.medium, fontSize: 15 }}>{o}</PText>
+              {o === value ? <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 16 }}>✓</PText> : null}
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
