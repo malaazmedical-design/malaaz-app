@@ -661,6 +661,8 @@ const CarouselCard = React.memo(function CarouselCard({ provider, onPress }: { p
 
 /* ─── View-all row ───────────────────────────────────────────────────────── */
 const ProviderRow = React.memo(function ProviderRow({ provider, onPress }: { provider: Provider; onPress: (id: string) => void }) {
+  const { coverageAreas } = useApp();
+  const govName = [...providerCities(provider.areas.length ? provider.areas : [provider.city], coverageAreas)][0] ?? provider.city;
   const t = useMalaz();
   return (
     <Pressable
@@ -677,7 +679,7 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress }: { pro
       <View style={{ flex: 1 }}>
         <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{provider.name}</Text>
         <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "right", marginTop: 2 }}>
-          {provider.title} · {provider.city}
+          {provider.title} · {govName}
         </Text>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 }}>
           <MaterialCommunityIcons name="star" size={13} color={t.gold} />
