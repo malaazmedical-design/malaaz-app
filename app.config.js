@@ -8,11 +8,11 @@ const PROVIDER_PACKAGE = "com.malaaz.homecare.malaazprovider";
 // google-services.json only works for packages registered in Firebase. When the package of a variant is not in
 // the file yet (e.g. the provider app before it is added in Firebase) we build without it: the app works,
 // only Android push notifications stay off until the Firebase app is added and the file is replaced.
-function googleServicesFor(pkg, fallback) {
+function googleServicesFor(pkg, file) {
   try {
-    const d = JSON.parse(fs.readFileSync("./google-services.json", "utf8"));
+    const d = JSON.parse(fs.readFileSync(file, "utf8"));
     const ok = (d.client ?? []).some((c) => c.client_info?.android_client_info?.package_name === pkg);
-    return ok ? fallback : undefined;
+    return ok ? file : undefined;
   } catch {
     return undefined;
   }
@@ -46,8 +46,10 @@ module.exports = ({ config }) => {
             },
           }
         : {}),
-      googleServicesFile:
-        isProviderApp || isMizoTest
+      // the provider app has its own Firebase project/file (google-services.provider.json)
+      googleServicesFile: isProviderApp
+        ? googleServicesFor(androidPackage, "./google-services.provider.json")
+        : isMizoTest
           ? googleServicesFor(androidPackage, config.android.googleServicesFile)
           : config.android.googleServicesFile,
     },
