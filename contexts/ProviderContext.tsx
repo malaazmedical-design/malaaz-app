@@ -592,7 +592,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
           `🕐 الميعاد: ${booking.appointment_time || "—"}<br>` +
           `👨‍⚕️ مقدم الخدمة: ${provider?.name || "سيتم التواصل معك"}`,
         button_text: "📱 تواصل معنا",
-        button_link: "https://wa.me/201039091989",
+        button_link: "https://wa.me/201039097982",
         button_color: "#25D366",
       });
     }
