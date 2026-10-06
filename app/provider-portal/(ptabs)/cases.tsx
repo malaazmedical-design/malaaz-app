@@ -15,6 +15,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Redirect } from "expo-router";
+import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { supabase, DbAskDoctorCase, DbAskDoctorMessage } from "@/lib/supabase";
 
@@ -297,14 +299,16 @@ function CaseModal({
   );
 }
 
-export default function DoctorCasesScreen() {
-  const insets = useSafeAreaInsets();
+// الاستشارات اتنقلت جوه تبويب الحجوزات — الراوت ده بيحوّل ليه
+export default function DoctorCasesRedirect() {
+  return <Redirect href="/provider-portal/(ptabs)/bookings" />;
+}
+
+export function useDoctorCases() {
   const { provider } = useProvider();
   const [cases, setCases] = useState<DbAskDoctorCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selected, setSelected] = useState<DbAskDoctorCase | null>(null);
-  const doctorId = provider?.id ?? "";
 
   const load = useCallback(async () => {
     if (!provider?.id) { setLoading(false); return; }
@@ -320,59 +324,54 @@ export default function DoctorCasesScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Realtime: new cases
   useEffect(() => {
     if (!provider?.id) return;
     const channel = supabase.channel(`doctor_cases_feed_${Date.now()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "ask_doctor_cases" }, () => {
-        load();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ask_doctor_cases" }, () => { load(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [provider?.id, load]);
 
-  const newCount = cases.filter((c) => c.status === "new").length;
+  const refresh = () => { setRefreshing(true); load(); };
+  return { cases, loading, refreshing, refresh, reload: load, newCount: cases.filter((c) => c.status === "new").length };
+}
 
+// قائمة الاستشارات داخل تبويب الحجوزات
+export function CasesPanel({ state }: { state: ReturnType<typeof useDoctorCases> }) {
+  const t = useMalaz();
+  const { provider } = useProvider();
+  const [selected, setSelected] = useState<DbAskDoctorCase | null>(null);
+  const { cases, loading, reload } = state;
+
+  if (loading) return <View style={{ paddingVertical: 60, alignItems: "center" }}><ActivityIndicator color={t.gold} /></View>;
   return (
-    <View style={{ flex: 1, backgroundColor: DARK }}>
-      <View style={{ paddingTop: insets.top + 16, paddingBottom: 18, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#FFFFFF10" }}>
-        <Text style={{ color: GOLD, fontFamily: "Cairo_700Bold", fontSize: 22, textAlign: "right" }}>استشارات المرضى</Text>
-        <Text style={{ color: "#FFFFFF66", fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", marginTop: 2 }}>
-          {newCount > 0 ? `${newCount} طلب جديد ينتظر` : "لا توجد طلبات جديدة"}
-        </Text>
-      </View>
-
-      {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={GOLD} />
-        </View>
-      ) : (
-        <FlatList
-          data={cases}
-          keyExtractor={(i) => i.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 80 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={GOLD} />
-          }
-          renderItem={({ item }) => (
-            <CaseRow item={item} onPress={() => setSelected(item)} />
-          )}
-          ListEmptyComponent={
-            <View style={{ alignItems: "center", paddingTop: 60 }}>
-              <MaterialCommunityIcons name="stethoscope" size={56} color="#FFFFFF22" />
-              <Text style={{ color: "#FFFFFF55", fontFamily: "Cairo_600SemiBold", fontSize: 16, marginTop: 12 }}>لا يوجد استشارات</Text>
+    <View style={{ paddingHorizontal: 16, marginTop: 14, gap: 10 }}>
+      {cases.map((c) => {
+        const st = STATUS_LABEL[c.status] ?? STATUS_LABEL.new;
+        const date = new Date(c.created_at).toLocaleDateString("ar-EG", { day: "2-digit", month: "short" });
+        return (
+          <Pressable key={c.id} onPress={() => setSelected(c)}
+            style={({ pressed }) => ({ backgroundColor: t.card, borderRadius: 22, padding: 14, borderWidth: 1, borderColor: c.urgency_flag ? "rgba(229,72,77,.5)" : t.border, transform: [{ scale: pressed ? 0.985 : 1 }] })}>
+            <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, flex: 1 }}>
+                {c.urgency_flag ? <MaterialCommunityIcons name="alert-circle" size={15} color={t.destructive} /> : null}
+                <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 13 }}>{c.case_number ?? "—"}</Text>
+              </View>
+              <View style={{ backgroundColor: st.color + "26", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ color: st.color, fontFamily: TJ.bold, fontSize: 12.5 }}>{st.label}</Text>
+              </View>
             </View>
-          }
-        />
-      )}
-
-      {selected && (
-        <CaseModal
-          item={selected}
-          doctorId={doctorId}
-          onClose={() => { setSelected(null); load(); }}
-        />
-      )}
+            <Text numberOfLines={2} style={{ color: t.text, fontFamily: TJ.medium, fontSize: 14, textAlign: "right", marginTop: 8, lineHeight: 21 }}>{c.message}</Text>
+            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 4 }}>
+              {[c.suggested_specialty, date].filter(Boolean).join(" · ")}
+            </Text>
+          </Pressable>
+        );
+      })}
+      {cases.length === 0 ? (
+        <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "center", paddingVertical: 50 }}>لا توجد استشارات الآن</Text>
+      ) : null}
+      {selected ? <CaseModal item={selected} doctorId={provider?.id ?? ""} onClose={() => { setSelected(null); reload(); }} /> : null}
     </View>
   );
 }

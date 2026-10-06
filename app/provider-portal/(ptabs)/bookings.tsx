@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CasesPanel, useDoctorCases } from "./cases";
 import { PText, SwipeButton, useCheckBurst } from "@/components/provider/PUI";
 import { PAYMENT_METHOD_LABELS } from "@/constants/data";
 import { TJ, useMalaz } from "@/constants/malazTheme";
@@ -37,6 +38,9 @@ export default function ProviderBookingsScreen() {
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { provider, bookings, loadingBookings, refreshAll, updateBookingStatus, setOnWay, sendVisitNote } = useProvider();
   const burst = useCheckBurst();
+  const cs = useDoctorCases();
+  const isDoctor = (provider?.service_type ?? "").includes("كشف");
+  const [section, setSection] = useState<"bookings" | "cases">("bookings");
 
   const [filter, setFilter] = useState<BState | "all">("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -84,13 +88,36 @@ export default function ProviderBookingsScreen() {
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView
         contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: 30 }}
-        refreshControl={<RefreshControl refreshing={loadingBookings} onRefresh={refreshAll} tintColor={t.gold} />}
+        refreshControl={<RefreshControl refreshing={section === "cases" ? cs.refreshing : loadingBookings} onRefresh={section === "cases" ? cs.refresh : refreshAll} tintColor={t.gold} />}
         keyboardShouldPersistTaps="handled"
       >
         <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
           <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 24, textAlign: "right" }}>حجوزاتي</PText>
-          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "right", marginTop: 2 }}>كل حجوزاتك وحالتها</PText>
+          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "right", marginTop: 2 }}>
+            {section === "cases" ? "أسئلة العملاء واستشاراتهم" : "كل حجوزاتك وحالتها"}
+          </PText>
         </View>
+
+        {isDoctor ? (
+          <View style={{ flexDirection: "row-reverse", marginHorizontal: 16, marginBottom: 12, padding: 4, borderRadius: 18, backgroundColor: t.card, borderWidth: 1, borderColor: t.border }}>
+            {([["bookings", "الحجوزات", 0], ["cases", "الاستشارات", cs.newCount]] as const).map(([k, name, n]) => {
+              const on = section === k;
+              return (
+                <Pressable key={k} onPress={() => setSection(k)}
+                  style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 14, backgroundColor: on ? t.gold : "transparent" }}>
+                  <PText style={{ color: on ? t.onGold : t.text2, fontFamily: TJ.heavy, fontSize: 14.5 }}>{name}</PText>
+                  {n > 0 ? (
+                    <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: on ? t.onGold : t.gold, alignItems: "center", justifyContent: "center" }}>
+                      <PText style={{ color: on ? t.gold : t.onGold, fontFamily: TJ.heavy, fontSize: 12 }}>{n}</PText>
+                    </View>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {section === "cases" && isDoctor ? <CasesPanel state={cs} /> : (<>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16 }}>
           {FILTERS.map((f) => {
@@ -225,6 +252,7 @@ export default function ProviderBookingsScreen() {
             <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "center", paddingVertical: 50 }}>لا توجد حجوزات في هذه الحالة</PText>
           ) : null}
         </View>
+        </>)}
       </ScrollView>
 
       <Modal visible={!!cancelFor} transparent animationType="fade" onRequestClose={() => setCancelFor(null)}>
