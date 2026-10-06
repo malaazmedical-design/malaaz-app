@@ -46,10 +46,8 @@ module.exports = ({ config }) => {
             },
           }
         : {}),
-      // the provider app has its own Firebase project/file (google-services.provider.json)
-      googleServicesFile: isProviderApp
-        ? googleServicesFor(androidPackage, "./google-services.provider.json")
-        : isMizoTest
+      googleServicesFile:
+        isProviderApp || isMizoTest
           ? googleServicesFor(androidPackage, config.android.googleServicesFile)
           : config.android.googleServicesFile,
     },
