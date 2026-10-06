@@ -250,6 +250,9 @@ export type OfferDetails = {
   area: string | null;
   appointment_time: string | null;
   distance_km: number | null;
+  // test project only (09_quick_request_routing.sql): the price this provider would get + payment method
+  price?: number | null;
+  payment_method?: string | null;
 };
 
 export type DbClient = {

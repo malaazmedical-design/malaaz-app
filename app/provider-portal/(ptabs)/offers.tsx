@@ -3,6 +3,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, View } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PText, SwipeButton, useCheckBurst } from "@/components/provider/PUI";
+import { PAYMENT_METHOD_LABELS } from "@/constants/data";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { ProviderOffer, useProvider } from "@/contexts/ProviderContext";
 import { PERIOD_LABEL, dateLabelOf, periodOf } from "@/lib/providerFmt";
@@ -59,13 +60,21 @@ export default function ProviderOffersScreen() {
                     <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 2, textAlign: "right" }}>{o.service_type}</PText>
                   ) : null}
                 </View>
-                {o.distance_km != null ? (
+                {o.price != null ? (
+                  <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 18 }}>{o.price} ج.م</PText>
+                ) : o.distance_km != null ? (
                   <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 16 }}>{Number(o.distance_km).toFixed(1)} كم</PText>
                 ) : null}
               </View>
               <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 8, textAlign: "right" }}>
                 {dateLabelOf(o.appointment_time)} · {PERIOD_LABEL[periodOf(o.appointment_time)]} · {o.area ?? "—"}
               </PText>
+              {o.payment_method ? (
+                <PText style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 4, textAlign: "right" }}>
+                  الدفع: {PAYMENT_METHOD_LABELS[o.payment_method] ?? o.payment_method}
+                  {o.price != null && o.distance_km != null ? ` · ${Number(o.distance_km).toFixed(1)} كم` : ""}
+                </PText>
+              ) : null}
               <PText style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 12.5, marginTop: 4, textAlign: "right" }}>
                 تظهر بيانات العميل الكاملة والموقع بعد القبول.
               </PText>
