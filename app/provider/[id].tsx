@@ -1,6 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -8,7 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS } from "@/constants/data";
+import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS, providerCities } from "@/constants/data";
 import { serviceIcon } from "@/constants/icons";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { callCompany, whatsappCompany } from "@/lib/contact";
@@ -16,6 +18,7 @@ import { useApp } from "@/contexts/AppContext";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const REVIEWS_PREVIEW = 3;
+const REVIEWS_MAX = 5;
 
 function getNextDays(count: number) {
   const days: { key: string; label: string; sub: string }[] = [];
@@ -37,7 +40,7 @@ export default function ProviderScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { providers, profile, client, createBooking, providerReviews } = useApp();
+  const { providers, profile, client, createBooking, providerReviews, coverageAreas } = useApp();
   const provider = providers.find((p) => p.id === id);
   const reviews = (id && providerReviews[id]) || [];
 
@@ -132,7 +135,7 @@ export default function ProviderScreen() {
   };
 
   const ready = !!selectedService && !!paymentMethod;
-  const visibleReviews = showAllReviews ? reviews : reviews.slice(0, REVIEWS_PREVIEW);
+  const visibleReviews = showAllReviews ? reviews.slice(0, REVIEWS_MAX) : reviews.slice(0, REVIEWS_PREVIEW);
   const heading = { color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" as const, marginBottom: 10 };
   const chip = (active: boolean) => ({
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5,
@@ -145,6 +148,19 @@ export default function ProviderScreen() {
       <MaterialCommunityIcons name={icon} size={12} color={t.gold} />
       <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 11 }}>{label}</Text>
     </View>
+  );
+
+  const hasPhoto = !!(provider.avatar && typeof provider.avatar === "object" && "uri" in provider.avatar);
+  const govName = [...providerCities(provider.areas.length ? provider.areas : [provider.city], coverageAreas)][0] ?? provider.city;
+  const glassBg = t.isDark ? "rgba(11,21,20,.62)" : "rgba(244,241,234,.62)";
+  const glassBtn = (icon: IconName, onPress: () => void, color: string, label: string) => (
+    <Pressable onPress={onPress} accessibilityLabel={label} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.92 : 1 }] })}>
+      <View style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden", borderWidth: 1, borderColor: t.border }}>
+        <BlurView intensity={30} tint={t.isDark ? "dark" : "light"} style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: glassBg }}>
+          <MaterialCommunityIcons name={icon} size={20} color={color} />
+        </BlurView>
+      </View>
+    </Pressable>
   );
 
   const radio = (active: boolean) => (
@@ -177,81 +193,63 @@ export default function ProviderScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
-        {/* ─── Hero ─── */}
-        <View style={{ backgroundColor: t.hdr, height: 236 + insets.top + webTopInset }}>
-          <View style={{ position: "absolute", top: insets.top + 12 + webTopInset, left: 16, right: 16, flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
-            <Pressable
-              onPress={() => router.back()}
-              accessibilityLabel="رجوع"
-              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, backgroundColor: t.btn, borderRadius: 20, paddingHorizontal: 14, height: 40 }}
-            >
-              <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 14 }}>رجوع</Text>
-              <MaterialCommunityIcons name="arrow-right" size={18} color={t.gold} />
-            </Pressable>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} showsVerticalScrollIndicator={false}>
+        {/* ─── Hero: full-width photo ─── */}
+        <View style={{ height: 330 + insets.top + webTopInset, backgroundColor: t.hdr, overflow: "hidden" }}>
+          {hasPhoto ? (
+            <Image source={provider.avatar} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" contentPosition={{ left: "50%", top: "20%" }} />
+          ) : (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+              <LinearGradient colors={[t.ic, t.hdr]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+              <View style={{ position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: t.goldTint, top: 20 + insets.top }} />
+              <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 150, marginTop: insets.top - 20 }}>{(provider.name || "؟").trim().charAt(0)}</Text>
+            </View>
+          )}
+          <LinearGradient colors={["rgba(0,0,0,.45)", "rgba(0,0,0,0)"]} style={{ position: "absolute", top: 0, left: 0, right: 0, height: 110 + insets.top }} />
+          <LinearGradient colors={["rgba(0,0,0,0)", t.bg]} style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 200 }} />
+
+          <View style={{ position: "absolute", top: insets.top + 14 + webTopInset, left: 16, right: 16, flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+            {glassBtn("arrow-right", () => router.back(), t.gold, "رجوع")}
             <View style={{ flexDirection: "row", gap: 8 }}>
               {/* التواصل دايماً مع رقم الشركة الرئيسي */}
-              <Pressable
-                onPress={() => whatsappCompany(`مرحباً، عندي استفسار عن مقدم الخدمة: ${provider.name} (${provider.title})`)}
-                accessibilityLabel="واتساب"
-                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(37,211,102,.15)", borderWidth: 1, borderColor: "#1f8f4d", alignItems: "center", justifyContent: "center" }}
-              >
-                <MaterialCommunityIcons name="whatsapp" size={20} color={t.whatsapp} />
-              </Pressable>
-              <Pressable onPress={callCompany} accessibilityLabel="اتصال" style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
-                <MaterialCommunityIcons name="phone-outline" size={20} color={t.gold} />
-              </Pressable>
+              {glassBtn("whatsapp", () => whatsappCompany(`مرحباً، عندي استفسار عن مقدم الخدمة: ${provider.name} (${provider.title})`), t.whatsapp, "واتساب")}
+              {glassBtn("phone-outline", callCompany, t.gold, "اتصال")}
             </View>
           </View>
 
-          <View style={{ position: "absolute", top: insets.top + 68 + webTopInset, right: 16, left: 160, alignItems: "flex-end" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 13 }}>{provider.rating.toFixed(1)}</Text>
-              <MaterialCommunityIcons name="star" size={14} color={t.gold} />
+          <View style={{ position: "absolute", left: 16, right: 16, bottom: 38, alignItems: "flex-end" }}>
+            <View style={{ borderRadius: 14, overflow: "hidden", marginBottom: 10 }}>
+              <BlurView intensity={30} tint={t.isDark ? "dark" : "light"} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: glassBg }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: provider.available ? t.online : t.offline }} />
+                <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13 }}>{provider.available ? "متاح خلال ساعة" : "غير متاح"}</Text>
+              </BlurView>
             </View>
-            <Text numberOfLines={2} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 21, textAlign: "right", marginTop: 6 }}>{provider.name}</Text>
-            <Text style={{ color: t.gold, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{provider.title}</Text>
-            <View style={{ flexDirection: "row-reverse", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-              {smallChip(provider.available ? provider.responseTime : "اليوم", "clock-outline")}
-              {smallChip(`${provider.yearsExperience} سنة خبرة`, "star-four-points")}
-            </View>
-          </View>
-
-          <View style={{ position: "absolute", left: 0, bottom: 0, width: 140, height: 176, borderTopRightRadius: 70, overflow: "hidden", backgroundColor: t.ic }}>
-            <Image source={provider.avatar} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+            <Text numberOfLines={2} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 28, textAlign: "right", writingDirection: "ltr", alignSelf: "stretch" }}>{provider.name}</Text>
+            <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 14.5, textAlign: "right", marginTop: 2 }}>{provider.title}</Text>
           </View>
         </View>
 
-        {/* ─── Sheet ─── */}
-        <View style={{ marginTop: -22, backgroundColor: t.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 22, paddingHorizontal: 16, gap: 20 }}>
+        {/* ─── Stats card (overlaps the hero) ─── */}
+        <View style={{ marginTop: -22, marginHorizontal: 16, flexDirection: "row-reverse", backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, paddingVertical: 14 }}>
+          {[
+            { k: "التقييم", v: `${provider.rating.toFixed(1)} ★`, sub: provider.reviewsCount > 0 ? `${provider.reviewsCount} تقييم` : "" },
+            { k: "الخبرة", v: `${provider.yearsExperience}`, sub: "سنة" },
+            { k: "المنطقة", v: govName, sub: "" },
+          ].map((c, i) => (
+            <View key={c.k} style={{ flex: 1, alignItems: "center", paddingHorizontal: 4, borderLeftWidth: i < 2 ? 1 : 0, borderLeftColor: t.border }}>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{c.k}</Text>
+              <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 17, marginTop: 3 }}>{c.v}</Text>
+              {c.sub ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>{c.sub}</Text> : null}
+            </View>
+          ))}
+        </View>
+
+        {/* ─── Content ─── */}
+        <View style={{ paddingTop: 6, paddingHorizontal: 16, gap: 26 }}>
           {provider.bio ? (
             <View>
               <Text style={heading}>نبذة</Text>
-              <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", lineHeight: 21 }}>{provider.bio}</Text>
-            </View>
-          ) : null}
-
-          {reviews.length > 0 ? (
-            <View>
-              <Text style={heading}>آراء العملاء ({reviews.length}) ★</Text>
-              <View style={{ gap: 8 }}>
-                {visibleReviews.map((r, i) => (
-                  <View key={i} style={{ backgroundColor: t.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: t.border }}>
-                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14 }}>{r.clientName}</Text>
-                      <Text style={{ color: t.gold, fontSize: 12, letterSpacing: 1 }}>{"★".repeat(Math.max(0, Math.min(5, Math.round(r.rating))))}</Text>
-                    </View>
-                    {r.text ? (
-                      <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", lineHeight: 21, marginTop: 4 }}>{r.text}</Text>
-                    ) : null}
-                  </View>
-                ))}
-                {!showAllReviews && reviews.length > REVIEWS_PREVIEW ? (
-                  <Pressable onPress={() => setShowAllReviews(true)} style={{ height: 46, borderRadius: 14, borderWidth: 1.5, borderColor: t.gold, alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 14 }}>عرض المزيد ({reviews.length - REVIEWS_PREVIEW})</Text>
-                  </Pressable>
-                ) : null}
-              </View>
+              <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", lineHeight: 24 }}>{provider.bio}</Text>
             </View>
           ) : null}
 
@@ -327,20 +325,44 @@ export default function ProviderScreen() {
               })}
             </View>
           </View>
+          {reviews.length > 0 ? (
+            <View>
+              <Text style={heading}>آراء العملاء ({reviews.length}) ★</Text>
+              <View style={{ gap: 8 }}>
+                {visibleReviews.map((r, i) => (
+                  <View key={i} style={{ backgroundColor: t.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: t.border }}>
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14 }}>{r.clientName}</Text>
+                      <Text style={{ color: t.gold, fontSize: 12, letterSpacing: 1 }}>{"★".repeat(Math.max(0, Math.min(5, Math.round(r.rating))))}</Text>
+                    </View>
+                    {r.text ? (
+                      <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", lineHeight: 21, marginTop: 4 }}>{r.text}</Text>
+                    ) : null}
+                  </View>
+                ))}
+                {!showAllReviews && reviews.length > REVIEWS_PREVIEW ? (
+                  <Pressable onPress={() => setShowAllReviews(true)} style={{ height: 46, borderRadius: 14, borderWidth: 1.5, borderColor: t.gold, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 14 }}>عرض المزيد ({Math.min(reviews.length, REVIEWS_MAX) - REVIEWS_PREVIEW})</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
         </View>
       </ScrollView>
 
       {/* ─── Fixed footer ─── */}
-      <View style={{ padding: 16, paddingBottom: insets.bottom + 16, backgroundColor: t.bg, borderTopWidth: 1, borderTopColor: t.border }}>
+      <BlurView intensity={40} tint={t.isDark ? "dark" : "light"} style={{ position: "absolute", left: 0, right: 0, bottom: 0, paddingTop: 12, paddingHorizontal: 16, paddingBottom: insets.bottom + 18, backgroundColor: glassBg, borderTopWidth: 1, borderTopColor: t.border }}>
         <Pressable
           onPress={handleBook}
           disabled={submitting}
-          style={{ height: 54, borderRadius: 16, backgroundColor: t.gold, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, opacity: ready && !submitting ? 1 : 0.45 }}
+          style={{ height: 54, borderRadius: 18, backgroundColor: t.gold, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, opacity: ready && !submitting ? 1 : 0.45 }}
         >
           <MaterialCommunityIcons name="calendar-check" size={20} color={t.onGold} />
           <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>{submitting ? "جاري الحجز..." : "تأكيد الحجز"}</Text>
         </Pressable>
-      </View>
+      </BlurView>
     </View>
   );
 }
