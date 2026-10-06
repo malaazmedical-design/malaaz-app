@@ -9,6 +9,7 @@ import { PText, Select } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { digitsOnly } from "@/lib/digits";
+import { IS_PROVIDER_APP } from "@/lib/appVariant";
 import { supabase } from "@/lib/supabase";
 
 const LOGO_LIGHT = require("../../assets/images/malaz/logo-light.png");
@@ -146,9 +147,11 @@ export default function ProviderLoginScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: insets.bottom + 30 }} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => router.back()} style={{ alignSelf: "flex-end", width: 40, height: 40, borderRadius: 20, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
-          <MaterialCommunityIcons name="chevron-right" size={24} color={t.gold} />
-        </Pressable>
+        {IS_PROVIDER_APP ? <View style={{ height: 40 }} /> : (
+          <Pressable onPress={() => router.back()} style={{ alignSelf: "flex-end", width: 40, height: 40, borderRadius: 20, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+            <MaterialCommunityIcons name="chevron-right" size={24} color={t.gold} />
+          </Pressable>
+        )}
         <View style={{ alignItems: "center", marginTop: 6, marginBottom: 18 }}>
           <Image source={t.isDark ? LOGO_DARK : LOGO_LIGHT} style={{ height: 64, width: 190 }} contentFit="contain" />
           <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, marginTop: 6 }}>بوابة مقدم الخدمة</PText>

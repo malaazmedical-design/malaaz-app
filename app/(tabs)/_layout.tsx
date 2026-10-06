@@ -1,5 +1,5 @@
 import { BlurView } from "expo-blur";
-import { Tabs, router } from "expo-router";
+import { Redirect, Tabs, router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
@@ -8,8 +8,15 @@ import { supabase } from "@/lib/supabase";
 import { getProfile } from "@/lib/mizoStorage";
 import { useApp } from "@/contexts/AppContext";
 import MalazTabBar from "@/components/MalazTabBar";
+import { IS_PROVIDER_APP } from "@/lib/appVariant";
 
+// The standalone Malaaz Provider app opens straight on the provider portal.
 export default function TabLayout() {
+  if (IS_PROVIDER_APP) return <Redirect href="/provider-portal" />;
+  return <ClientTabLayout />;
+}
+
+function ClientTabLayout() {
   const colors = useColors();
   const isIOS = Platform.OS === "ios";
   const { client } = useApp();
