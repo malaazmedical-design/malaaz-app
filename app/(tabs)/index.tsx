@@ -28,6 +28,7 @@ import {
   providerCities,
 } from "@/constants/data";
 import { TJ, useMalaz } from "@/constants/malazTheme";
+import { ProviderAvatar } from "@/components/ProviderAvatar";
 import { useApp } from "@/contexts/AppContext";
 import { DbSubService } from "@/lib/supabase";
 
@@ -641,7 +642,7 @@ const CarouselCard = React.memo(function CarouselCard({ provider, onPress }: { p
       })}
     >
       <View style={{ height: 128, borderRadius: 16, overflow: "hidden", backgroundColor: t.ic }}>
-        <Image source={provider.avatar} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+        <ProviderAvatar provider={provider} style={{ width: "100%", height: "100%" }} letterSize={56} />
         <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.card, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
           <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>{provider.rating.toFixed(1)}</Text>
           <MaterialCommunityIcons name="star" size={12} color={t.gold} />
@@ -673,7 +674,7 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress }: { pro
       })}
     >
       <View>
-        <Image source={provider.avatar} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: t.ic }} contentFit="cover" />
+        <ProviderAvatar provider={provider} style={{ width: 64, height: 64, borderRadius: 14 }} letterSize={28} />
         <View style={{ position: "absolute", bottom: -3, left: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: provider.available ? t.online : t.offline, borderWidth: 2, borderColor: t.card }} />
       </View>
       <View style={{ flex: 1 }}>

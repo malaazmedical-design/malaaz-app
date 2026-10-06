@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import {
   Alert, Platform, Pressable, ScrollView, Text, View,
 } from "react-native";
+import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS, providerCities } from "@/constants/data";
@@ -78,25 +79,8 @@ export default function ProviderScreen() {
     );
   }
 
-  if (!provider.available) {
-    return (
-      <View style={{ flex: 1, backgroundColor: t.bg, alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <MaterialCommunityIcons name="account-clock-outline" size={48} color={t.muted} />
-        <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 17, marginTop: 12, textAlign: "center" }}>
-          {provider.name} غير متاح حالياً
-        </Text>
-        <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 6, textAlign: "center", lineHeight: 22 }}>
-          يمكنك اختيار مقدم خدمة آخر متاح، أو طلب خدمة سريعة وسنحدد لك مقدماً مناسباً
-        </Text>
-        <View style={{ marginTop: 20, gap: 10, width: "100%" }}>
-          <GoldButton label="اختار مقدم آخر" icon="account-search" onPress={() => router.replace("/(tabs)")} />
-          <GoldButton label="طلب خدمة سريعة" icon="lightning-bolt" outline onPress={() => router.replace("/quick-request")} />
-        </View>
-      </View>
-    );
-  }
-
   const handleBook = async () => {
+    if (!provider.available) return;
     // الحجز يتطلب حساب — الزائر يتحول لشاشة الدخول
     if (!client) {
       router.push("/client-auth");
@@ -134,7 +118,7 @@ export default function ProviderScreen() {
     }
   };
 
-  const ready = !!selectedService && !!paymentMethod;
+  const ready = provider.available && !!selectedService && !!paymentMethod;
   const visibleReviews = showAllReviews ? reviews.slice(0, REVIEWS_MAX) : reviews.slice(0, REVIEWS_PREVIEW);
   const heading = { color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" as const, marginBottom: 10 };
   const chip = (active: boolean) => ({
@@ -194,6 +178,7 @@ export default function ProviderScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} showsVerticalScrollIndicator={false}>
+        <Animated.View entering={FadeInUp.duration(450)}>
         {/* ─── Hero: full-width photo ─── */}
         <View style={{ height: 330 + insets.top + webTopInset, backgroundColor: t.hdr, overflow: "hidden" }}>
           {hasPhoto ? (
@@ -250,6 +235,20 @@ export default function ProviderScreen() {
             <View>
               <Text style={heading}>نبذة</Text>
               <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", lineHeight: 24 }}>{provider.bio}</Text>
+            </View>
+          ) : null}
+
+          {!provider.available ? (
+            <View style={{ backgroundColor: t.card, borderRadius: 20, borderWidth: 1, borderColor: t.border, padding: 16, gap: 12 }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                <MaterialCommunityIcons name="account-clock-outline" size={26} color={t.muted} />
+                <Text style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>غير متاح حالياً</Text>
+              </View>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", lineHeight: 22 }}>
+                لا يمكن حجز {provider.name} الآن. اختر مقدم خدمة آخر متاح، أو اطلب خدمة سريعة وسنحدد لك مقدماً مناسباً.
+              </Text>
+              <GoldButton label="اختار مقدم آخر" icon="account-search" onPress={() => router.replace("/(tabs)")} />
+              <GoldButton label="طلب خدمة سريعة" icon="lightning-bolt" outline onPress={() => router.replace("/quick-request")} />
             </View>
           ) : null}
 
@@ -350,17 +349,18 @@ export default function ProviderScreen() {
           ) : null}
 
         </View>
+        </Animated.View>
       </ScrollView>
 
       {/* ─── Fixed footer ─── */}
       <BlurView intensity={40} tint={t.isDark ? "dark" : "light"} style={{ position: "absolute", left: 0, right: 0, bottom: 0, paddingTop: 12, paddingHorizontal: 16, paddingBottom: insets.bottom + 18, backgroundColor: glassBg, borderTopWidth: 1, borderTopColor: t.border }}>
         <Pressable
           onPress={handleBook}
-          disabled={submitting}
+          disabled={submitting || !provider.available}
           style={{ height: 54, borderRadius: 18, backgroundColor: t.gold, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, opacity: ready && !submitting ? 1 : 0.45 }}
         >
           <MaterialCommunityIcons name="calendar-check" size={20} color={t.onGold} />
-          <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>{submitting ? "جاري الحجز..." : "تأكيد الحجز"}</Text>
+          <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>{!provider.available ? "غير متاح حالياً" : submitting ? "جاري الحجز..." : "تأكيد الحجز"}</Text>
         </Pressable>
       </BlurView>
     </View>
