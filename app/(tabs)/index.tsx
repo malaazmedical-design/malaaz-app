@@ -48,8 +48,6 @@ const DEFAULT_FILTERS: Filters = {
   specialties: [],
 };
 
-type SpecialtyGroup = { title: string | null; items: { name: string; count: number }[] };
-
 const matchesSpecialty = (p: Provider, name: string) =>
   p.title.includes(name) || p.services.some((s) => s.name === name);
 const SORT_OPTIONS: {
@@ -80,7 +78,6 @@ function countActiveFilters(f: Filters, maxPriceLimit: number) {
   if (f.maxPrice < maxPriceLimit) n++;
   if (f.onlyAvailable) n++;
   if (f.sortBy !== "rating") n++;
-  if (f.specialties.length > 0) n++;
   return n;
 }
 
@@ -102,6 +99,11 @@ export default function HomeScreen() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [pendingFilters, setPendingFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [viewAll, setViewAll] = useState(false);
+  // نافذة التخصص: نوع الخدمة (كشف/تمريض/أشعة) ← الدرجة (للأطباء) ← تخصصات متعددة
+  const [spOpen, setSpOpen] = useState(false);
+  const [spType, setSpType] = useState<ServiceType | "all">("all");
+  const [spGrade, setSpGrade] = useState<string | null>(null);
+  const [spSel, setSpSel] = useState<string[]>([]);
   const [shown, setShown] = useState(PAGE);
   const [rowIdx, setRowIdx] = useState(0);
   const rowRef = useRef<FlatList<CarouselItem>>(null);
@@ -138,6 +140,7 @@ export default function HomeScreen() {
   }, [maxPriceLimit]);
 
   const activeCount = countActiveFilters(filters, maxPriceLimit);
+  const specialtyCount = filters.specialties.length + (subServiceFilter ? 1 : 0);
 
   // Sub-filters بناءً على نوع الخدمة المختار
   const doctorGrades = useMemo(() =>
@@ -185,11 +188,13 @@ export default function HomeScreen() {
     })();
   }, [loadingProviders, coverageAreas]);
 
-  const runFilter = useCallback((filters: Filters, skipSpecialties = false): Provider[] => {
+  const runFilter = useCallback((filters: Filters, skipSpecialties = false, ov?: { service?: ServiceType | "all"; grade?: string | null }): Provider[] => {
+    const svc = ov?.service ?? serviceFilter;
+    const grade = ov && "grade" in ov ? ov.grade : gradeFilter;
     let list: Provider[] = providers;
-    if (serviceFilter !== "all") list = list.filter((p) => p.serviceType === serviceFilter);
-    if (gradeFilter) list = list.filter((p) => p.title.includes(gradeFilter));
-    if (subServiceFilter) list = list.filter((p) =>
+    if (svc !== "all") list = list.filter((p) => p.serviceType === svc);
+    if (grade) list = list.filter((p) => p.title.includes(grade));
+    if (subServiceFilter && !skipSpecialties) list = list.filter((p) =>
       p.title.includes(subServiceFilter) ||
       p.services.some((s) => s.name === subServiceFilter)
     );
@@ -244,25 +249,19 @@ export default function HomeScreen() {
   }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, providers, maxPriceLimit, coverageAreas]);
   const filtered = useMemo(() => runFilter(filters), [runFilter, filters]);
 
-  // التخصصات في لوحة التصفية: حسب نوع الخدمة، وعدد المقدمين جنب كل واحد (محسوب مع باقي الفلاتر)
-  const specialtyGroups = useMemo<SpecialtyGroup[]>(() => {
-    const base = runFilter({ ...pendingFilters, specialties: [] }, true);
-    const groups: { type: ServiceType; title: string; names: string[] }[] = [
-      { type: "doctor", title: "الأطباء — التخصص", names: doctorSpecialties.map((x) => x.name) },
-      { type: "nurse", title: "التمريض — الخدمة", names: nurseSubServices.map((x) => x.name) },
-      { type: "xray", title: "الأشعة — النوع", names: xraySubServices.map((x) => x.name) },
-    ];
-    const visible = groups.filter((g) => serviceFilter === "all" || g.type === serviceFilter);
-    return visible
-      .map((g) => ({
-        title: visible.length > 1 ? g.title : null,
-        items: Array.from(new Set(g.names)).map((name) => ({
-          name,
-          count: base.filter((p) => p.serviceType === g.type && matchesSpecialty(p, name)).length,
-        })),
-      }))
-      .filter((g) => g.items.length > 0);
-  }, [runFilter, pendingFilters, serviceFilter, doctorSpecialties, nurseSubServices, xraySubServices]);
+  const spOptions = useMemo(() => {
+    const names =
+      spType === "doctor" ? doctorSpecialties : spType === "nurse" ? nurseSubServices : spType === "xray" ? xraySubServices : [];
+    const base = runFilter({ ...filters, specialties: [] }, true, { service: spType, grade: spType === "doctor" ? spGrade : null });
+    return Array.from(new Set(names.map((x) => x.name))).map((name) => ({
+      name,
+      count: base.filter((p) => matchesSpecialty(p, name)).length,
+    }));
+  }, [spType, spGrade, filters, runFilter, doctorSpecialties, nurseSubServices, xraySubServices]);
+  const spResultCount = useMemo(() => {
+    const base = runFilter({ ...filters, specialties: spSel }, false, { service: spType, grade: spType === "doctor" ? spGrade : null });
+    return base.length;
+  }, [filters, spSel, spType, spGrade, runFilter]);
 
   // ملخص الفلاتر المطبّقة (يظهر فوق قائمة "كل المقدمين" وكل واحد ينفع يتشال لوحده)
   const appliedChips = useMemo(() => {
@@ -322,6 +321,19 @@ export default function HomeScreen() {
 
   const openProvider = useCallback((id: string) => router.push(`/provider/${id}`), []);
   const openFilters = () => { setPendingFilters(filters); setShowFilterPanel(true); };
+  const openSpecialty = () => {
+    setSpType(serviceFilter);
+    setSpGrade(gradeFilter);
+    setSpSel(Array.from(new Set([...filters.specialties, ...(subServiceFilter ? [subServiceFilter] : [])])));
+    setSpOpen(true);
+  };
+  const applySpecialty = () => {
+    setServiceFilter(spType);
+    setGradeFilter(spType === "doctor" ? spGrade : null);
+    setSubServiceFilter(null);
+    setFilters((f) => ({ ...f, specialties: spSel }));
+    setSpOpen(false);
+  };
 
   const resetAll = () => {
     setFilters(DEFAULT_FILTERS); setSearch(""); setCityFilter("الكل");
@@ -606,15 +618,26 @@ export default function HomeScreen() {
                 style={{ flex: 1, fontFamily: TJ.medium, fontSize: 14, color: t.text, textAlign: "right" }}
               />
             </View>
-            <Pressable
-              onPress={openFilters}
-              style={{ marginTop: 10, height: 44, borderRadius: 14, backgroundColor: t.btn, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }}
-            >
-              <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 15 }}>
-                التصفية{activeCount > 0 ? ` (${activeCount})` : ""}
-              </Text>
-              <MaterialCommunityIcons name="chevron-down" size={20} color={t.gold} />
-            </Pressable>
+            <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 10 }}>
+              <Pressable
+                onPress={openFilters}
+                style={{ flex: 1, height: 44, borderRadius: 14, backgroundColor: t.btn, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                <MaterialCommunityIcons name="tune-variant" size={18} color={t.gold} />
+                <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 15 }}>
+                  التصفية{activeCount > 0 ? ` (${activeCount})` : ""}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={openSpecialty}
+                style={{ flex: 1, height: 44, borderRadius: 14, backgroundColor: specialtyCount > 0 ? t.goldTint : t.btn, borderWidth: specialtyCount > 0 ? 1 : 0, borderColor: t.gold, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                <MaterialCommunityIcons name="stethoscope" size={18} color={t.gold} />
+                <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 15 }}>
+                  التخصص{specialtyCount > 0 ? ` (${specialtyCount})` : ""}
+                </Text>
+              </Pressable>
+            </View>
             {appliedChips.length > 0 ? (
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 10 }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8 }}>
@@ -651,13 +674,28 @@ export default function HomeScreen() {
         </View>
       )}
 
+      <SpecialtySheet
+        visible={spOpen}
+        type={spType}
+        grade={spGrade}
+        selected={spSel}
+        grades={doctorGrades.map((g) => g.name)}
+        options={spOptions}
+        resultCount={spResultCount}
+        onType={(v) => { setSpType(v); setSpGrade(null); setSpSel([]); }}
+        onGrade={setSpGrade}
+        onToggle={(n) => setSpSel((cur) => (cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n]))}
+        onApply={applySpecialty}
+        onClose={() => setSpOpen(false)}
+        onClear={() => { setSpType("all"); setSpGrade(null); setSpSel([]); }}
+      />
+
       <FilterPanel
         visible={showFilterPanel}
         pending={pendingFilters}
         maxPriceLimit={maxPriceLimit}
         priceSteps={priceSteps}
         resultCount={runFilter(pendingFilters).length}
-        specialtyGroups={specialtyGroups}
         onChange={setPendingFilters}
         onApply={() => { setFilters(pendingFilters); setShowFilterPanel(false); }}
         onClose={() => setShowFilterPanel(false)}
@@ -766,8 +804,93 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress }: { pro
 });
 
 /* ─── Filter sheet ───────────────────────────────────────────────────────── */
-function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount, specialtyGroups, onChange, onApply, onClose, onReset }: {
-  visible: boolean; pending: Filters; maxPriceLimit: number; priceSteps: number[]; resultCount: number; specialtyGroups: SpecialtyGroup[];
+function SpecialtySheet({ visible, type, grade, selected, grades, options, resultCount, onType, onGrade, onToggle, onApply, onClose, onClear }: {
+  visible: boolean; type: ServiceType | "all"; grade: string | null; selected: string[]; grades: string[];
+  options: { name: string; count: number }[]; resultCount: number;
+  onType: (v: ServiceType | "all") => void; onGrade: (g: string | null) => void; onToggle: (n: string) => void;
+  onApply: () => void; onClose: () => void; onClear: () => void;
+}) {
+  const t = useMalaz();
+  const insets = useSafeAreaInsets();
+  const chip = (active: boolean) => ({
+    flexDirection: "row-reverse" as const, alignItems: "center" as const, justifyContent: "center" as const, gap: 5,
+    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1.5,
+    borderColor: active ? t.gold : t.border, backgroundColor: active ? t.goldTint : t.card,
+  });
+  const chipText = (active: boolean) => ({ color: active ? t.gold : t.text, fontFamily: TJ.bold, fontSize: 14 });
+  const heading = { color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" as const, marginBottom: 12 };
+  const types = SERVICE_CATEGORIES.filter((c) => c.id === "doctor" || c.id === "nurse" || c.id === "xray");
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,.45)" }} onPress={onClose} />
+      <View style={{ backgroundColor: t.hdr, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingBottom: insets.bottom + 20, maxHeight: "90%" }}>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 22, paddingBottom: 14 }}>
+          <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 22 }}>التخصص</Text>
+          <Pressable onPress={onClear}>
+            <Text style={{ color: t.destructive, fontFamily: TJ.bold, fontSize: 14 }}>مسح</Text>
+          </Pressable>
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 22 }}>
+          <View>
+            <Text style={heading}>نوع الخدمة</Text>
+            <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+              {types.map((c) => {
+                const active = type === c.id;
+                return (
+                  <Pressable key={c.id} onPress={() => onType(active ? "all" : (c.id as ServiceType))} style={[chip(active), { flex: 1 }]}>
+                    <Text style={chipText(active)}>{c.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {type === "doctor" && grades.length > 0 ? (
+            <View>
+              <Text style={heading}>الدرجة</Text>
+              <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
+                {grades.map((g) => (
+                  <Pressable key={g} onPress={() => onGrade(grade === g ? null : g)} style={chip(grade === g)}>
+                    <Text style={chipText(grade === g)}>{g}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {type !== "all" && options.length > 0 ? (
+            <View>
+              <Text style={heading}>{type === "doctor" ? "التخصص" : type === "nurse" ? "الخدمة" : "نوع الأشعة"}</Text>
+              <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
+                {options.map((it) => {
+                  const active = selected.includes(it.name);
+                  const empty = it.count === 0 && !active;
+                  return (
+                    <Pressable key={it.name} disabled={empty} onPress={() => onToggle(it.name)} style={[chip(active), empty ? { opacity: 0.4 } : null]}>
+                      <Text style={chipText(active)}>{it.name} ({it.count})</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+          {type === "all" ? (
+            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "center" }}>اختر نوع الخدمة لتظهر تخصصاتها</Text>
+          ) : null}
+        </ScrollView>
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <Pressable onPress={onApply} style={{ height: 54, borderRadius: 16, backgroundColor: t.gold, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>عرض النتائج ({resultCount})</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount, onChange, onApply, onClose, onReset }: {
+  visible: boolean; pending: Filters; maxPriceLimit: number; priceSteps: number[]; resultCount: number;
   onChange: (f: Filters) => void; onApply: () => void; onClose: () => void; onReset: () => void;
 }) {
   const t = useMalaz();
@@ -793,34 +916,6 @@ function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount,
           </Pressable>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 22 }}>
-          {specialtyGroups.length > 0 ? (
-            <View style={{ gap: 14 }}>
-              {specialtyGroups.map((g, gi) => (
-                <View key={g.title ?? `g${gi}`}>
-                  <Text style={heading}>{g.title ?? "التخصص"}</Text>
-                  <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
-                    {g.items.map((it) => {
-                      const active = pending.specialties.includes(it.name);
-                      const empty = it.count === 0 && !active;
-                      return (
-                        <Pressable
-                          key={it.name}
-                          disabled={empty}
-                          onPress={() => onChange({
-                            ...pending,
-                            specialties: active ? pending.specialties.filter((n) => n !== it.name) : [...pending.specialties, it.name],
-                          })}
-                          style={[chip(active), empty ? { opacity: 0.4 } : null]}
-                        >
-                          <Text style={chipText(active)}>{it.name} ({it.count})</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : null}
           <View>
             <Text style={heading}>الترتيب حسب</Text>
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
