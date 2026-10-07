@@ -38,13 +38,20 @@ type Filters = {
   maxPrice: number;
   onlyAvailable: boolean;
   sortBy: SortKey;
+  specialties: string[]; // multi-select: a provider matches if ANY of them matches
 };
 const DEFAULT_FILTERS: Filters = {
   minRating: 0,
   maxPrice: Infinity,
   onlyAvailable: false,
   sortBy: "rating",
+  specialties: [],
 };
+
+type SpecialtyGroup = { title: string | null; items: { name: string; count: number }[] };
+
+const matchesSpecialty = (p: Provider, name: string) =>
+  p.title.includes(name) || p.services.some((s) => s.name === name);
 const SORT_OPTIONS: {
   key: SortKey;
   label: string;
@@ -73,6 +80,7 @@ function countActiveFilters(f: Filters, maxPriceLimit: number) {
   if (f.maxPrice < maxPriceLimit) n++;
   if (f.onlyAvailable) n++;
   if (f.sortBy !== "rating") n++;
+  if (f.specialties.length > 0) n++;
   return n;
 }
 
@@ -177,7 +185,7 @@ export default function HomeScreen() {
     })();
   }, [loadingProviders, coverageAreas]);
 
-  const runFilter = useCallback((filters: Filters): Provider[] => {
+  const runFilter = useCallback((filters: Filters, skipSpecialties = false): Provider[] => {
     let list: Provider[] = providers;
     if (serviceFilter !== "all") list = list.filter((p) => p.serviceType === serviceFilter);
     if (gradeFilter) list = list.filter((p) => p.title.includes(gradeFilter));
@@ -208,6 +216,8 @@ export default function HomeScreen() {
         (p.services.length ? Math.min(...p.services.map((s) => s.price)) : 0) <= filters.maxPrice
       );
     if (filters.onlyAvailable) list = list.filter((p) => p.available);
+    if (!skipSpecialties && filters.specialties.length > 0)
+      list = list.filter((p) => filters.specialties.some((n) => matchesSpecialty(p, n)));
 
     const relevance = (p: Provider): number => {
       if (!nq) return 0;
@@ -233,6 +243,45 @@ export default function HomeScreen() {
     });
   }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, providers, maxPriceLimit, coverageAreas]);
   const filtered = useMemo(() => runFilter(filters), [runFilter, filters]);
+
+  // التخصصات في لوحة التصفية: حسب نوع الخدمة، وعدد المقدمين جنب كل واحد (محسوب مع باقي الفلاتر)
+  const specialtyGroups = useMemo<SpecialtyGroup[]>(() => {
+    const base = runFilter({ ...pendingFilters, specialties: [] }, true);
+    const groups: { type: ServiceType; title: string; names: string[] }[] = [
+      { type: "doctor", title: "الأطباء — التخصص", names: doctorSpecialties.map((x) => x.name) },
+      { type: "nurse", title: "التمريض — الخدمة", names: nurseSubServices.map((x) => x.name) },
+      { type: "xray", title: "الأشعة — النوع", names: xraySubServices.map((x) => x.name) },
+    ];
+    const visible = groups.filter((g) => serviceFilter === "all" || g.type === serviceFilter);
+    return visible
+      .map((g) => ({
+        title: visible.length > 1 ? g.title : null,
+        items: Array.from(new Set(g.names)).map((name) => ({
+          name,
+          count: base.filter((p) => p.serviceType === g.type && matchesSpecialty(p, name)).length,
+        })),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [runFilter, pendingFilters, serviceFilter, doctorSpecialties, nurseSubServices, xraySubServices]);
+
+  // ملخص الفلاتر المطبّقة (يظهر فوق قائمة "كل المقدمين" وكل واحد ينفع يتشال لوحده)
+  const appliedChips = useMemo(() => {
+    const chips: { key: string; label: string; clear: () => void }[] = [];
+    if (serviceFilter !== "all") {
+      const cat = SERVICE_CATEGORIES.find((c) => c.id === serviceFilter);
+      chips.push({ key: "svc", label: cat?.name ?? "الخدمة", clear: () => { setServiceFilter("all"); setGradeFilter(null); setSubServiceFilter(null); } });
+    }
+    if (gradeFilter) chips.push({ key: "grade", label: gradeFilter, clear: () => setGradeFilter(null) });
+    if (subServiceFilter) chips.push({ key: "sub", label: subServiceFilter, clear: () => setSubServiceFilter(null) });
+    filters.specialties.forEach((n) =>
+      chips.push({ key: `sp-${n}`, label: n, clear: () => setFilters((f) => ({ ...f, specialties: f.specialties.filter((x) => x !== n) })) }));
+    if (cityFilter !== "الكل") chips.push({ key: "city", label: cityFilter, clear: () => setCityFilter("الكل") });
+    if (search.trim()) chips.push({ key: "q", label: `"${search.trim()}"`, clear: () => setSearch("") });
+    if (filters.minRating > 0) chips.push({ key: "rate", label: `تقييم ${filters.minRating}+`, clear: () => setFilters((f) => ({ ...f, minRating: 0 })) });
+    if (filters.maxPrice < maxPriceLimit) chips.push({ key: "price", label: `حتى ${filters.maxPrice} ج.م`, clear: () => setFilters((f) => ({ ...f, maxPrice: Infinity })) });
+    if (filters.onlyAvailable) chips.push({ key: "av", label: "متاح الآن", clear: () => setFilters((f) => ({ ...f, onlyAvailable: false })) });
+    return chips;
+  }, [serviceFilter, gradeFilter, subServiceFilter, filters, cityFilter, search, maxPriceLimit]);
   // ─── Carousel (top 10) ───
   const topCount = Math.min(filtered.length, TOP_N);
   const carouselData: CarouselItem[] = useMemo(
@@ -566,6 +615,22 @@ export default function HomeScreen() {
               </Text>
               <MaterialCommunityIcons name="chevron-down" size={20} color={t.gold} />
             </Pressable>
+            {appliedChips.length > 0 ? (
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 10 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8 }}>
+                  {appliedChips.map((c) => (
+                    <Pressable key={c.key} onPress={c.clear} accessibilityLabel={`إزالة ${c.label}`}
+                      style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: t.goldTint, borderWidth: 1, borderColor: t.goldRing }}>
+                      <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13 }}>{c.label}</Text>
+                      <MaterialCommunityIcons name="close" size={14} color={t.gold} />
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <Pressable onPress={resetAll} hitSlop={8}>
+                  <Text style={{ color: t.destructive, fontFamily: TJ.bold, fontSize: 13 }}>مسح الكل</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
           <FlatList
             data={filtered.slice(0, shown)}
@@ -592,6 +657,7 @@ export default function HomeScreen() {
         maxPriceLimit={maxPriceLimit}
         priceSteps={priceSteps}
         resultCount={runFilter(pendingFilters).length}
+        specialtyGroups={specialtyGroups}
         onChange={setPendingFilters}
         onApply={() => { setFilters(pendingFilters); setShowFilterPanel(false); }}
         onClose={() => setShowFilterPanel(false)}
@@ -700,8 +766,8 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress }: { pro
 });
 
 /* ─── Filter sheet ───────────────────────────────────────────────────────── */
-function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount, onChange, onApply, onClose, onReset }: {
-  visible: boolean; pending: Filters; maxPriceLimit: number; priceSteps: number[]; resultCount: number;
+function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount, specialtyGroups, onChange, onApply, onClose, onReset }: {
+  visible: boolean; pending: Filters; maxPriceLimit: number; priceSteps: number[]; resultCount: number; specialtyGroups: SpecialtyGroup[];
   onChange: (f: Filters) => void; onApply: () => void; onClose: () => void; onReset: () => void;
 }) {
   const t = useMalaz();
@@ -727,6 +793,34 @@ function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount,
           </Pressable>
         </View>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 22 }}>
+          {specialtyGroups.length > 0 ? (
+            <View style={{ gap: 14 }}>
+              {specialtyGroups.map((g, gi) => (
+                <View key={g.title ?? `g${gi}`}>
+                  <Text style={heading}>{g.title ?? "التخصص"}</Text>
+                  <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
+                    {g.items.map((it) => {
+                      const active = pending.specialties.includes(it.name);
+                      const empty = it.count === 0 && !active;
+                      return (
+                        <Pressable
+                          key={it.name}
+                          disabled={empty}
+                          onPress={() => onChange({
+                            ...pending,
+                            specialties: active ? pending.specialties.filter((n) => n !== it.name) : [...pending.specialties, it.name],
+                          })}
+                          style={[chip(active), empty ? { opacity: 0.4 } : null]}
+                        >
+                          <Text style={chipText(active)}>{it.name} ({it.count})</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <View>
             <Text style={heading}>الترتيب حسب</Text>
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
