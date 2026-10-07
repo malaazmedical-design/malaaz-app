@@ -57,10 +57,6 @@ module.exports = ({ config }) => {
         if (isProviderApp && Array.isArray(p) && p[0] === "expo-splash-screen") {
           return ["expo-splash-screen", { ...p[1], backgroundColor: "#F4F1EA", image: "./assets/images/provider/splash-icon.png" }];
         }
-        // bold white "ذ" glyph for the status-bar icon (the full logo is unreadable at 24dp); test builds only
-        if ((isProviderApp || isMizoTest) && Array.isArray(p) && p[0] === "expo-notifications") {
-          return ["expo-notifications", { ...p[1], icon: "./assets/images/provider/notification-icon.png" }];
-        }
         return p;
       }),
       ...(process.env.FACEBOOK_APP_ID
