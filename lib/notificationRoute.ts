@@ -14,7 +14,7 @@ export function routeForNotification(data: Record<string, unknown> | undefined |
   // provider side: a new offer (quick request) or a direct booking
   if (d.kind === "new_booking" || d.type === "OFFER_INSERT") {
     if (d.direct === true && bookingId) {
-      router.push({ pathname: "/provider-portal/(ptabs)/bookings", params: { focus: bookingId } });
+      router.push({ pathname: "/provider-portal/(ptabs)/bookings", params: { focus: bookingId, t: String(Date.now()) } });
     } else {
       router.push("/provider-portal/(ptabs)/offers");
     }

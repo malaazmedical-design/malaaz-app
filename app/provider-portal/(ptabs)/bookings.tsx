@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -35,7 +35,19 @@ function mapsUrl(b: DbBooking): string {
 export default function ProviderBookingsScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const { focus, t: focusNonce } = useLocalSearchParams<{ focus?: string; t?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
+  const listY = useRef(0);
+  const cardY = useRef<Record<string, number>>({});
+  const pendingScroll = useRef<string | null>(null);
+  const tryScroll = () => {
+    const id = pendingScroll.current;
+    if (!id) return;
+    const y = cardY.current[id];
+    if (y == null) return;
+    pendingScroll.current = null;
+    scrollRef.current?.scrollTo({ y: Math.max(0, listY.current + y - 12), animated: true });
+  };
   const { provider, bookings, loadingBookings, refreshAll, updateBookingStatus, setOnWay, sendVisitNote } = useProvider();
   const burst = useCheckBurst();
   const cs = useDoctorCases();
@@ -49,9 +61,17 @@ export default function ProviderBookingsScreen() {
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [reviews, setReviews] = useState<Review[]>([]);
 
+  // فتح حجز معيّن (من النظرة العامة أو من إشعار): نفتح تفاصيله وننزل عليه
   useEffect(() => {
-    if (focus) { setFilter("all"); setOpen(String(focus)); }
-  }, [focus]);
+    if (!focus) return;
+    setSection("bookings");
+    setFilter("all");
+    setOpen(String(focus));
+    pendingScroll.current = String(focus);
+    const id = setTimeout(tryScroll, 150);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus, focusNonce]);
 
   useEffect(() => {
     AsyncStorage.getItem(NOTES_KEY).then((v) => v && setSent(new Set(JSON.parse(v)))).catch(() => {});
@@ -87,6 +107,7 @@ export default function ProviderBookingsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={section === "cases" ? cs.refreshing : loadingBookings} onRefresh={section === "cases" ? cs.refresh : refreshAll} tintColor={t.gold} />}
         keyboardShouldPersistTaps="handled"
@@ -131,7 +152,7 @@ export default function ProviderBookingsScreen() {
           })}
         </ScrollView>
 
-        <View style={{ paddingHorizontal: 16, gap: 10, marginTop: 14 }}>
+        <View style={{ paddingHorizontal: 16, gap: 10, marginTop: 14 }} onLayout={(e) => { listY.current = e.nativeEvent.layout.y; tryScroll(); }}>
           {shown.map(({ b, s }) => {
             const m = STATE_META[s];
             const isOpen = open === b.id;
@@ -141,7 +162,7 @@ export default function ProviderBookingsScreen() {
             const review = reviews.find((r) => (r.booking_id && r.booking_id === b.id) || (!r.booking_id && r.client_name === b.patient_name));
             const price = b.price != null && b.price !== "" ? `${b.price} ج.م` : null;
             return (
-              <View key={b.id} style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, padding: 14 }}>
+              <View key={b.id} onLayout={(e) => { cardY.current[b.id] = e.nativeEvent.layout.y; tryScroll(); }} style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, padding: 14 }}>
                 <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                   <View style={{ flex: 1 }}>
                     <PText numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15.5, textAlign: "right" }}>{shortName(b.patient_name)}</PText>

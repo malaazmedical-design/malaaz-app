@@ -43,7 +43,7 @@ export default function ProviderOverviewScreen() {
   const available = provider.is_available ?? false;
 
   const goBookings = (focus?: string) =>
-    router.navigate({ pathname: "/provider-portal/(ptabs)/bookings", params: focus ? { focus } : {} });
+    router.navigate({ pathname: "/provider-portal/(ptabs)/bookings", params: focus ? { focus, t: String(Date.now()) } : {} });
   const goOffers = () => router.navigate("/provider-portal/(ptabs)/offers");
 
   const flip = async (v: boolean) => {
