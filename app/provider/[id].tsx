@@ -206,7 +206,7 @@ export default function ProviderScreen() {
             <View style={{ borderRadius: 14, overflow: "hidden", marginBottom: 10 }}>
               <BlurView intensity={30} tint={t.isDark ? "dark" : "light"} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: glassBg }}>
                 <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: provider.available ? t.online : t.offline }} />
-                <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13 }}>{provider.available ? "متاح خلال ساعة" : "غير متاح"}</Text>
+                <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13 }}>{provider.available ? "متاح" : "غير متاح"}</Text>
               </BlurView>
             </View>
             <Text numberOfLines={2} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 28, textAlign: "right", writingDirection: "ltr", alignSelf: "stretch" }}>{provider.name}</Text>
