@@ -5,6 +5,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, View } from "react-native
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PText } from "@/components/provider/PUI";
+import { missingProfessionalInfo } from "@/lib/providerLists";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import {
@@ -41,6 +42,7 @@ export default function ProviderOverviewScreen() {
 
   if (!provider) return null;
   const available = provider.is_available ?? false;
+  const missing = missingProfessionalInfo(provider);
 
   const goBookings = (focus?: string) =>
     router.navigate({ pathname: "/provider-portal/(ptabs)/bookings", params: focus ? { focus, t: String(Date.now()) } : {} });
@@ -98,6 +100,18 @@ export default function ProviderOverviewScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 16 }}>
+          {missing.length > 0 ? (
+            <View style={{ marginTop: 16, backgroundColor: "rgba(229,72,77,.12)", borderWidth: 1, borderColor: "rgba(229,72,77,.5)", borderRadius: 24, padding: 16, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <PText style={{ color: t.destructive, fontFamily: TJ.heavy, fontSize: 13, textAlign: "right" }}>بيانات ناقصة</PText>
+                <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, marginTop: 4, textAlign: "right", lineHeight: 23 }}>حدد {missing.join(" و")}</PText>
+                <PText style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 3, textAlign: "right", lineHeight: 20 }}>مطلوبين عشان تظهر للعملاء صح في البحث</PText>
+              </View>
+              <Pressable onPress={() => router.push("/provider-portal/edit-account")} style={({ pressed }) => ({ backgroundColor: t.destructive, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
+                <PText style={{ color: "#fff", fontFamily: TJ.heavy, fontSize: 14 }}>أكمل الآن</PText>
+              </Pressable>
+            </View>
+          ) : null}
           <View style={{ marginTop: 16, backgroundColor: t.goldTint, borderWidth: 1, borderColor: t.goldRing, borderRadius: 24, padding: 16, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
             <View style={{ flex: 1 }}>
               <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 13, textAlign: "right" }}>الخطوة التالية</PText>

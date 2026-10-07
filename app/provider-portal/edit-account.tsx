@@ -22,6 +22,7 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PText, useCheckBurst } from "@/components/provider/PUI";
+import { FALLBACK_SPECIALTIES, gradesFor } from "@/lib/providerLists";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { supabase } from "@/lib/supabase";
@@ -29,8 +30,6 @@ import { supabase } from "@/lib/supabase";
 const DARK = "#1C2B2A";
 const GOLD = "#C9A84C";
 
-const DOCTOR_GRADES = ["أخصائي", "استشاري"];
-const NURSE_GRADES = ["أخصائي تمريض", "فني تمريض"];
 
 const TYPE_LABEL: Record<string, string> = { "كشف منزلي": "كشف منزلي", "تمريض منزلي": "تمريض منزلي", "أشعة منزلية": "أشعة منزلية" };
 
@@ -47,7 +46,7 @@ export default function ProviderProfileScreen() {
   const [bio, setBio] = useState("");
   const [price, setPrice] = useState("");
   const [serviceType, setServiceType] = useState("كشف منزلي");
-  const [grade, setGrade] = useState("أخصائي");
+  const [grade, setGrade] = useState("");
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -64,7 +63,7 @@ export default function ProviderProfileScreen() {
     setBio(provider.bio ?? "");
     setPrice(provider.price ? String(provider.price) : "");
     setServiceType(provider.service_type ?? "كشف منزلي");
-    setGrade(provider.grade ?? "أخصائي");
+    setGrade(provider.grade && gradesFor(provider.service_type).includes(provider.grade) ? provider.grade : "");
     setSpecialty(provider.specialty ?? null);
     setPhotoUrl(provider.photo_url ?? null);
     const saved = (provider.areas ?? provider.area ?? "").split(",").map((a) => a.trim()).filter(Boolean);
@@ -165,6 +164,8 @@ export default function ProviderProfileScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) { Alert.alert("تنبيه", "أدخل اسمك"); return; }
+    if (grades.length && !grade) { Alert.alert("تنبيه", isNurse ? "اختر الدرجة: أخصائي تمريض أو فني تمريض" : "اختر الدرجة العلمية: أخصائي أو استشاري"); return; }
+    if (isDoctor && !specialty) { Alert.alert("تنبيه", "اختر التخصص"); return; }
     if (!selectedAreas.length) { Alert.alert("تنبيه", "اختر منطقة واحدة على الأقل"); return; }
     setSaving(true);
     try {
@@ -189,7 +190,7 @@ export default function ProviderProfileScreen() {
 
   const isDoctor = serviceType === "كشف منزلي";
   const isNurse = serviceType === "تمريض منزلي";
-  const grades = isDoctor ? DOCTOR_GRADES : isNurse ? NURSE_GRADES : [];
+  const grades = gradesFor(serviceType);
 
   // الإملاء الصوتي: Web Speech API على الويب فقط — على الموبايل رسالة بديلة
   const toggleMic = () => {
@@ -287,18 +288,18 @@ export default function ProviderProfileScreen() {
 
         {grades.length ? (
           <>
-            {title("الدرجة")}
+            {title("الدرجة", undefined, "مطلوب")}
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
               {grades.map((g) => chip(g, grade === g, () => setGrade(g)))}
             </View>
           </>
         ) : null}
 
-        {isDoctor && specialties.length > 0 ? (
+        {isDoctor ? (
           <>
-            {title("التخصص", specialty ? 1 : 0, "حدد تخصصك من القائمة المعتمدة")}
+            {title("التخصص", specialty ? 1 : 0, "اختر تخصصك (مطلوب)")}
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
-              {specialties.map((s) => chip(s.name, specialty === s.name, () => setSpecialty(specialty === s.name ? null : s.name)))}
+              {(specialties.length > 0 ? specialties.map((x) => x.name) : FALLBACK_SPECIALTIES).map((n) => chip(n, specialty === n, () => setSpecialty(n)))}
             </View>
           </>
         ) : null}

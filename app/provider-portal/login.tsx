@@ -9,6 +9,7 @@ import { PText, Select } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { digitsOnly } from "@/lib/digits";
+import { FALLBACK_SPECIALTIES, gradesFor } from "@/lib/providerLists";
 import { IS_PROVIDER_APP } from "@/lib/appVariant";
 import { supabase } from "@/lib/supabase";
 
@@ -16,9 +17,6 @@ const LOGO_LIGHT = require("../../assets/images/malaz/logo-light.png");
 const LOGO_DARK = require("../../assets/images/malaz/logo-dark.png");
 
 const SERVICE_TYPES = ["كشف منزلي", "تمريض منزلي", "أشعة منزلية"];
-const DOCTOR_GRADES = ["أخصائي", "استشاري"];
-const NURSE_GRADES = ["أخصائي تمريض", "فني تمريض"];
-const FALLBACK_SPECIALTIES = ["باطنة", "أطفال", "قلب", "عظام", "جلدية", "نساء وتوليد", "أنف وأذن", "مخ وأعصاب", "سكر وغدد"];
 
 type Mode = "login" | "register" | "forgot" | "forgotSent" | "pending";
 
@@ -86,7 +84,7 @@ export default function ProviderLoginScreen() {
 
   const isDoctor = rType === "كشف منزلي";
   const isNurse = rType === "تمريض منزلي";
-  const grades = isDoctor ? DOCTOR_GRADES : isNurse ? NURSE_GRADES : [];
+  const grades = gradesFor(rType);
   const phoneOk = rPhone.length === 11;
   const regOk =
     rName.trim().length > 1 && phoneOk && !!rType && (grades.length === 0 || !!rGrade) && (!isDoctor || !!rSpec) &&
