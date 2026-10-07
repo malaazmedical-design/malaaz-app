@@ -48,6 +48,9 @@ const DEFAULT_FILTERS: Filters = {
   specialties: [],
 };
 
+const SHORT_TYPE_NAME: Record<string, string> = { doctor: "طبيب", nurse: "تمريض", xray: "أشعة" };
+const FALLBACK_GRADES = ["أخصائي", "استشاري"];
+
 const matchesSpecialty = (p: Provider, name: string) =>
   p.title.includes(name) || p.services.some((s) => s.name === name);
 const SORT_OPTIONS: {
@@ -268,7 +271,7 @@ export default function HomeScreen() {
     const chips: { key: string; label: string; clear: () => void }[] = [];
     if (serviceFilter !== "all") {
       const cat = SERVICE_CATEGORIES.find((c) => c.id === serviceFilter);
-      chips.push({ key: "svc", label: cat?.name ?? "الخدمة", clear: () => { setServiceFilter("all"); setGradeFilter(null); setSubServiceFilter(null); } });
+      chips.push({ key: "svc", label: SHORT_TYPE_NAME[serviceFilter] ?? cat?.name ?? "الخدمة", clear: () => { setServiceFilter("all"); setGradeFilter(null); setSubServiceFilter(null); } });
     }
     if (gradeFilter) chips.push({ key: "grade", label: gradeFilter, clear: () => setGradeFilter(null) });
     if (subServiceFilter) chips.push({ key: "sub", label: subServiceFilter, clear: () => setSubServiceFilter(null) });
@@ -679,7 +682,7 @@ export default function HomeScreen() {
         type={spType}
         grade={spGrade}
         selected={spSel}
-        grades={doctorGrades.map((g) => g.name)}
+        grades={doctorGrades.length > 0 ? doctorGrades.map((g) => g.name) : FALLBACK_GRADES}
         options={spOptions}
         resultCount={spResultCount}
         onType={(v) => { setSpType(v); setSpGrade(null); setSpSel([]); }}
@@ -839,7 +842,7 @@ function SpecialtySheet({ visible, type, grade, selected, grades, options, resul
                 const active = type === c.id;
                 return (
                   <Pressable key={c.id} onPress={() => onType(active ? "all" : (c.id as ServiceType))} style={[chip(active), { flex: 1 }]}>
-                    <Text style={chipText(active)}>{c.name}</Text>
+                    <Text style={chipText(active)}>{SHORT_TYPE_NAME[c.id] ?? c.name}</Text>
                   </Pressable>
                 );
               })}
