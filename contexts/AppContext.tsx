@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
 import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import React, {
@@ -263,17 +264,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) { setNeedsPhone(false); return; }
+
+      // الجلسة دي بتاعة مقدم خدمة (دخول جوجل من بوابة المقدم، أو تسجيل مقدم جديد لسه شغّال، أو حسابه فعلاً مقدم):
+      // مننزلهاش كحساب عميل ومنطلبش منه رقم موبايل عميل
+      const [intent, signup] = await Promise.all([
+        AsyncStorage.getItem(GOOGLE_INTENT).catch(() => null),
+        AsyncStorage.getItem(PROVIDER_SIGNUP).catch(() => null),
+      ]);
+      if (intent || signup) { setNeedsPhone(false); return; }
+      const { data: prov } = await supabase.from("providers").select("id").eq("user_id", session.user.id).maybeSingle();
+      if (prov) { setNeedsPhone(false); return; }
+
       const { data } = await supabase
         .from("clients")
         .select("*")
         .eq("auth_id", session.user.id)
         .maybeSingle();
       if (data) await onClientReady(data as DbClient);
-      else {
-        // حساب مقدم خدمة مش عميل — منطلبش منه رقم موبايل عميل
-        const { data: prov } = await supabase.from("providers").select("id").eq("user_id", session.user.id).maybeSingle();
-        setNeedsPhone(!prov);
-      }
+      else setNeedsPhone(true);
     } catch {
       // مفيش جلسة عميل — وضع الزائر عادي
     }

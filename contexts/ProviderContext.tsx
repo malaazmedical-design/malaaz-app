@@ -14,6 +14,7 @@ import React, {
 import { AppState, Linking, Platform } from "react-native";
 
 import { sendMalaazEmail } from "@/lib/emailjs";
+import { GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
 import { clientHasPushToken, registerProviderPushToken } from "@/lib/push";
 import {
   supabase,
@@ -27,8 +28,6 @@ import {
 } from "@/lib/supabase";
 
 export type ProviderOffer = DbBookingOffer & Partial<OfferDetails>;
-
-const GOOGLE_INTENT = "malaz.provider.googleIntent";
 
 export const SITE_URL = "https://malaaz-plum.vercel.app";
 
@@ -132,6 +131,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     if (data?.status === "pending") { setGoogleNotice("pending"); await supabase.auth.signOut(); return true; }
     if (data?.status === "suspended") { setGoogleNotice("suspended"); await supabase.auth.signOut(); return true; }
     const meta = user.user_metadata ?? {};
+    await AsyncStorage.setItem(PROVIDER_SIGNUP, "1").catch(() => {});
     setGoogleProfile({ name: meta.full_name ?? meta.name ?? "", email: user.email ?? "" });
     return true;
   };
@@ -179,6 +179,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   };
 
   const clearGoogle = async () => {
+    await AsyncStorage.removeItem(PROVIDER_SIGNUP).catch(() => {});
     setGoogleProfile(null);
     setGoogleNotice(null);
     await AsyncStorage.removeItem(GOOGLE_INTENT).catch(() => {});
@@ -325,6 +326,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("انتهت جلسة جوجل — حاول من جديد");
     const msg = await createPendingProvider(session.user.id, session.user.email ?? "", input);
+    await AsyncStorage.removeItem(PROVIDER_SIGNUP).catch(() => {});
     setGoogleProfile(null);
     await supabase.auth.signOut();
     return msg;
