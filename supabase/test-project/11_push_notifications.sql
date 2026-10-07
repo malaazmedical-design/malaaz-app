@@ -106,7 +106,7 @@ begin
         public.provider_push_tokens(new.provider_id),
         '📋 حجز جديد وصلك!',
         concat_ws(' · ', v_svc, new.area, new.appointment_time),
-        jsonb_build_object('kind', 'new_booking', 'booking_id', new.id)
+        jsonb_build_object('kind', 'new_booking', 'booking_id', new.id, 'direct', true)
       );
     end if;
     return new;

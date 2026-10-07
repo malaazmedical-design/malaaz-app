@@ -29,6 +29,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import { applyStoredTheme } from "@/constants/malazTheme";
+import { routeForNotification } from "@/lib/notificationRoute";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -156,21 +157,19 @@ export default function RootLayout() {
     return () => clearTimeout(fallback);
   }, [fontsLoaded, fontError]);
 
-  // فتح شاشة الحجوزات لما المستخدم يضغط على أي إشعار
+  // فتح الشاشة المناسبة لما المستخدم يضغط على إشعار (والتطبيق شغّال، أو كان مقفول وفتحه الإشعار)
+  const lastResponse = Notifications.useLastNotificationResponse();
+  const handledResponseId = useRef<string | null>(null);
   useEffect(() => {
-    if (Platform.OS === "web") return;
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
-      if (data?.type === "medicine") {
-        router.push("/medicines");
-      } else if (data?.type === "OFFER_INSERT") {
-        router.push("/provider-portal");
-      } else {
-        router.push("/(tabs)/bookings");
-      }
-    });
-    return () => sub.remove();
-  }, []);
+    if (Platform.OS === "web" || !lastResponse) return;
+    const id = lastResponse.notification.request.identifier + ":" + lastResponse.notification.date;
+    if (handledResponseId.current === id) return;
+    handledResponseId.current = id;
+    const data = lastResponse.notification.request.content.data as Record<string, unknown> | undefined;
+    // مهلة صغيرة عشان الـ navigation يكون جاهز لو التطبيق لسه بيفتح
+    const t = setTimeout(() => routeForNotification(data), 600);
+    return () => clearTimeout(t);
+  }, [lastResponse]);
 
   // فحص OTA تلقائي — ينزّل التحديث ويتطبّق عند أول فتح بعد قفل التطبيق خالص.
   // مفيش reloadAsync() وإحنا شغّالين: على الأندرويد (New Architecture) بيسيب شاشة بيضا.
