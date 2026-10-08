@@ -714,7 +714,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     setMyServices((data ?? []) as DbProviderService[]);
 
     // السعر الأساسي = أقل سعر بين خدماته المفعّلة (بيظهر للعملاء "من X ج.م")
-    const prices = rows.map((r) => r.custom_price).filter((p): p is number => p != null && p > 0);
+    const onlineIds = new Set(subServices.filter((x) => x.group_name === "online").map((x) => x.id));
+    const prices = rows.filter((r) => !onlineIds.has(r.sub_service_id)).map((r) => r.custom_price).filter((p): p is number => p != null && p > 0);
     if (prices.length) {
       const base = Math.min(...prices);
       const { error: pErr } = await supabase.from("providers").update({ price: base }).eq("id", provider.id);

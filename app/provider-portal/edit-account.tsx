@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -21,8 +21,9 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PText, SearchableSelect, useCheckBurst } from "@/components/provider/PUI";
-import { FALLBACK_SPECIALTIES, gradesFor } from "@/lib/providerLists";
+import { Toggle } from "@/components/account/AccountUI";
+import { PText, PriceSlider, SearchableSelect, useCheckBurst } from "@/components/provider/PUI";
+import { FALLBACK_SPECIALTIES, gradesFor, priceRangeFor } from "@/lib/providerLists";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { supabase } from "@/lib/supabase";
@@ -38,7 +39,7 @@ export default function ProviderProfileScreen() {
   const burst = useCheckBurst();
   const [micOn, setMicOn] = useState(false);
   const insets = useSafeAreaInsets();
-  const { provider, areas, subServices, saveProfile, logout } = useProvider();
+  const { provider, areas, subServices, myServices, saveProfile, saveMyServices, logout } = useProvider();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -48,6 +49,9 @@ export default function ProviderProfileScreen() {
   const [serviceType, setServiceType] = useState("كشف منزلي");
   const [grade, setGrade] = useState("");
   const [specialty, setSpecialty] = useState<string | null>(null);
+  const [visitPrice, setVisitPrice] = useState<number | null>(null);
+  const [onlineOn, setOnlineOn] = useState(false);
+  const [onlinePrice, setOnlinePrice] = useState<number | null>(null);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -80,6 +84,31 @@ export default function ProviderProfileScreen() {
     () => subServices.filter((s) => s.service_name === "كشف منزلي" && s.group_name === "specialty"),
     [subServices]
   );
+
+  // أسعار الدكتور: سعر الكشف المنزلي للتخصص المختار + الاستشارة الأونلاين، داخل نطاق الأدمن للدرجة
+  const specialtyRow = useMemo(
+    () => subServices.find((x) => x.service_name === "كشف منزلي" && x.group_name === "specialty" && x.name === specialty),
+    [subServices, specialty],
+  );
+  const onlineRow = useMemo(
+    () => subServices.find((x) => x.service_name === "كشف منزلي" && x.group_name === "online"),
+    [subServices],
+  );
+  const visitRange = useMemo(() => priceRangeFor(specialtyRow, grade), [specialtyRow, grade]);
+  const onlineRange = useMemo(() => priceRangeFor(onlineRow, grade), [onlineRow, grade]);
+  const clampTo = (v: number | null, r: { min: number; max: number }) => (v == null ? r.min : Math.min(r.max, Math.max(r.min, v)));
+
+  // القيم المحفوظة: أول مرة بس
+  const pricesInit = useRef(false);
+  useEffect(() => {
+    if (pricesInit.current || !specialtyRow) return;
+    pricesInit.current = true;
+    const mine = myServices.find((m) => m.sub_service_id === specialtyRow.id);
+    setVisitPrice(mine?.custom_price ?? null);
+    const on = onlineRow ? myServices.find((m) => m.sub_service_id === onlineRow.id) : undefined;
+    setOnlineOn(!!on);
+    setOnlinePrice(on?.custom_price ?? null);
+  }, [specialtyRow, onlineRow, myServices]);
 
   // تجميع المناطق حسب المحافظة مع دعم البحث
   const groupedAreas = useMemo(() => {
@@ -180,6 +209,12 @@ export default function ProviderProfileScreen() {
         specialty: serviceType === "كشف منزلي" ? specialty : (specialty ?? provider?.specialty ?? null),
         photoUrl,
       });
+      if (isDoctor && specialtyRow) {
+        // الدكتور: خدمة واحدة بس = التخصص المختار (+ الاستشارة الأونلاين لو مفعّلة)
+        const rows = [{ sub_service_id: specialtyRow.id, custom_price: clampTo(visitPrice, visitRange) }];
+        if (onlineRow && onlineOn) rows.push({ sub_service_id: onlineRow.id, custom_price: clampTo(onlinePrice, onlineRange) });
+        await saveMyServices(rows);
+      }
       burst.show("تم حفظ الحساب");
     } catch (e: any) {
       Alert.alert("خطأ", e.message ?? "تعذر الحفظ");
@@ -306,6 +341,55 @@ export default function ProviderProfileScreen() {
               onChange={(v) => setSpecialty(v)}
               placeholder="اختر تخصصك"
             />
+          </View>
+        ) : null}
+
+        {isDoctor && grade && specialty && specialtyRow ? (
+          <View style={{ marginTop: 22, gap: 12 }}>
+            <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.goldRing, borderRadius: 22, padding: 16 }}>
+              <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>سعر الكشف المنزلي</PText>
+              <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{grade} · {specialty}</PText>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
+                <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 24 }}>
+                  {clampTo(visitPrice, visitRange)} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText>
+                </PText>
+              </View>
+              <PriceSlider value={clampTo(visitPrice, visitRange)} min={visitRange.min} max={visitRange.max} disabled={visitRange.max === visitRange.min} onChange={setVisitPrice} />
+              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
+                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{visitRange.min}</PText>
+                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن لـ {grade}</PText>
+                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{visitRange.max}</PText>
+              </View>
+            </View>
+
+            {onlineRow ? (
+              <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: onlineOn ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: onlineOn ? 1 : 0.85 }}>
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>استشارة أونلاين</PText>
+                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>ردّ على أسئلة المرضى بالشات ({onlineRow.duration ?? "15 دقيقة"})</PText>
+                  </View>
+                  <Toggle on={onlineOn} onChange={(v) => { setOnlineOn(v); if (v && onlinePrice == null) setOnlinePrice(onlineRange.min); }} />
+                </View>
+                {onlineOn ? (
+                  <>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+                      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
+                      <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 24 }}>
+                        {clampTo(onlinePrice, onlineRange)} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText>
+                      </PText>
+                    </View>
+                    <PriceSlider value={clampTo(onlinePrice, onlineRange)} min={onlineRange.min} max={onlineRange.max} disabled={onlineRange.max === onlineRange.min} onChange={setOnlinePrice} />
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
+                      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{onlineRange.min}</PText>
+                      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن لـ {grade}</PText>
+                      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{onlineRange.max}</PText>
+                    </View>
+                  </>
+                ) : null}
+              </View>
+            ) : null}
           </View>
         ) : null}
 

@@ -554,7 +554,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const realServices = own
             .map((ps) => {
               const sub = subsById.get(ps.sub_service_id);
-              if (!sub) return null;
+              if (!sub || sub.group_name === "online") return null;
               const fallbackPrice =
                 (consultant ? sub.price_min_consultant : sub.price_min_specialist) ??
                 sub.price_min ?? 0;

@@ -92,7 +92,9 @@ export default function ProviderProfileScreen() {
               })}
             </View>
           </View>
-          <Row icon="view-grid-outline" title="خدماتي وأسعاري" value={`${onCount} خدمات مفعّلة`} onPress={() => router.push("/provider-portal/(ptabs)/services")} last />
+          {(provider.service_type ?? "").includes("كشف") ? null : (
+  <Row icon="view-grid-outline" title="خدماتي وأسعاري" value={`${onCount} خدمات مفعّلة`} onPress={() => router.push("/provider-portal/(ptabs)/services")} last />
+          )}
         </Group>
 
         <Group label="المساعدة">
