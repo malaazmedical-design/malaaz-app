@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PText, Select } from "@/components/provider/PUI";
+import { PText, SearchableSelect, Select } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { digitsOnly } from "@/lib/digits";
@@ -226,7 +226,7 @@ export default function ProviderLoginScreen() {
             <View>{label("رقم الموبايل (11 رقم)")}<TextInput value={rPhone} onChangeText={(v) => setRPhone(digitsOnly(v).slice(0, 11))} keyboardType="phone-pad" style={[input, ltr]} /></View>
             <Select label="نوع الخدمة" value={rType} options={SERVICE_TYPES} onChange={(v) => { setRType(v); setRGrade(""); setRSpec(""); }} />
             {grades.length ? <Select label="الدرجة" value={rGrade} options={grades} onChange={setRGrade} /> : null}
-            {isDoctor ? <Select label="التخصص" value={rSpec} options={specialties} onChange={setRSpec} /> : null}
+            {isDoctor ? <SearchableSelect label="التخصص" sheetTitle="اختر التخصص" value={rSpec} options={specialties} onChange={setRSpec} /> : null}
             {err}
             {gold(busy ? "جاري الإنشاء..." : "إنشاء الحساب", doRegister, busy || !regOk)}
             {!googleProfile ? (<>{divider}{googleBtn("التسجيل بحساب جوجل")}</>) : null}

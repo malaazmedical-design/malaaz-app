@@ -1,6 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, LayoutChangeEvent, PanResponder, Pressable, StyleSheet, Text, TextProps, View } from "react-native";
+import { Animated, FlatList, LayoutChangeEvent, Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, TextProps, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { normalizeArabic } from "@/constants/data";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProviderPrefs } from "@/lib/providerPrefs";
@@ -178,6 +181,74 @@ export function Select({ label, value, options, onChange, placeholder = "اخت�
           ))}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+
+// ─── Field that opens a searchable bottom sheet (for long lists like specialties) ─
+export function SearchableSelect({ label, hint, value, options, onChange, placeholder = "اختر", sheetTitle }: {
+  label: string; hint?: string; value: string; options: string[]; onChange: (v: string) => void; placeholder?: string; sheetTitle?: string;
+}) {
+  const t = useMalaz();
+  const insets = useSafeAreaInsets();
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState("");
+  const nq = normalizeArabic(q.trim());
+  const list = nq ? options.filter((o) => normalizeArabic(o).includes(nq)) : options;
+
+  const close = () => { setOpen(false); setQ(""); };
+  return (
+    <View>
+      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginHorizontal: 4, marginBottom: hint ? 2 : 6 }}>{label}</PText>
+      {hint ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginHorizontal: 4, marginBottom: 6 }}>{hint}</PText> : null}
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={{ height: 52, borderRadius: 14, borderWidth: 1, borderColor: value ? t.goldRing : t.border, backgroundColor: t.card, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}
+      >
+        <PText style={{ color: value ? t.text : t.muted, fontFamily: value ? TJ.heavy : TJ.medium, fontSize: 15 }}>{value || placeholder}</PText>
+        <MaterialCommunityIcons name="chevron-down" size={22} color={t.muted} />
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={close}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,.5)" }} onPress={close} />
+        <View style={{ backgroundColor: t.hdr, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "85%", paddingBottom: insets.bottom + 12 }}>
+          <View style={{ alignSelf: "center", width: 44, height: 4, borderRadius: 2, backgroundColor: t.border, marginTop: 10 }} />
+          <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 19, textAlign: "center", marginTop: 12, marginBottom: 12 }}>{sheetTitle ?? label}</PText>
+          <View style={{ marginHorizontal: 16, marginBottom: 8, flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 14, paddingHorizontal: 14, height: 46 }}>
+            <MaterialCommunityIcons name="magnify" size={20} color={t.muted} />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder="ابحث…"
+              placeholderTextColor={t.muted}
+              style={{ flex: 1, color: t.text, fontFamily: TJ.medium, fontSize: 15, textAlign: "right" }}
+            />
+            {q ? (
+              <Pressable onPress={() => setQ("")} hitSlop={8}><MaterialCommunityIcons name="close-circle" size={18} color={t.muted} /></Pressable>
+            ) : null}
+          </View>
+          <FlatList
+            data={list}
+            keyExtractor={(o) => o}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
+            ListEmptyComponent={<PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "center", paddingVertical: 30 }}>لا توجد نتائج</PText>}
+            renderItem={({ item }) => {
+              const on = item === value;
+              return (
+                <Pressable
+                  onPress={() => { onChange(item); close(); }}
+                  style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 15, borderRadius: 14, marginTop: 4, backgroundColor: on ? t.goldTint : pressed ? t.ic : "transparent" })}
+                >
+                  <PText style={{ color: on ? t.gold : t.text, fontFamily: on ? TJ.heavy : TJ.medium, fontSize: 15.5 }}>{item}</PText>
+                  {on ? <MaterialCommunityIcons name="check" size={20} color={t.gold} /> : null}
+                </Pressable>
+              );
+            }}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }

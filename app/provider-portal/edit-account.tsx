@@ -21,7 +21,7 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PText, useCheckBurst } from "@/components/provider/PUI";
+import { PText, SearchableSelect, useCheckBurst } from "@/components/provider/PUI";
 import { FALLBACK_SPECIALTIES, gradesFor } from "@/lib/providerLists";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
@@ -296,12 +296,17 @@ export default function ProviderProfileScreen() {
         ) : null}
 
         {isDoctor ? (
-          <>
-            {title("التخصص", specialty ? 1 : 0, "اختر تخصصك (مطلوب)")}
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
-              {(specialties.length > 0 ? specialties.map((x) => x.name) : FALLBACK_SPECIALTIES).map((n) => chip(n, specialty === n, () => setSpecialty(n)))}
-            </View>
-          </>
+          <View style={{ marginTop: 22 }}>
+            <SearchableSelect
+              label="التخصص"
+              hint="مطلوب"
+              sheetTitle="اختر التخصص"
+              value={specialty ?? ""}
+              options={specialties.length > 0 ? specialties.map((x) => x.name) : FALLBACK_SPECIALTIES}
+              onChange={(v) => setSpecialty(v)}
+              placeholder="اختر تخصصك"
+            />
+          </View>
         ) : null}
 
         {title("مناطق التغطية", selectedAreas.length, "المحافظات والمدن المفعّلة من الإدارة")}
