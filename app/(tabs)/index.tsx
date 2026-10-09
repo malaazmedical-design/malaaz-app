@@ -31,6 +31,7 @@ import { TJ, useMalaz } from "@/constants/malazTheme";
 import { ProviderAvatar } from "@/components/ProviderAvatar";
 import { useApp } from "@/contexts/AppContext";
 import { DbSubService } from "@/lib/supabase";
+import { lowestOnline, OnlineOffer, useOnlineOffers } from "@/lib/useOnlineOffers";
 
 type SortKey = "rating" | "price_asc" | "price_desc" | "experience";
 type Filters = {
@@ -39,6 +40,7 @@ type Filters = {
   onlyAvailable: boolean;
   sortBy: SortKey;
   specialties: string[]; // multi-select: a provider matches if ANY of them matches
+  consult: "all" | "visit" | "chat" | "voice" | "video"; // طريقة الاستشارة
 };
 const DEFAULT_FILTERS: Filters = {
   minRating: 0,
@@ -46,7 +48,13 @@ const DEFAULT_FILTERS: Filters = {
   onlyAvailable: false,
   sortBy: "rating",
   specialties: [],
+  consult: "all",
 };
+
+const CONSULT_OPTIONS: { key: Filters["consult"]; label: string }[] = [
+  { key: "all", label: "الكل" }, { key: "visit", label: "كشف منزلي" }, { key: "chat", label: "شات" },
+  { key: "voice", label: "صوت" }, { key: "video", label: "فيديو" },
+];
 
 const SHORT_TYPE_NAME: Record<string, string> = { doctor: "طبيب", nurse: "تمريض", xray: "أشعة" };
 const FALLBACK_GRADES = ["أخصائي", "استشاري"];
@@ -81,6 +89,7 @@ function countActiveFilters(f: Filters, maxPriceLimit: number) {
   if (f.maxPrice < maxPriceLimit) n++;
   if (f.onlyAvailable) n++;
   if (f.sortBy !== "rating") n++;
+  if (f.consult !== "all") n++;
   return n;
 }
 
@@ -93,6 +102,7 @@ export default function HomeScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
   const { profile, providers, loadingProviders, coverageAreas, subServices } = useApp();
+  const offers = useOnlineOffers();
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
   const [subServiceFilter, setSubServiceFilter] = useState<string | null>(null);
@@ -224,6 +234,8 @@ export default function HomeScreen() {
         (p.services.length ? Math.min(...p.services.map((s) => s.price)) : 0) <= filters.maxPrice
       );
     if (filters.onlyAvailable) list = list.filter((p) => p.available);
+    if (filters.consult === "visit") list = list.filter((p) => p.services.length > 0);
+    else if (filters.consult !== "all") list = list.filter((p) => offers[p.id]?.[filters.consult as "chat" | "voice" | "video"] != null);
     if (!skipSpecialties && filters.specialties.length > 0)
       list = list.filter((p) => filters.specialties.some((n) => matchesSpecialty(p, n)));
 
@@ -249,7 +261,7 @@ export default function HomeScreen() {
         case "experience": return b.yearsExperience - a.yearsExperience;
       }
     });
-  }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, providers, maxPriceLimit, coverageAreas]);
+  }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, providers, maxPriceLimit, coverageAreas, offers]);
   const filtered = useMemo(() => runFilter(filters), [runFilter, filters]);
 
   const spOptions = useMemo(() => {
@@ -282,6 +294,7 @@ export default function HomeScreen() {
     if (filters.minRating > 0) chips.push({ key: "rate", label: `تقييم ${filters.minRating}+`, clear: () => setFilters((f) => ({ ...f, minRating: 0 })) });
     if (filters.maxPrice < maxPriceLimit) chips.push({ key: "price", label: `حتى ${filters.maxPrice} ج.م`, clear: () => setFilters((f) => ({ ...f, maxPrice: Infinity })) });
     if (filters.onlyAvailable) chips.push({ key: "av", label: "متاح الآن", clear: () => setFilters((f) => ({ ...f, onlyAvailable: false })) });
+    if (filters.consult !== "all") chips.push({ key: "consult", label: CONSULT_OPTIONS.find((o) => o.key === filters.consult)?.label ?? "", clear: () => setFilters((f) => ({ ...f, consult: "all" })) });
     return chips;
   }, [serviceFilter, gradeFilter, subServiceFilter, filters, cityFilter, search, maxPriceLimit]);
   // ─── Carousel (top 10) ───
@@ -563,6 +576,7 @@ export default function HomeScreen() {
           ) : (
             <>
               <FlatList
+                extraData={offers}
                 ref={rowRef}
                 data={carouselData}
                 horizontal
@@ -588,7 +602,7 @@ export default function HomeScreen() {
                       <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 17 }}>عرض الكل ({filtered.length})</Text>
                     </Pressable>
                   ) : (
-                    <CarouselCard provider={item as Provider} onPress={openProvider} />
+                    <CarouselCard provider={item as Provider} onPress={openProvider} online={offers[(item as Provider).id]} />
                   )
                 }
               />
@@ -659,6 +673,7 @@ export default function HomeScreen() {
             ) : null}
           </View>
           <FlatList
+            extraData={offers}
             data={filtered.slice(0, shown)}
             keyExtractor={(p) => p.id}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 110, gap: 12 }}
@@ -672,7 +687,7 @@ export default function HomeScreen() {
                 <Text style={{ color: t.muted, fontFamily: TJ.medium, textAlign: "center", paddingVertical: 12 }}>جاري تحميل المزيد...</Text>
               ) : null
             }
-            renderItem={({ item }) => <ProviderRow provider={item} onPress={openProvider} />}
+            renderItem={({ item }) => <ProviderRow provider={item} onPress={openProvider} online={offers[item.id]} />}
           />
         </View>
       )}
@@ -738,7 +753,34 @@ function PillRow({ items, selected, onSelect }: {
 }
 
 /* ─── Carousel card ──────────────────────────────────────────────────────── */
-const CarouselCard = React.memo(function CarouselCard({ provider, onPress }: { provider: Provider; onPress: (id: string) => void }) {
+// الخدمات بالترتيب: كشف منزلي ثم استشارة أونلاين (مع أيقونات القنوات)
+function ServiceLines({ provider, online, compact }: { provider: Provider; online?: OnlineOffer; compact?: boolean }) {
+  const t = useMalaz();
+  const visit = minPriceOf(provider);
+  const onl = lowestOnline(online);
+  const size = compact ? 12.5 : 12;
+  return (
+    <View style={{ marginTop: compact ? 6 : 4, gap: 2 }}>
+      {visit > 0 ? (
+        <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: size, textAlign: "right" }}>
+          {provider.serviceType === "doctor" ? "كشف منزلي · " : ""}من <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: size + 2 }}>{visit}</Text> ج.م
+        </Text>
+      ) : null}
+      {onl != null ? (
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+          <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: size, textAlign: "right" }}>
+            أونلاين · من <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: size + 2 }}>{onl}</Text> ج.م
+          </Text>
+          <MaterialCommunityIcons name="chat-outline" size={12} color={t.gold} />
+          {online?.voice != null ? <MaterialCommunityIcons name="phone-outline" size={12} color={t.gold} /> : null}
+          {online?.video != null ? <MaterialCommunityIcons name="video-outline" size={12} color={t.gold} /> : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const CarouselCard = React.memo(function CarouselCard({ provider, onPress, online }: { provider: Provider; onPress: (id: string) => void; online?: OnlineOffer }) {
   const t = useMalaz();
   return (
     <Pressable
@@ -758,17 +800,13 @@ const CarouselCard = React.memo(function CarouselCard({ provider, onPress }: { p
       </View>
       <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right", marginTop: 10 }}>{provider.name}</Text>
       <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 2 }}>{provider.title}</Text>
-      {minPriceOf(provider) > 0 ? (
-        <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 6 }}>
-          من <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15 }}>{minPriceOf(provider)}</Text> ج.م
-        </Text>
-      ) : null}
+      <ServiceLines provider={provider} online={online} compact />
     </Pressable>
   );
 });
 
 /* ─── View-all row ───────────────────────────────────────────────────────── */
-const ProviderRow = React.memo(function ProviderRow({ provider, onPress }: { provider: Provider; onPress: (id: string) => void }) {
+const ProviderRow = React.memo(function ProviderRow({ provider, onPress, online }: { provider: Provider; onPress: (id: string) => void; online?: OnlineOffer }) {
   const { coverageAreas } = useApp();
   const govName = [...providerCities(provider.areas.length ? provider.areas : [provider.city], coverageAreas)][0] ?? provider.city;
   const t = useMalaz();
@@ -794,14 +832,8 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress }: { pro
           <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
           {provider.reviewsCount > 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text> : null}
         </View>
+        <ServiceLines provider={provider} online={online} />
       </View>
-      {minPriceOf(provider) > 0 ? (
-      <View style={{ alignItems: "center" }}>
-        <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11 }}>من</Text>
-        <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 17 }}>{minPriceOf(provider)}</Text>
-        <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11 }}>ج.م</Text>
-      </View>
-      ) : null}
     </Pressable>
   );
 });
@@ -928,6 +960,19 @@ function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount,
                   <Pressable key={opt.key} onPress={() => onChange({ ...pending, sortBy: opt.key })} style={[chip(active), { width: "48%" }]}>
                     <MaterialCommunityIcons name={opt.icon} size={14} color={active ? t.gold : t.muted} />
                     <Text style={chipText(active)}>{opt.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <View>
+            <Text style={heading}>طريقة الاستشارة</Text>
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
+              {CONSULT_OPTIONS.map((o) => {
+                const active = pending.consult === o.key;
+                return (
+                  <Pressable key={o.key} onPress={() => onChange({ ...pending, consult: o.key })} style={chip(active)}>
+                    <Text style={chipText(active)}>{o.label}</Text>
                   </Pressable>
                 );
               })}
