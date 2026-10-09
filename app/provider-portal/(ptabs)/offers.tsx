@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SkeletonCards } from "@/components/Skeleton";
 import { PText, SwipeButton, useCheckBurst } from "@/components/provider/PUI";
 import { PAYMENT_METHOD_LABELS } from "@/constants/data";
 import { TJ, useMalaz } from "@/constants/malazTheme";
@@ -48,6 +49,7 @@ export default function ProviderOffersScreen() {
           <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "right", marginTop: 2 }}>اقبل الحجز أو ارفضه</PText>
         </View>
 
+        {loadingOffers && offers.length === 0 ? <SkeletonCards count={3} padded={false} /> : null}
         <View style={{ gap: 10 }}>
           {offers.map((o) => (
             <View key={o.id} style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.goldRing, borderRadius: 22, padding: 14 }}>

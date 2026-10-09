@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SkeletonCards } from "@/components/Skeleton";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
 import { CHANNEL_LABEL, dateTimeLabel, dayLabel, PERIOD_LABEL, STAGE_META, stageOf } from "@/lib/consult";
@@ -42,7 +43,7 @@ export function ClientConsultList() {
     return () => { supabase.removeChannel(ch); };
   }, [client?.id, load]);
 
-  if (loading) return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.gold} /></View>;
+  if (loading) return <SkeletonCards count={4} />;
 
   return (
     <ScrollView

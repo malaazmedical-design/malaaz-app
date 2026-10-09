@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SkeletonCards } from "@/components/Skeleton";
 import { ConsultationsPanel, useProviderConsultations } from "@/components/provider/ConsultationsPanel";
 import { CasesPanel, useDoctorCases } from "./cases";
 import { PText, SwipeButton, useCheckBurst } from "@/components/provider/PUI";
@@ -156,6 +157,7 @@ export default function ProviderBookingsScreen() {
           })}
         </ScrollView>
 
+        {loadingBookings && bookings.length === 0 ? <View style={{ paddingHorizontal: 16, marginTop: 14 }}><SkeletonCards count={3} padded={false} /></View> : null}
         <View style={{ paddingHorizontal: 16, gap: 10, marginTop: 14 }} onLayout={(e) => { listY.current = e.nativeEvent.layout.y; tryScroll(); }}>
           {shown.map(({ b, s }) => {
             const m = STATE_META[s];

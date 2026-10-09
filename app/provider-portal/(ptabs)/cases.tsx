@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SkeletonCards } from "@/components/Skeleton";
 import { PText } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
@@ -131,7 +132,7 @@ export function CasesPanel({ state }: { state: ReturnType<typeof useDoctorCases>
   const [tab, setTab] = useState<"open" | "mine">("open");
   const [selected, setSelected] = useState<AskInboxRow | null>(null);
 
-  if (loading) return <View style={{ paddingVertical: 60, alignItems: "center" }}><ActivityIndicator color={t.gold} /></View>;
+  if (loading) return <SkeletonCards count={3} padded={false} />;
   const shown = rows.filter((r) => (tab === "open" ? !r.mine : r.mine));
   const openCount = rows.filter((r) => !r.mine).length;
 

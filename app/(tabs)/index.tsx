@@ -31,6 +31,7 @@ import { TJ, useMalaz } from "@/constants/malazTheme";
 import { ProviderAvatar } from "@/components/ProviderAvatar";
 import { useApp } from "@/contexts/AppContext";
 import { DbSubService } from "@/lib/supabase";
+import { SkeletonCarousel } from "@/components/Skeleton";
 import { lowestOnline, OnlineOffer, useOnlineOffers } from "@/lib/useOnlineOffers";
 
 type SortKey = "rating" | "price_asc" | "price_desc" | "experience";
@@ -561,10 +562,7 @@ export default function HomeScreen() {
           </View>
 
           {loadingProviders ? (
-            <View style={{ paddingVertical: 60, alignItems: "center" }}>
-              <ActivityIndicator size="large" color={t.gold} />
-              <Text style={{ color: t.muted, fontFamily: TJ.medium, marginTop: 12, fontSize: 14 }}>جاري تحميل مقدمي الخدمة...</Text>
-            </View>
+            <SkeletonCarousel />
           ) : filtered.length === 0 ? (
             <View style={{ alignItems: "center", paddingVertical: 40 }}>
               <MaterialCommunityIcons name="account-search-outline" size={40} color={t.muted} />

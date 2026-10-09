@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
+import { SkeletonCards } from "@/components/Skeleton";
 import { PText } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
@@ -61,7 +62,7 @@ export function ConsultationsPanel({ state }: { state: ReturnType<typeof useProv
     return list.sort((a, b) => Number(ACTION.includes(b.s)) - Number(ACTION.includes(a.s)));
   }, [staged, filter]);
 
-  if (loading) return <View style={{ paddingVertical: 60, alignItems: "center" }}><ActivityIndicator color={t.gold} /></View>;
+  if (loading) return <SkeletonCards count={3} padded={false} />;
 
   return (
     <View style={{ paddingHorizontal: 16, marginTop: 4, gap: 10 }}>

@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CallPanel } from "@/components/consult/CallPanel";
@@ -91,23 +91,52 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
     post(m.body, m.file_path, m.file_name, m.id);
   };
 
-  const attach = async () => {
+  const IMAGE_EXT = /\.(jpe?g|png|webp|heic|gif)$/i;
+  const MAX_BYTES = 10 * 1024 * 1024;
+
+  const uploadAndSend = async (uri: string, ext: string, mime: string, displayName: string) => {
+    const path = `${c.id}/${Date.now()}.${ext}`;
+    try {
+      const buf = await (await fetch(uri)).arrayBuffer();
+      if (buf.byteLength > MAX_BYTES) { Alert.alert("", "الملف أكبر من 10 ميجا"); return; }
+      const { error } = await supabase.storage.from("consultation-files").upload(path, buf, { contentType: mime });
+      if (error) throw error;
+      const id = `local_${Date.now()}`;
+      setMsgs((p) => [...p, { id, consultation_id: c.id, sender: mine, body: null, file_path: path, file_name: displayName, created_at: new Date().toISOString(), local: true, uri: IMAGE_EXT.test(path) ? uri : undefined }]);
+      post(null, path, displayName, id);
+    } catch { Alert.alert("", "تعذّر رفع الملف"); }
+  };
+
+  const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== "granted") { Alert.alert("الأذونات", "نحتاج إذن الوصول للصور"); return; }
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
     if (r.canceled) return;
     const uri = r.assets[0].uri;
     const ext = (uri.split(".").pop() ?? "jpg").toLowerCase().split("?")[0];
-    const path = `${c.id}/${Date.now()}.${ext}`;
-    try {
-      const buf = await (await fetch(uri)).arrayBuffer();
-      const { error } = await supabase.storage.from("consultation-files").upload(path, buf, { contentType: `image/${ext === "jpg" ? "jpeg" : ext}` });
-      if (error) throw error;
-      const id = `local_${Date.now()}`;
-      setMsgs((p) => [...p, { id, consultation_id: c.id, sender: mine, body: null, file_path: path, file_name: "صورة", created_at: new Date().toISOString(), local: true, uri }]);
-      post(null, path, "صورة", id);
-    } catch { Alert.alert("", "تعذّر رفع الصورة"); }
+    await uploadAndSend(uri, ext, `image/${ext === "jpg" ? "jpeg" : ext}`, "صورة");
   };
+
+  // PDF / documents need the native document picker (available in builds that include it)
+  const pickFile = async () => {
+    let DocumentPicker: any = null;
+    try { DocumentPicker = require("expo-document-picker"); } catch { DocumentPicker = null; }
+    if (!DocumentPicker?.getDocumentAsync) { Alert.alert("", "إرفاق الملفات يحتاج تحديث التطبيق. تقدر ترفق صور حاليًا."); return; }
+    try {
+      const r = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/*"], copyToCacheDirectory: true, multiple: false });
+      if (r.canceled || !r.assets?.[0]) return;
+      const a = r.assets[0];
+      const ext = ((a.name ?? "").split(".").pop() ?? "pdf").toLowerCase();
+      const mime = a.mimeType ?? (ext === "pdf" ? "application/pdf" : `image/${ext}`);
+      await uploadAndSend(a.uri, ext, mime, a.name ?? "ملف");
+    } catch { Alert.alert("", "تعذّر اختيار الملف"); }
+  };
+
+  const attach = () => Alert.alert("إرفاق", "اختر نوع المرفق", [
+    { text: "صورة", onPress: pickImage },
+    { text: "ملف PDF", onPress: pickFile },
+    { text: "إلغاء", style: "cancel" },
+  ]);
 
   const doExtend = (m: number) => supabase.rpc("extend_consultation", { p_id: c.id, p_min: m }).then(() => onChanged());
   const doEnd = () => Alert.alert("إنهاء الاستشارة؟", "هتنتهي الجلسة الآن.", [
@@ -176,7 +205,13 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
             <View style={{ alignItems: me ? "flex-start" : "flex-end" }}>
               <Pressable disabled={!m.fail} onPress={() => retry(m)}
                 style={{ maxWidth: "82%", backgroundColor: me ? t.gold : t.card, borderWidth: me ? 0 : 1, borderColor: t.border, borderRadius: 18, padding: 10, opacity: m.local && !m.fail ? 0.7 : 1 }}>
-                {m.file_path ? (url ? <Image source={{ uri: url }} style={{ width: 200, height: 160, borderRadius: 12 }} contentFit="cover" /> : <ActivityIndicator color={t.gold} />) : null}
+                {m.file_path && IMAGE_EXT.test(m.file_path) ? (url ? <Image source={{ uri: url }} style={{ width: 200, height: 160, borderRadius: 12 }} contentFit="cover" /> : <ActivityIndicator color={t.gold} />) : null}
+                {m.file_path && !IMAGE_EXT.test(m.file_path) ? (
+                  <Pressable onPress={() => url && Linking.openURL(url).catch(() => {})} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingVertical: 4 }}>
+                    <MaterialCommunityIcons name="file-document-outline" size={26} color={me ? t.onGold : t.goldText} />
+                    <Text numberOfLines={1} style={{ maxWidth: 190, color: me ? t.onGold : t.text, fontFamily: TJ.bold, fontSize: 14 }}>{m.file_name ?? "ملف"}</Text>
+                  </Pressable>
+                ) : null}
                 {m.body ? <Text style={{ color: me ? t.onGold : t.text, fontFamily: TJ.medium, fontSize: 15, lineHeight: 23, textAlign: "right" }}>{m.body}</Text> : null}
                 <Text style={{ color: me ? t.onGoldSub : t.muted, fontFamily: TJ.medium, fontSize: 10.5, marginTop: 3 }}>
                   {m.fail ? "تعذر الإرسال · اضغط لإعادة المحاولة" : new Date(m.created_at).toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}

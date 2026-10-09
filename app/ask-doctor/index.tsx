@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SkeletonCards } from "@/components/Skeleton";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
 import { askStatus } from "@/lib/askStatus";
@@ -56,7 +57,7 @@ export default function AskDoctorScreen() {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.gold} /></View>
+        <SkeletonCards count={4} />
       ) : (
         <FlatList
           data={cases}

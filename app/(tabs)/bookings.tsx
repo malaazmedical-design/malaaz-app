@@ -6,6 +6,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SkeletonCards } from "@/components/Skeleton";
 import { ClientConsultList } from "@/components/consult/ClientConsultList";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { Card, EmptyState, Pill, PrimaryButton } from "@/components/ui";
@@ -86,10 +87,7 @@ export default function BookingsScreen() {
           </View>
         </View>
       ) : loadingBookings ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="large" color="#C9A84C" />
-          <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", marginTop: 12 }}>جاري تحميل الحجوزات...</Text>
-        </View>
+        <SkeletonCards count={4} />
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}
