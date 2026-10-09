@@ -99,8 +99,7 @@ export default function ProviderProfileScreen() {
 
         <Group label="المساعدة">
           <Row icon="phone-outline" title="تواصل مع الدعم" value="نرد على استفسارك" onPress={() => setSheet("support")} />
-          <Row icon="file-document-outline" title="الشروط والأحكام" onPress={() => router.push("/legal?kind=terms")} />
-          <Row icon="shield-lock-outline" title="سياسة الخصوصية" onPress={() => router.push("/legal?kind=privacy")} last />
+          <Row icon="file-document-outline" title="الشروط والسياسات" onPress={() => router.push("/legal?role=provider")} last />
         </Group>
 
         <Pressable

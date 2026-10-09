@@ -6,7 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert, Platform, Pressable, ScrollView, Text, View,
+  ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, Text, View,
 } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +16,7 @@ import { serviceIcon } from "@/constants/icons";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { callCompany, whatsappCompany } from "@/lib/contact";
 import { useApp } from "@/contexts/AppContext";
+import { useRtcStatus } from "@/lib/useRtcStatus";
 import { supabase } from "@/lib/supabase";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -41,23 +42,30 @@ function getNextDays(count: number) {
 export default function ProviderScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, online: onlineParam } = useLocalSearchParams<{ id: string; online?: string }>();
   const { providers, profile, client, createBooking, providerReviews, coverageAreas } = useApp();
   const provider = providers.find((p) => p.id === id);
   const reviews = (id && providerReviews[id]) || [];
-  // الاستشارة الأونلاين (لو الطبيب مفعّلها): سعر + مدة
-  const [online, setOnline] = useState<{ price: number; dur: number } | null>(null);
-  const [extraChans, setExtraChans] = useState<string[]>([]);
+  // الاستشارة الأونلاين (لو الطبيب مفعّلها): كل قناة بسعرها ومدتها
+  const rtc = useRtcStatus();
+  const [chans, setChans] = useState<Record<string, { price: number; dur: number }>>({});
+  const [onlineSel, setOnlineSel] = useState(onlineParam === "1");
+  const [channel, setChannel] = useState<"chat" | "voice" | "video">("chat");
+  const [consent, setConsent] = useState(false);
+  const hasOnline = !!chans.chat;
   useEffect(() => {
     if (!id) return;
     (async () => {
+      const out: Record<string, { price: number; dur: number }> = {};
       const { data: subs } = await supabase.from("sub_services").select("id").eq("group_name", "online");
       const ids = (subs ?? []).map((x: any) => x.id);
-      if (!ids.length) return;
-      const { data } = await supabase.from("provider_services").select("custom_price,duration_min").eq("provider_id", id).in("sub_service_id", ids).eq("is_active", true).limit(1);
-      if (data?.[0]?.custom_price) setOnline({ price: Number(data[0].custom_price), dur: data[0].duration_min ?? 15 });
-      const { data: pcs } = await supabase.from("provider_channels").select("channel").eq("provider_id", id).eq("is_active", true);
-      setExtraChans((pcs ?? []).map((r: any) => r.channel));
+      if (ids.length) {
+        const { data } = await supabase.from("provider_services").select("custom_price,duration_min").eq("provider_id", id).in("sub_service_id", ids).eq("is_active", true).limit(1);
+        if (data?.[0]?.custom_price) out.chat = { price: Number(data[0].custom_price), dur: data[0].duration_min ?? 15 };
+      }
+      const { data: pcs } = await supabase.from("provider_channels").select("channel,price,duration_min").eq("provider_id", id).eq("is_active", true);
+      for (const r of (pcs ?? []) as any[]) out[r.channel] = { price: Number(r.price), dur: r.duration_min ?? 15 };
+      setChans(out);
     })();
   }, [id]);
 
@@ -95,11 +103,41 @@ export default function ProviderScreen() {
     );
   }
 
+  const PERIOD_CODES = ["asap", "morning", "noon", "evening"] as const;
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  // استشارة أونلاين: الدفع محفظة أو إنستاباي بس، والحجز بيتعمل عن طريق RPC
+  const bookConsultation = async () => {
+    setSubmitting(true);
+    try {
+      const d = new Date(); d.setDate(d.getDate() + (selectedTime === TIME_PERIODS[0] ? 0 : selectedDay));
+      const { data, error } = await supabase.rpc("book_consultation", {
+        p_provider: provider!.id, p_channel: channel, p_date: ymd(d),
+        p_period: PERIOD_CODES[TIME_PERIODS.indexOf(selectedTime)] ?? "asap",
+        p_pay_method: paymentMethod === "instapay" ? "instapay" : "wallet",
+      });
+      if (error) throw new Error(error.message);
+      setConsent(false);
+      router.replace(`/consult/${data}`);
+    } catch (e: any) {
+      setConsent(false);
+      Alert.alert("تعذّر الحجز", e?.message ?? "حاول مرة أخرى");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleBook = async () => {
     if (!provider.available) return;
     // الحجز يتطلب حساب — الزائر يتحول لشاشة الدخول
     if (!client) {
       router.push("/client-auth");
+      return;
+    }
+    if (onlineSel) {
+      if (!paymentMethod || paymentMethod === "cash") { Alert.alert("تنبيه", "اختار طريقة الدفع: محفظة أو إنستاباي"); return; }
+      if (!chans[channel]) { Alert.alert("تنبيه", "اختار طريقة الاستشارة"); return; }
+      setConsent(true);
       return;
     }
     if (!selectedService) { Alert.alert("تنبيه", "اختار الخدمة أولاً"); return; }
@@ -134,7 +172,7 @@ export default function ProviderScreen() {
     }
   };
 
-  const ready = provider.available && !!selectedService && !!paymentMethod;
+  const ready = provider.available && (onlineSel ? !!chans[channel] && !!paymentMethod && paymentMethod !== "cash" : !!selectedService && !!paymentMethod);
   const visibleReviews = showAllReviews ? reviews.slice(0, REVIEWS_MAX) : reviews.slice(0, REVIEWS_PREVIEW);
   const heading = { color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" as const, marginBottom: 10 };
   const chip = (active: boolean) => ({
@@ -268,24 +306,6 @@ export default function ProviderScreen() {
             </View>
           ) : null}
 
-          {/* ─── استشارة أونلاين ─── */}
-          {online ? (
-            <Pressable
-              onPress={() => (provider.available ? router.push(`/consult/book?provider=${provider.id}`) : null)}
-              style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: t.card, borderWidth: 1.5, borderColor: t.gold, borderRadius: 20, padding: 14, opacity: provider.available ? 1 : 0.5, transform: [{ scale: pressed ? 0.98 : 1 }] })}
-            >
-              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
-                <MaterialCommunityIcons name="chat-processing-outline" size={25} color={t.gold} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>استشارة أونلاين</Text>
-                <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{["شات", ...(extraChans.includes("voice") ? ["صوت"] : []), ...(extraChans.includes("video") ? ["فيديو"] : [])].join(" · ")} · للمتابعة</Text>
-              </View>
-              <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>{online.price} ج.م</Text>
-              <MaterialCommunityIcons name="chevron-left" size={20} color={t.muted} />
-            </Pressable>
-          ) : null}
-
           {/* ─── اختيار الخدمة ─── */}
           <View>
             <Text style={heading}>اختار الخدمة</Text>
@@ -297,8 +317,8 @@ export default function ProviderScreen() {
                 </View>
                 {serviceCard(
                   "direct", "calendar-check", "احجز مباشرًا", "سيتم تحديد التفاصيل والسعر لاحقاً", null,
-                  selectedService?.id === "direct",
-                  () => setSelectedService({ id: "direct", name: "حجز مباشر", description: "سيتم تحديد تفاصيل الخدمة والسعر", price: 0, durationLabel: "" }),
+                  !onlineSel && selectedService?.id === "direct",
+                  () => { setOnlineSel(false); setSelectedService({ id: "direct", name: "حجز مباشر", description: "سيتم تحديد تفاصيل الخدمة والسعر", price: 0, durationLabel: "" }); },
                 )}
               </View>
             ) : (
@@ -308,12 +328,48 @@ export default function ProviderScreen() {
                     svc.id, serviceIcon(svc.name) as IconName, svc.name,
                     [svc.description, svc.durationLabel].filter(Boolean).join(" · "),
                     `${svc.price} ج.م`,
-                    selectedService?.id === svc.id,
-                    () => setSelectedService(svc),
+                    !onlineSel && selectedService?.id === svc.id,
+                    () => { setOnlineSel(false); setSelectedService(svc); },
                   ),
                 )}
               </View>
             )}
+
+            {/* استشارة أونلاين: تحت الكشف المنزلي، ومربعات القنوات تظهر تحتها فورًا */}
+            {hasOnline ? (
+              <View style={{ marginTop: 8 }}>
+                {serviceCard(
+                  "online", "chat-processing-outline", "استشارة أونلاين", "للمتابعة · مش بديل عن الكشف",
+                  `من ${Math.min(...Object.values(chans).map((c) => c.price))} ج.م`,
+                  onlineSel,
+                  () => { setOnlineSel(true); setSelectedService(null); },
+                )}
+                {onlineSel ? (
+                  <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
+                    {([["chat", "شات", "chat-outline"], ["voice", "صوت", "phone-outline"], ["video", "فيديو", "video-outline"]] as const).map(([k, name, icon]) => {
+                      const info = chans[k];
+                      const live = k === "chat" ? true : rtc.enabled && rtc.available;
+                      if (!info) return null;
+                      const usable = live;
+                      const on = channel === k && usable;
+                      return (
+                        <Pressable key={k} disabled={!usable} onPress={() => setChannel(k)}
+                          style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: on ? t.gold : t.border, backgroundColor: on ? t.goldTint : t.card, opacity: usable ? 1 : 0.45 }}>
+                          <MaterialCommunityIcons name={icon} size={20} color={on ? t.goldText : t.muted} />
+                          <Text style={{ color: on ? t.text : t.muted, fontFamily: TJ.heavy, fontSize: 13, marginTop: 2 }}>{name}</Text>
+                          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11, textAlign: "center" }}>
+                            {usable ? `${info.price} ج.م · ${info.dur} د` : !rtc.enabled ? "قريبًا" : "متوقف مؤقتًا"}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
+                {onlineSel && rtc.enabled && !rtc.available && (chans.voice || chans.video) ? (
+                  <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "right", marginTop: 6 }}>الصوت والفيديو متوقفان مؤقتًا. الشات متاح.</Text>
+                ) : null}
+              </View>
+            ) : null}
           </View>
 
           {/* ─── الموعد ─── */}
@@ -341,9 +397,9 @@ export default function ProviderScreen() {
 
           {/* ─── طريقة الدفع ─── */}
           <View>
-            <Text style={heading}>طريقة الدفع</Text>
+            <Text style={heading}>{onlineSel ? "طريقة الدفع (محفظة أو إنستاباي)" : "طريقة الدفع"}</Text>
             <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-              {PAYMENT_METHODS.map((opt) => {
+              {PAYMENT_METHODS.filter((o) => !onlineSel || o.id !== "cash").map((opt) => {
                 const active = paymentMethod === opt.id;
                 return (
                   <Pressable
@@ -393,10 +449,28 @@ export default function ProviderScreen() {
           disabled={submitting || !provider.available}
           style={{ height: 54, borderRadius: 18, backgroundColor: t.gold, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, opacity: ready && !submitting ? 1 : 0.45 }}
         >
-          <MaterialCommunityIcons name="calendar-check" size={20} color={t.onGold} />
-          <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>{!provider.available ? "غير متاح حالياً" : submitting ? "جاري الحجز..." : "تأكيد الحجز"}</Text>
+          <MaterialCommunityIcons name={onlineSel ? "chat-processing-outline" : "calendar-check"} size={20} color={t.onGold} />
+          <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>
+            {!provider.available ? "غير متاح حالياً" : submitting ? "جاري الحجز..." : onlineSel ? `احجز مع ${provider.name.startsWith("د") ? provider.name : `د. ${provider.name}`} الآن` : "تأكيد الحجز"}
+          </Text>
         </Pressable>
       </BlurView>
+
+      <Modal visible={consent} transparent animationType="fade" onRequestClose={() => setConsent(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,.6)", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <View style={{ backgroundColor: t.bg, borderRadius: 24, padding: 22, width: "100%", maxWidth: 380 }}>
+            <Text style={{ color: t.text2, fontFamily: TJ.bold, fontSize: 15, lineHeight: 25, textAlign: "center" }}>
+              الاستشارة الأونلاين للمتابعة فقط وليست بديلًا عن الكشف.
+            </Text>
+            <Pressable onPress={bookConsultation} disabled={submitting} style={{ height: 52, borderRadius: 16, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", marginTop: 18 }}>
+              {submitting ? <ActivityIndicator color={t.onGold} /> : <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>تأكيد ومتابعة</Text>}
+            </Pressable>
+            <Pressable onPress={() => setConsent(false)} style={{ alignItems: "center", paddingTop: 14 }}>
+              <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>رجوع</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

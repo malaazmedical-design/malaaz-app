@@ -19,7 +19,7 @@ export function OfflineBanner() {
         fontSize: 13,
         textAlign: "center",
       }}>
-        ⚠️ لا يوجد اتصال بالإنترنت
+        ⚠️ لا يوجد اتصال بالإنترنت. ستُرسل رسائلك عند عودته
       </Text>
     </View>
   );

@@ -210,9 +210,9 @@ export default function ClientAuthScreen() {
             )}
             <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "center", marginTop: 18 }}>
               بالمتابعة أنت موافق على{" "}
-              <Text onPress={() => router.push("/legal?kind=terms")} style={{ color: t.goldText, textDecorationLine: "underline" }}>الشروط والأحكام</Text>
+              <Text onPress={() => router.push("/legal?open=terms")} style={{ color: t.goldText, textDecorationLine: "underline" }}>الشروط والأحكام</Text>
               {" و"}
-              <Text onPress={() => router.push("/legal?kind=privacy")} style={{ color: t.goldText, textDecorationLine: "underline" }}>سياسة الخصوصية</Text>
+              <Text onPress={() => router.push("/legal?open=privacy")} style={{ color: t.goldText, textDecorationLine: "underline" }}>سياسة الخصوصية</Text>
             </Text>
           </>
         )}

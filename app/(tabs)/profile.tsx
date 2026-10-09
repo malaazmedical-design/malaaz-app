@@ -62,8 +62,7 @@ export default function AccountScreen() {
     <Group label="المساعدة">
       <Row icon="headset" title="تواصل مع الدعم" onPress={() => whatsappCompany("مرحباً، محتاج مساعدة بخصوص تطبيق ملاذ")} />
       <Row icon="star-outline" title="قيّم التطبيق" onPress={rateApp} />
-      <Row icon="file-document-outline" title="الشروط والأحكام" onPress={() => router.push("/legal?kind=terms")} />
-      <Row icon="shield-lock-outline" title="سياسة الخصوصية" onPress={() => router.push("/legal?kind=privacy")} last />
+      <Row icon="file-document-outline" title="الشروط والسياسات" onPress={() => router.push("/legal")} last />
     </Group>
   );
 
