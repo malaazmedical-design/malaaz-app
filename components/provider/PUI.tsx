@@ -59,7 +59,7 @@ export function SwipeButton({ label, onConfirm, height = 50 }: { label: string; 
       onLayout={(e: LayoutChangeEvent) => { widthRef.current = e.nativeEvent.layout.width; }}
       style={{ height, borderRadius: height / 2, backgroundColor: t.goldTint, borderWidth: 1.5, borderColor: t.goldRing, overflow: "hidden", alignItems: "center", justifyContent: "center" }}
     >
-      <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 14, paddingHorizontal: knob + 8 }} numberOfLines={1}>
+      <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14, paddingHorizontal: knob + 8 }} numberOfLines={1}>
         {hint ? "اسحب لليسار للتأكيد" : label}
       </PText>
       <Animated.View
@@ -176,7 +176,7 @@ export function Select({ label, value, options, onChange, placeholder = "اخت�
             <Pressable key={o} onPress={() => { onChange(o); setOpen(false); }}
               style={({ pressed }) => ({ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, backgroundColor: pressed ? t.ic : "transparent", borderBottomWidth: i === options.length - 1 ? 0 : 1, borderBottomColor: t.border })}>
               <PText style={{ color: t.text, fontFamily: o === value ? TJ.heavy : TJ.medium, fontSize: 15 }}>{o}</PText>
-              {o === value ? <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 16 }}>✓</PText> : null}
+              {o === value ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>✓</PText> : null}
             </Pressable>
           ))}
         </View>

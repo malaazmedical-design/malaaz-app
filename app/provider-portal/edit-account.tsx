@@ -43,6 +43,7 @@ export default function ProviderProfileScreen() {
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [exp, setExp] = useState("");
   const [bio, setBio] = useState("");
   const [price, setPrice] = useState("");
@@ -63,6 +64,7 @@ export default function ProviderProfileScreen() {
     if (!provider) return;
     setName(provider.name ?? "");
     setPhone(provider.phone ?? "");
+    setWhatsapp(provider.whatsapp ?? "");
     setExp(provider.experience ? String(provider.experience) : "");
     setBio(provider.bio ?? "");
     setPrice(provider.price ? String(provider.price) : "");
@@ -201,6 +203,7 @@ export default function ProviderProfileScreen() {
       await saveProfile({
         name: name.trim(),
         phone: phone.trim(),
+        whatsapp: whatsapp.trim(),
         experience: exp ? parseFloat(exp) : null,
         bio: bio.trim(),
         areas: selectedAreas,
@@ -254,7 +257,7 @@ export default function ProviderProfileScreen() {
   const title = (txt: string, count?: number, sub?: string) => (
     <View style={{ marginTop: 22, marginBottom: 8, marginHorizontal: 4 }}>
       <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>
-        {txt}{count != null ? <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 15 }}>{` (${count})`}</PText> : null}
+        {txt}{count != null ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15 }}>{` (${count})`}</PText> : null}
       </PText>
       {sub ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{sub}</PText> : null}
     </View>
@@ -282,7 +285,7 @@ export default function ProviderProfileScreen() {
               {photoUrl ? (
                 <Image source={{ uri: photoUrl }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
               ) : (
-                <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 56 }}>{(name || "؟").trim().charAt(0)}</PText>
+                <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 56 }}>{(name || "؟").trim().charAt(0)}</PText>
               )}
             </View>
             <Pressable onPress={pickPhoto} disabled={uploading}
@@ -300,6 +303,7 @@ export default function ProviderProfileScreen() {
             <View style={{ flex: 1.6 }}>{label("رقم الموبايل")}<TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={[input, { writingDirection: "ltr" }]} /></View>
             <View style={{ flex: 1 }}>{label("سنوات الخبرة")}<TextInput value={exp} onChangeText={(v) => setExp(v.replace(/[^\d.]/g, ""))} keyboardType="numeric" style={input} /></View>
           </View>
+          <View>{label("رقم الواتساب (اختياري · لو مختلف عن الموبايل)")}<TextInput value={whatsapp} onChangeText={(v) => setWhatsapp(v.replace(/\D/g, "").slice(0, 11))} keyboardType="phone-pad" placeholder="01xxxxxxxxx" style={[input, { writingDirection: "ltr" }]} placeholderTextColor={t.muted} /></View>
           <View>
             {label("السعر الأساسي (ج.م) · يظهر للعملاء كسعر بداية")}
             <View style={{ height: 48, borderRadius: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.ic, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
@@ -351,7 +355,7 @@ export default function ProviderProfileScreen() {
               <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{grade} · {specialty}</PText>
               <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
                 <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
-                <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 24 }}>
+                <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>
                   {clampTo(visitPrice, visitRange)} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText>
                 </PText>
               </View>
@@ -376,7 +380,7 @@ export default function ProviderProfileScreen() {
                   <>
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
                       <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
-                      <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 24 }}>
+                      <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>
                         {clampTo(onlinePrice, onlineRange)} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText>
                       </PText>
                     </View>
@@ -411,7 +415,7 @@ export default function ProviderProfileScreen() {
                 {open ? (
                   <View style={{ paddingHorizontal: 14, paddingBottom: 14 }}>
                     <Pressable onPress={() => toggleAllInCity(city, list)}>
-                      <PText style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right", marginBottom: 10 }}>{all ? "مسح الكل" : "اختيار كل المدن"}</PText>
+                      <PText style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right", marginBottom: 10 }}>{all ? "مسح الكل" : "اختيار كل المدن"}</PText>
                     </Pressable>
                     <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
                       {list.map((a) => chip(a.name, selectedAreas.includes(a.name), () => toggleArea(a.name)))}

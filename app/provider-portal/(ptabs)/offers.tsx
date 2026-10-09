@@ -61,9 +61,9 @@ export default function ProviderOffersScreen() {
                   ) : null}
                 </View>
                 {o.price != null ? (
-                  <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 18 }}>{o.price} ج.م</PText>
+                  <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 18 }}>{o.price} ج.م</PText>
                 ) : o.distance_km != null ? (
-                  <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 16 }}>{Number(o.distance_km).toFixed(1)} كم</PText>
+                  <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>{Number(o.distance_km).toFixed(1)} كم</PText>
                 ) : null}
               </View>
               <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 8, textAlign: "right" }}>

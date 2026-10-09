@@ -54,7 +54,8 @@ export const TJ = {
 
 export function useMalaz() {
   const isDark = useColorScheme() === "dark";
-  return { ...(isDark ? dark : light), ...MALAZ_COMMON, isDark };
+  // goldText: الذهبي كنص — داكن شوية في الوضع الفاتح عشان التباين على الخلفية البيضاء
+  return { ...(isDark ? dark : light), ...MALAZ_COMMON, goldText: isDark ? MALAZ_COMMON.gold : "#8a6a14", isDark };
 }
 
 // User override for the whole app theme (account → dark mode toggle).

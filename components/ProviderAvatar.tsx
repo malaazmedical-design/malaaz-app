@@ -17,7 +17,7 @@ export function ProviderAvatar({ provider, style, letterSize }: { provider: Pick
   }
   return (
     <View style={[{ backgroundColor: t.ic, alignItems: "center", justifyContent: "center", overflow: "hidden" }, style]}>
-      <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: letterSize }}>{(provider.name || "؟").trim().charAt(0)}</Text>
+      <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: letterSize }}>{(provider.name || "؟").trim().charAt(0)}</Text>
     </View>
   );
 }

@@ -123,7 +123,7 @@ export default function ProviderLoginScreen() {
   );
   const link = (txt: string, onPress: () => void) => (
     <Pressable onPress={onPress} style={{ paddingVertical: 6 }}>
-      <PText style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 14, textAlign: "center" }}>{txt}</PText>
+      <PText style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 14, textAlign: "center" }}>{txt}</PText>
     </Pressable>
   );
   const googleBtn = (txt: string) => (
@@ -159,7 +159,7 @@ export default function ProviderLoginScreen() {
           <View style={{ gap: 12 }}>
             <View>{label("البريد الإلكتروني")}<TextInput value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" style={[input, ltr]} /></View>
             <View>{label("كلمة المرور")}<TextInput value={pass} onChangeText={setPass} secureTextEntry style={input} /></View>
-            <Pressable onPress={() => go("forgot")}><PText style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right" }}>نسيت كلمة المرور؟</PText></Pressable>
+            <Pressable onPress={() => go("forgot")}><PText style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right" }}>نسيت كلمة المرور؟</PText></Pressable>
             {err}
             {gold(busy ? "جاري الدخول..." : "تسجيل الدخول", doLogin, busy)}
             {divider}
@@ -215,7 +215,7 @@ export default function ProviderLoginScreen() {
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, padding: 12, borderRadius: 16, backgroundColor: t.card, borderWidth: 1, borderColor: t.border }}>
                 <MaterialCommunityIcons name="google" size={22} color={t.gold} />
                 <PText style={{ flex: 1, color: t.text, fontFamily: TJ.medium, fontSize: 14, textAlign: "right", writingDirection: "ltr" }}>{googleProfile.email}</PText>
-                <Pressable onPress={() => { clearGoogle().catch(() => {}); }}><PText style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13.5 }}>تغيير</PText></Pressable>
+                <Pressable onPress={() => { clearGoogle().catch(() => {}); }}><PText style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 13.5 }}>تغيير</PText></Pressable>
               </View>
             ) : (
               <>

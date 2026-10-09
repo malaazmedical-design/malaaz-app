@@ -140,14 +140,14 @@ export default function EditProfileScreen() {
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
               ) : (
-                <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 36 }}>{(name.trim()[0] ?? "م").toUpperCase()}</Text>
+                <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 36 }}>{(name.trim()[0] ?? "م").toUpperCase()}</Text>
               )}
             </View>
             <View style={{ position: "absolute", bottom: 0, left: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: t.bg }}>
               <MaterialCommunityIcons name="pencil" size={14} color={t.onGold} />
             </View>
           </Pressable>
-          <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13, marginTop: 8 }}>تغيير الصورة</Text>
+          <Text style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 13, marginTop: 8 }}>تغيير الصورة</Text>
         </View>
 
         <View>

@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -12,6 +13,13 @@ import { FamilySection } from "@/components/client/AccountSections";
 import { TJ, setThemeOverride, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
 import { whatsappCompany } from "@/lib/contact";
+
+// يفتح صفحة التطبيق في المتجر (الحزمة الحالية حسب نسخة التطبيق)
+const rateApp = () => {
+  const pkg = Constants.expoConfig?.android?.package;
+  const url = Platform.OS === "android" && pkg ? `market://details?id=${pkg}` : "https://play.google.com/store/apps/details?id=com.malaaz.homecare";
+  Linking.openURL(url).catch(() => Linking.openURL(`https://play.google.com/store/apps/details?id=${pkg ?? "com.malaaz.homecare"}`).catch(() => {}));
+};
 
 const MEDICINES_KEY = "malaaz.medicines.v1";
 
@@ -52,7 +60,10 @@ export default function AccountScreen() {
 
   const help = (
     <Group label="المساعدة">
-      <Row icon="headset" title="تواصل مع الدعم" onPress={() => whatsappCompany("مرحباً، محتاج مساعدة بخصوص تطبيق ملاذ")} last />
+      <Row icon="headset" title="تواصل مع الدعم" onPress={() => whatsappCompany("مرحباً، محتاج مساعدة بخصوص تطبيق ملاذ")} />
+      <Row icon="star-outline" title="قيّم التطبيق" onPress={rateApp} />
+      <Row icon="file-document-outline" title="الشروط والأحكام" onPress={() => router.push("/legal?kind=terms")} />
+      <Row icon="shield-lock-outline" title="سياسة الخصوصية" onPress={() => router.push("/legal?kind=privacy")} last />
     </Group>
   );
 
@@ -62,7 +73,7 @@ export default function AccountScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 20 + webTopInset, paddingHorizontal: 16, paddingBottom: insets.bottom + 120 }}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 26, textAlign: "right", paddingHorizontal: 4 }}>حسابي</Text>
+        <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 26, textAlign: "right", paddingHorizontal: 4 }}>حسابي</Text>
 
         {client ? (
           <>
@@ -76,7 +87,7 @@ export default function AccountScreen() {
                   {profile.avatarUri ? (
                     <Image source={{ uri: profile.avatarUri }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
                   ) : (
-                    <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 34 }}>{initial || "م"}</Text>
+                    <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 34 }}>{initial || "م"}</Text>
                   )}
                 </View>
               </View>

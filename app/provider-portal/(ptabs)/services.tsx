@@ -89,7 +89,7 @@ export default function ProviderServicesScreen() {
                 </View>
                 <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
                   <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
-                  <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 24 }}>
+                  <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>
                     {row.price} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText>
                   </PText>
                 </View>

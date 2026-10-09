@@ -557,7 +557,7 @@ export default function HomeScreen() {
               <MaterialCommunityIcons name="account-search-outline" size={40} color={t.muted} />
               <Text style={{ color: t.muted, fontFamily: TJ.bold, marginTop: 10, fontSize: 15 }}>لا توجد نتائج</Text>
               <Pressable onPress={resetAll} style={{ marginTop: 12 }}>
-                <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 14 }}>مسح الفلاتر</Text>
+                <Text style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 14 }}>مسح الفلاتر</Text>
               </Pressable>
             </View>
           ) : (
@@ -585,7 +585,7 @@ export default function HomeScreen() {
                       <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: t.gold, alignItems: "center", justifyContent: "center" }}>
                         <MaterialCommunityIcons name="chevron-left" size={30} color={t.onGold} />
                       </View>
-                      <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 17 }}>عرض الكل ({filtered.length})</Text>
+                      <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 17 }}>عرض الكل ({filtered.length})</Text>
                     </Pressable>
                   ) : (
                     <CarouselCard provider={item as Provider} onPress={openProvider} />
@@ -647,7 +647,7 @@ export default function HomeScreen() {
                   {appliedChips.map((c) => (
                     <Pressable key={c.key} onPress={c.clear} accessibilityLabel={`إزالة ${c.label}`}
                       style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: t.goldTint, borderWidth: 1, borderColor: t.goldRing }}>
-                      <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13 }}>{c.label}</Text>
+                      <Text style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 13 }}>{c.label}</Text>
                       <MaterialCommunityIcons name="close" size={14} color={t.gold} />
                     </Pressable>
                   ))}
@@ -760,7 +760,7 @@ const CarouselCard = React.memo(function CarouselCard({ provider, onPress }: { p
       <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 2 }}>{provider.title}</Text>
       {minPriceOf(provider) > 0 ? (
         <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 6 }}>
-          من <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 15 }}>{minPriceOf(provider)}</Text> ج.م
+          من <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15 }}>{minPriceOf(provider)}</Text> ج.م
         </Text>
       ) : null}
     </Pressable>
@@ -798,7 +798,7 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress }: { pro
       {minPriceOf(provider) > 0 ? (
       <View style={{ alignItems: "center" }}>
         <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11 }}>من</Text>
-        <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 17 }}>{minPriceOf(provider)}</Text>
+        <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 17 }}>{minPriceOf(provider)}</Text>
         <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11 }}>ج.م</Text>
       </View>
       ) : null}

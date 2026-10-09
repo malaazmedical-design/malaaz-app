@@ -53,7 +53,7 @@ export default function ProviderProfileScreen() {
             {provider.photo_url ? (
               <Image source={{ uri: provider.photo_url }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
             ) : (
-              <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 44 }}>{initialOf(provider.name)}</PText>
+              <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 44 }}>{initialOf(provider.name)}</PText>
             )}
           </View>
           <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 22, marginTop: 12 }}>{provider.name}</PText>
@@ -64,7 +64,7 @@ export default function ProviderProfileScreen() {
           onPress={() => router.push("/provider-portal/edit-account")}
           style={({ pressed }) => ({ marginTop: 16, borderWidth: 1.5, borderColor: t.gold, borderRadius: 16, paddingVertical: 13, alignItems: "center", transform: [{ scale: pressed ? 0.98 : 1 }] })}
         >
-          <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 15 }}>تعديل الحساب</PText>
+          <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15 }}>تعديل الحساب</PText>
         </Pressable>
 
         <Group label="الإعدادات">
@@ -77,7 +77,7 @@ export default function ProviderProfileScreen() {
           <Row icon="translate" title="اللغة" value={prefs.lang === "ar" ? "العربية" : "English"} onPress={() => setSheet("lang")} />
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, minHeight: 60, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: t.border }}>
             <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
-              <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 17 }}>أ</PText>
+              <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 17 }}>أ</PText>
             </View>
             <PText style={{ flex: 1, color: t.text, fontFamily: TJ.bold, fontSize: 14.5, textAlign: "right" }}>حجم الخط</PText>
             <View style={{ flexDirection: "row-reverse", gap: 6 }}>
@@ -98,7 +98,9 @@ export default function ProviderProfileScreen() {
         </Group>
 
         <Group label="المساعدة">
-          <Row icon="phone-outline" title="تواصل مع الدعم" value="نرد على استفسارك" onPress={() => setSheet("support")} last />
+          <Row icon="phone-outline" title="تواصل مع الدعم" value="نرد على استفسارك" onPress={() => setSheet("support")} />
+          <Row icon="file-document-outline" title="الشروط والأحكام" onPress={() => router.push("/legal?kind=terms")} />
+          <Row icon="shield-lock-outline" title="سياسة الخصوصية" onPress={() => router.push("/legal?kind=privacy")} last />
         </Group>
 
         <Pressable
@@ -121,7 +123,7 @@ export default function ProviderProfileScreen() {
                     <Pressable key={k} onPress={() => { setProviderPref("lang", k); setSheet(null); }}
                       style={{ flexDirection: "row-reverse", justifyContent: "space-between", padding: 15, borderRadius: 16, backgroundColor: on ? t.goldTint : t.ic, borderWidth: 1, borderColor: on ? t.gold : "transparent" }}>
                       <PText style={{ color: t.text, fontFamily: TJ.bold, fontSize: 15 }}>{name}</PText>
-                      {on ? <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 16 }}>✓</PText> : null}
+                      {on ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>✓</PText> : null}
                     </Pressable>
                   );
                 })}
@@ -136,7 +138,7 @@ export default function ProviderProfileScreen() {
                     <PText style={{ color: t.whatsapp, fontFamily: TJ.heavy, fontSize: 15 }}>واتساب</PText>
                   </Pressable>
                   <Pressable onPress={callCompany} style={{ flex: 1, alignItems: "center", padding: 14, borderRadius: 14, backgroundColor: t.btn }}>
-                    <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 15 }}>اتصال</PText>
+                    <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15 }}>اتصال</PText>
                   </Pressable>
                 </View>
               </>

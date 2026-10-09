@@ -158,6 +158,7 @@ export default function ProviderBookingsScreen() {
             const isOpen = open === b.id;
             const pay = b.payment_method ? PAYMENT_METHOD_LABELS[b.payment_method] ?? b.payment_method : "—";
             const wa = `https://wa.me/20${(b.phone ?? "").replace(/\D/g, "").replace(/^0/, "")}`;
+            const closed = s === "done" || s === "cancelled";
             const remote = !b.address && !b.area && b.lat == null;
             const review = reviews.find((r) => (r.booking_id && r.booking_id === b.id) || (!r.booking_id && r.client_name === b.patient_name));
             const price = b.price != null && b.price !== "" ? `${b.price} ج.م` : null;
@@ -166,7 +167,7 @@ export default function ProviderBookingsScreen() {
                 <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                   <View style={{ flex: 1 }}>
                     <PText numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15.5, textAlign: "right" }}>{shortName(b.patient_name)}</PText>
-                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 2, textAlign: "right", writingDirection: "ltr" }}>{maskPhone(b.phone)}</PText>
+                    {closed ? null : <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 2, textAlign: "right", writingDirection: "ltr" }}>{maskPhone(b.phone)}</PText>}
                   </View>
                   <View style={{ backgroundColor: m.color + "26", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
                     <PText style={{ color: m.color, fontFamily: TJ.bold, fontSize: 12.5 }}>{m.label}</PText>
@@ -177,13 +178,13 @@ export default function ProviderBookingsScreen() {
                   <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, flex: 1, textAlign: "right" }}>
                     {dateLabelOf(b.appointment_time)} · {PERIOD_LABEL[periodOf(b.appointment_time)]} · {b.area ?? "—"}
                   </PText>
-                  {price ? <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 16 }}>{price}</PText> : null}
+                  {price ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>{price}</PText> : null}
                 </View>
 
                 {isOpen ? (
                   <View style={{ marginTop: 12, backgroundColor: t.ic, borderRadius: 16, padding: 12, gap: 6 }}>
                     <Line t={t} k="الاسم" v={b.patient_name} />
-                    <Line t={t} k="الموبايل" v={b.phone} ltr />
+                    {closed ? <Line t={t} k="الموبايل" v="مخفي بعد انتهاء الحجز" /> : <Line t={t} k="الموبايل" v={b.phone} ltr />}
                     {!remote ? (
                       <Pressable onPress={() => link(mapsUrl(b))}
                         style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginVertical: 4, padding: 10, borderRadius: 14, backgroundColor: t.card, borderWidth: 1, borderColor: t.border }}>
@@ -196,7 +197,7 @@ export default function ProviderBookingsScreen() {
                           </PText>
                           <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14, textAlign: "right", lineHeight: 21 }}>{[b.address, b.area].filter(Boolean).join("، ")}</PText>
                         </View>
-                        <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 12.5 }}>افتح الخريطة ←</PText>
+                        <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 12.5 }}>افتح الخريطة ←</PText>
                       </Pressable>
                     ) : <Line t={t} k="الموقع" v="خدمة عن بُعد" />}
                     <Line t={t} k="رقم الحجز" v={`MLZ-${b.id.slice(-4).toUpperCase()}`} ltr />
@@ -209,7 +210,7 @@ export default function ProviderBookingsScreen() {
                     {s === "done" ? (
                       <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "right" }}>
                         تقييم العميل:{" "}
-                        <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 14 }}>
+                        <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14 }}>
                           {review ? `${"★".repeat(review.rating ?? 5)}${review.text ? ` — ${review.text}` : ""}` : "قيد مراجعة الإدارة"}
                         </PText>
                       </PText>
@@ -238,14 +239,14 @@ export default function ProviderBookingsScreen() {
                         </View>
                       )
                     ) : null}
-                    <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
+                    {!closed ? <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
                       <Pressable onPress={() => link(`tel:${b.phone}`)} style={{ flex: 1, alignItems: "center", padding: 9, borderRadius: 12, backgroundColor: t.btn }}>
-                        <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 14 }}>اتصال</PText>
+                        <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14 }}>اتصال</PText>
                       </Pressable>
                       <Pressable onPress={() => link(wa)} style={{ flex: 1, alignItems: "center", padding: 9, borderRadius: 12, backgroundColor: "rgba(37,211,102,.14)" }}>
                         <PText style={{ color: t.whatsapp, fontFamily: TJ.heavy, fontSize: 14 }}>واتساب</PText>
                       </Pressable>
-                    </View>
+                    </View> : <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 6 }}>🔒 بيانات التواصل بتتخفى بعد انتهاء الحجز لحماية خصوصية العميل</PText>}
                   </View>
                 ) : null}
 

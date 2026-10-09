@@ -168,7 +168,7 @@ export default function ProviderScreen() {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14, textAlign: "right" }}>{title}</Text>
-        {price ? <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{price}</Text> : null}
+        {price ? <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{price}</Text> : null}
         {sub ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "right" }}>{sub}</Text> : null}
       </View>
       {radio(active)}
@@ -187,7 +187,7 @@ export default function ProviderScreen() {
             <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
               <LinearGradient colors={[t.ic, t.hdr]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
               <View style={{ position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: t.goldTint, top: 20 + insets.top }} />
-              <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 150, marginTop: insets.top - 20 }}>{(provider.name || "؟").trim().charAt(0)}</Text>
+              <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 150, marginTop: insets.top - 20 }}>{(provider.name || "؟").trim().charAt(0)}</Text>
             </View>
           )}
           <LinearGradient colors={["rgba(0,0,0,.45)", "rgba(0,0,0,0)"]} style={{ position: "absolute", top: 0, left: 0, right: 0, height: 110 + insets.top }} />
@@ -210,7 +210,7 @@ export default function ProviderScreen() {
               </BlurView>
             </View>
             <Text numberOfLines={2} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 28, textAlign: "right", writingDirection: "ltr", alignSelf: "stretch" }}>{provider.name}</Text>
-            <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 14.5, textAlign: "right", marginTop: 2 }}>{provider.title}</Text>
+            <Text style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 14.5, textAlign: "right", marginTop: 2 }}>{provider.title}</Text>
           </View>
         </View>
 
@@ -332,7 +332,7 @@ export default function ProviderScreen() {
                   <View key={i} style={{ backgroundColor: t.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: t.border }}>
                     <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
                       <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14 }}>{r.clientName}</Text>
-                      <Text style={{ color: t.gold, fontSize: 12, letterSpacing: 1 }}>{"★".repeat(Math.max(0, Math.min(5, Math.round(r.rating))))}</Text>
+                      <Text style={{ color: t.goldText, fontSize: 12, letterSpacing: 1 }}>{"★".repeat(Math.max(0, Math.min(5, Math.round(r.rating))))}</Text>
                     </View>
                     {r.text ? (
                       <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", lineHeight: 21, marginTop: 4 }}>{r.text}</Text>
@@ -341,7 +341,7 @@ export default function ProviderScreen() {
                 ))}
                 {!showAllReviews && reviews.length > REVIEWS_PREVIEW ? (
                   <Pressable onPress={() => setShowAllReviews(true)} style={{ height: 46, borderRadius: 14, borderWidth: 1.5, borderColor: t.gold, alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 14 }}>عرض المزيد ({Math.min(reviews.length, REVIEWS_MAX) - REVIEWS_PREVIEW})</Text>
+                    <Text style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 14 }}>عرض المزيد ({Math.min(reviews.length, REVIEWS_MAX) - REVIEWS_PREVIEW})</Text>
                   </Pressable>
                 ) : null}
               </View>

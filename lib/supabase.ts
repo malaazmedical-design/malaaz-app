@@ -54,6 +54,7 @@ export type DbProvider = {
   name: string;
   email: string | null;
   phone: string | null;
+  whatsapp?: string | null;
   service_type: string;
   specialty: string | null;
   grade: string | null;

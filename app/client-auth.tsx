@@ -12,7 +12,6 @@ import { useApp } from "@/contexts/AppContext";
 import { digitsOnly } from "@/lib/digits";
 import { supabase } from "@/lib/supabase";
 
-const TERMS_URL = "https://malaaz-plum.vercel.app/privacy.html";
 
 export default function ClientAuthScreen() {
   const insets = useSafeAreaInsets();
@@ -211,7 +210,9 @@ export default function ClientAuthScreen() {
             )}
             <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "center", marginTop: 18 }}>
               بالمتابعة أنت موافق على{" "}
-              <Text onPress={() => Linking.openURL(TERMS_URL)} style={{ color: t.gold, textDecorationLine: "underline" }}>شروط الاستخدام</Text>
+              <Text onPress={() => router.push("/legal?kind=terms")} style={{ color: t.goldText, textDecorationLine: "underline" }}>الشروط والأحكام</Text>
+              {" و"}
+              <Text onPress={() => router.push("/legal?kind=privacy")} style={{ color: t.goldText, textDecorationLine: "underline" }}>سياسة الخصوصية</Text>
             </Text>
           </>
         )}

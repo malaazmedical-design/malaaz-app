@@ -156,7 +156,7 @@ export function AddressesSection() {
             style={{ height: 48, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1.5, borderColor: t.gold, flexDirection: "row-reverse", alignItems: "center", gap: 5 }}
           >
             {locating ? <ActivityIndicator size="small" color={t.gold} /> : <MaterialCommunityIcons name="crosshairs-gps" size={16} color={t.gold} />}
-            <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 13 }}>{locating ? "جاري..." : "موقعي"}</Text>
+            <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13 }}>{locating ? "جاري..." : "موقعي"}</Text>
           </Pressable>
         </View>
         <Pressable
@@ -263,7 +263,7 @@ export function FamilySection() {
                 <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14.5, textAlign: "right" }}>
                   {m.name}{m.relation ? `  ·  ${m.relation}` : ""}
                 </Text>
-                <Text style={{ color: t.gold, fontFamily: TJ.medium, fontSize: 12, textAlign: "right", marginTop: 2 }}>
+                <Text style={{ color: t.goldText, fontFamily: TJ.medium, fontSize: 12, textAlign: "right", marginTop: 2 }}>
                   الملف الطبي والأدوية
                 </Text>
               </View>

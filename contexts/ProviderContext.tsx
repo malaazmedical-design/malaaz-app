@@ -45,6 +45,7 @@ export type ProviderRegisterInput = {
 export type ProviderProfileInput = {
   name: string;
   phone: string;
+  whatsapp?: string;
   experience: number | null;
   bio: string;
   areas: string[];
@@ -659,6 +660,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     const payload: Record<string, unknown> = {
       name: input.name,
       phone: input.phone,
+      ...(input.whatsapp !== undefined ? { whatsapp: input.whatsapp || null } : {}),
       experience: input.experience,
       bio: input.bio,
       areas: input.areas.join(", "),

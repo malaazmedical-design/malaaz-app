@@ -257,7 +257,7 @@ export default function MedicinesScreen() {
                 <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
                   {m.times.map((x) => (
                     <View key={x} style={{ backgroundColor: t.goldTint, borderRadius: 18, borderWidth: 1, borderColor: t.goldRing, paddingHorizontal: 14, paddingVertical: 5 }}>
-                      <Text style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 13 }}>{shortTime(x)}</Text>
+                      <Text style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 13 }}>{shortTime(x)}</Text>
                     </View>
                   ))}
                 </View>

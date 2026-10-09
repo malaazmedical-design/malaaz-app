@@ -85,7 +85,7 @@ export default function ProviderOverviewScreen() {
               {provider.photo_url ? (
                 <Image source={{ uri: provider.photo_url }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
               ) : (
-                <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 21 }}>{initialOf(provider.name)}</PText>
+                <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 21 }}>{initialOf(provider.name)}</PText>
               )}
             </View>
             <View style={{ flex: 1 }}>
@@ -114,7 +114,7 @@ export default function ProviderOverviewScreen() {
           ) : null}
           <View style={{ marginTop: 16, backgroundColor: t.goldTint, borderWidth: 1, borderColor: t.goldRing, borderRadius: 24, padding: 16, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
             <View style={{ flex: 1 }}>
-              <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 13, textAlign: "right" }}>الخطوة التالية</PText>
+              <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13, textAlign: "right" }}>الخطوة التالية</PText>
               <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, marginTop: 4, textAlign: "right", lineHeight: 23 }}>{smart.t}</PText>
               <PText style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13.5, marginTop: 3, textAlign: "right", lineHeight: 20 }}>{smart.s}</PText>
             </View>
@@ -168,7 +168,7 @@ export default function ProviderOverviewScreen() {
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "baseline", marginTop: 26, marginBottom: 10, marginHorizontal: 4 }}>
             <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 17 }}>آخر حجوزاتي</PText>
             <Pressable onPress={() => goBookings()}>
-              <PText style={{ color: t.gold, fontFamily: TJ.bold, fontSize: 14 }}>عرض الكل ←</PText>
+              <PText style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 14 }}>عرض الكل ←</PText>
             </Pressable>
           </View>
           <View style={{ gap: 8 }}>
@@ -178,7 +178,7 @@ export default function ProviderOverviewScreen() {
                 <Pressable key={b.id} onPress={() => goBookings(b.id)}
                   style={({ pressed }) => ({ backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 20, padding: 12, flexDirection: "row-reverse", alignItems: "center", gap: 12, transform: [{ scale: pressed ? 0.985 : 1 }] })}>
                   <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
-                    <PText style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 16 }}>{initialOf(b.patient_name)}</PText>
+                    <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>{initialOf(b.patient_name)}</PText>
                   </View>
                   <View style={{ flex: 1 }}>
                     <PText numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14.5, textAlign: "right" }}>{shortName(b.patient_name)}</PText>

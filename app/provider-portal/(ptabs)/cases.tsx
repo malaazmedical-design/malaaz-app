@@ -355,7 +355,7 @@ export function CasesPanel({ state }: { state: ReturnType<typeof useDoctorCases>
             <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, flex: 1 }}>
                 {c.urgency_flag ? <MaterialCommunityIcons name="alert-circle" size={15} color={t.destructive} /> : null}
-                <Text style={{ color: t.gold, fontFamily: TJ.heavy, fontSize: 13 }}>{c.case_number ?? "—"}</Text>
+                <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13 }}>{c.case_number ?? "—"}</Text>
               </View>
               <View style={{ backgroundColor: st.color + "26", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
                 <Text style={{ color: st.color, fontFamily: TJ.bold, fontSize: 12.5 }}>{st.label}</Text>
