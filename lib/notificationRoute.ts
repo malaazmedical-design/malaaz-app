@@ -11,6 +11,17 @@ export function routeForNotification(data: Record<string, unknown> | undefined |
     return;
   }
 
+  // "اسأل طبيب": a question routed to the doctor's specialty / the answer arriving to the client
+  const caseId = typeof d.case_id === "string" ? d.case_id : undefined;
+  if (d.kind === "ask_new") {
+    router.push({ pathname: "/provider-portal/(ptabs)/bookings", params: { seg: "cases", t: String(Date.now()) } });
+    return;
+  }
+  if (d.kind === "ask_answer" && caseId) {
+    router.push(`/ask-doctor/${caseId}`);
+    return;
+  }
+
   // provider side: a new offer (quick request) or a direct booking
   if (d.kind === "new_booking" || d.type === "OFFER_INSERT") {
     if (d.direct === true && bookingId) {

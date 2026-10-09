@@ -1,84 +1,17 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Platform,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { askStatus } from "@/lib/askStatus";
 import { supabase, DbAskDoctorCase } from "@/lib/supabase";
 
-const DARK = "#1C2B2A";
-const GOLD = "#C9A84C";
-
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  new:        { label: "جاري البحث",    color: "#F59E0B" },
-  accepted:   { label: "طبيب متاح",     color: "#16A34A" },
-  in_progress:{ label: "جلسة جارية",    color: "#2563EB" },
-  completed:  { label: "مكتملة",         color: "#6B7280" },
-  cancelled:  { label: "ملغية",          color: "#DC2626" },
-};
-
-function CaseCard({ item, onPress }: { item: DbAskDoctorCase; onPress: () => void }) {
-  const st = STATUS_MAP[item.status] ?? STATUS_MAP.new;
-  const date = new Date(item.created_at).toLocaleDateString("ar-EG", { day: "2-digit", month: "short" });
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        backgroundColor: pressed ? "#FFFFFF08" : "#FFFFFF0D",
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: "#FFFFFF12",
-      })}
-    >
-      <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <View style={{ flex: 1, alignItems: "flex-end" }}>
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
-            {item.urgency_flag && (
-              <MaterialCommunityIcons name="alert-circle" size={16} color="#EF4444" />
-            )}
-            <Text style={{ color: GOLD, fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>
-              {item.case_number ?? "جديد"}
-            </Text>
-          </View>
-          <Text
-            style={{ color: "#FFFFFFCC", fontFamily: "Cairo_400Regular", fontSize: 14, textAlign: "right", marginTop: 4 }}
-            numberOfLines={2}
-          >
-            {item.message}
-          </Text>
-          {item.suggested_specialty ? (
-            <Text style={{ color: "#FFFFFF66", fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 2, textAlign: "right" }}>
-              {item.suggested_specialty}
-            </Text>
-          ) : null}
-        </View>
-        <View style={{ alignItems: "flex-end", gap: 8, marginRight: 12 }}>
-          <View style={{ backgroundColor: st.color + "22", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: st.color, fontFamily: "Cairo_600SemiBold", fontSize: 11 }}>{st.label}</Text>
-          </View>
-          <Text style={{ color: "#FFFFFF44", fontFamily: "Cairo_400Regular", fontSize: 11 }}>{date}</Text>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
 export default function AskDoctorScreen() {
+  const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const colors = useColors();
   const { client } = useApp();
   const [cases, setCases] = useState<DbAskDoctorCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +19,7 @@ export default function AskDoctorScreen() {
   const webTop = Platform.OS === "web" ? 67 : 0;
 
   const load = useCallback(async () => {
-    if (!client?.id) { setLoading(false); return; }
+    if (!client?.id) { setCases([]); setLoading(false); setRefreshing(false); return; }
     const { data } = await supabase
       .from("ask_doctor_cases")
       .select("*")
@@ -97,56 +30,80 @@ export default function AskDoctorScreen() {
     setRefreshing(false);
   }, [client?.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // الرد بيوصل لحظيًا
+  useEffect(() => {
+    if (!client?.id) return;
+    const ch = supabase.channel(`ask_list_${client.id}_${Date.now()}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ask_doctor_cases", filter: `client_id=eq.${client.id}` }, () => { load(); })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [client?.id, load]);
+
+  const openNew = () => (client ? router.push("/ask-doctor/new") : router.push("/client-auth"));
 
   return (
-    <View style={{ flex: 1, backgroundColor: DARK }}>
-      {/* Header */}
-      <View style={{ backgroundColor: DARK, paddingTop: insets.top + 16 + webTop, paddingBottom: 20, paddingHorizontal: 20 }}>
-        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
-          <View>
-            <Text style={{ color: GOLD, fontFamily: "Cairo_700Bold", fontSize: 22, textAlign: "right" }}>إسأل طبيب</Text>
-            <Text style={{ color: "#FFFFFF66", fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", marginTop: 2 }}>
-              استشاراتك الطبية في مكان واحد
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => router.push("/ask-doctor/new")}
-            style={{ backgroundColor: GOLD, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row-reverse", alignItems: "center", gap: 6 }}
-          >
-            <MaterialCommunityIcons name="plus" size={18} color={DARK} />
-            <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 14 }}>طلب جديد</Text>
-          </Pressable>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+      <View style={{ paddingTop: insets.top + 12 + webTop, paddingHorizontal: 16, paddingBottom: 8, flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+        <Pressable onPress={() => router.back()} accessibilityLabel="رجوع" style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+          <MaterialCommunityIcons name="arrow-right" size={22} color={t.text} />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 22, textAlign: "right" }}>إسأل طبيب</Text>
+          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right" }}>سؤال سريع · مجاني تمامًا</Text>
         </View>
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator color={GOLD} />
-        </View>
-      ) : cases.length === 0 ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 }}>
-          <MaterialCommunityIcons name="stethoscope" size={64} color="#FFFFFF22" />
-          <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_600SemiBold", fontSize: 18, marginTop: 16, textAlign: "center" }}>
-            لا يوجد استشارات بعد
-          </Text>
-          <Text style={{ color: "#FFFFFF44", fontFamily: "Cairo_400Regular", fontSize: 14, marginTop: 8, textAlign: "center" }}>
-            اكتب سؤالك أو صف حالتك وهنوصّلك لأقرب طبيب متاح
-          </Text>
-        </View>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.gold} /></View>
       ) : (
         <FlatList
           data={cases}
           keyExtractor={(i) => i.id}
-          contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 100 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={GOLD} />
+          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 110, gap: 10 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.gold} />}
+          ListEmptyComponent={
+            <View style={{ alignItems: "center", paddingTop: 70, paddingHorizontal: 30 }}>
+              <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
+                <MaterialCommunityIcons name="chat-question-outline" size={40} color={t.gold} />
+              </View>
+              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 18, marginTop: 16, textAlign: "center" }}>
+                {client ? "لسه ماسألتش حاجة" : "سجّل دخولك عشان تسأل"}
+              </Text>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, marginTop: 6, textAlign: "center", lineHeight: 22 }}>
+                اكتب سؤالك أو وصف حالتك، وطبيب مختص هيرد عليك. السؤال مجاني.
+              </Text>
+            </View>
           }
-          renderItem={({ item }) => (
-            <CaseCard item={item} onPress={() => router.push(`/ask-doctor/${item.id}`)} />
-          )}
+          renderItem={({ item }) => {
+            const st = askStatus(item.status);
+            const date = new Date(item.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
+            return (
+              <Pressable
+                onPress={() => router.push(`/ask-doctor/${item.id}`)}
+                style={({ pressed }) => ({ backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 20, padding: 14, transform: [{ scale: pressed ? 0.985 : 1 }] })}
+              >
+                <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, backgroundColor: st.color + "26", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <MaterialCommunityIcons name={st.icon} size={14} color={st.color} />
+                    <Text style={{ color: st.color, fontFamily: TJ.bold, fontSize: 12.5 }}>{st.label}</Text>
+                  </View>
+                  <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{date}</Text>
+                </View>
+                <Text numberOfLines={2} style={{ color: t.text, fontFamily: TJ.medium, fontSize: 14.5, lineHeight: 22, textAlign: "right", marginTop: 10 }}>{item.message}</Text>
+              </Pressable>
+            );
+          }}
         />
       )}
+
+      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: insets.bottom + 16, backgroundColor: t.bg, borderTopWidth: 1, borderTopColor: t.border }}>
+        <Pressable onPress={openNew} style={({ pressed }) => ({ height: 54, borderRadius: 18, backgroundColor: t.gold, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+          <MaterialCommunityIcons name="plus" size={22} color={t.onGold} />
+          <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>اسأل سؤال جديد</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

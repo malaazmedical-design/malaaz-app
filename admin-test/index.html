@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة ملاذ — اختبار</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root { --bg:#0b1514; --card:#16231f; --bd:#2a3a36; --tx:#f2efe6; --mu:#8fa09d; --gold:#c9a84c; --ok:#1fa65a; --bad:#e5484d; --ic:#243433; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f4f1ea; --card:#fff; --bd:#e3ddcf; --tx:#1e2d31; --mu:#66767a; --gold:#8a6a14; --ic:#f0ebdd; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font-family:'Tajawal',system-ui,sans-serif; font-size:15px; }
+  header { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--bd); position:sticky; top:0; background:var(--bg); z-index:5; }
+  header h1 { margin:0; font-size:20px; color:var(--gold); flex:1; }
+  main { max-width:900px; margin:0 auto; padding:16px; }
+  .tabs, .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  button, select, input, textarea { font-family:inherit; font-size:14px; }
+  .chip, .tab { border:1.5px solid var(--bd); background:var(--card); color:var(--tx); padding:7px 14px; border-radius:12px; cursor:pointer; font-weight:700; }
+  .chip.on, .tab.on { border-color:var(--gold); color:var(--gold); }
+  .card { background:var(--card); border:1px solid var(--bd); border-radius:18px; padding:14px; margin-bottom:12px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .sp { flex:1; }
+  .mu { color:var(--mu); font-size:13px; }
+  .msg { white-space:pre-wrap; line-height:1.8; margin:8px 0; }
+  .badge { padding:3px 10px; border-radius:10px; font-size:12.5px; font-weight:800; }
+  .btn { border:0; border-radius:12px; padding:9px 16px; font-weight:800; cursor:pointer; background:var(--gold); color:#10201f; }
+  .btn.ghost { background:transparent; border:1.5px solid var(--bd); color:var(--tx); }
+  .btn.bad { background:transparent; border:1.5px solid var(--bad); color:var(--bad); }
+  .btn.ok { background:var(--ok); color:#fff; }
+  select, input { background:var(--ic); color:var(--tx); border:1px solid var(--bd); border-radius:12px; padding:9px 12px; }
+  .thumbs { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .thumbs img { width:72px; height:72px; object-fit:cover; border-radius:12px; cursor:pointer; }
+  #login { max-width:340px; margin:80px auto; display:flex; flex-direction:column; gap:10px; }
+  .err { color:var(--bad); min-height:20px; }
+  .empty { text-align:center; color:var(--mu); padding:50px 0; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// مشروع الاختبار فقط (malaaz-mizo-test) — مفتاح anon عام، والصلاحيات كلها عن طريق RLS + جدول admin_users
+const SUPABASE_URL = "https://dmyxxreescjwdpkdeqan.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRteXh4cmVlc2Nqd2Rwa2RlcWFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMDMyNjUsImV4cCI6MjEwNjY3OTI2NX0.h9tJO-Qlt7oTx6K2YhQ6WBxNFlhnQxZr8OK9DvyafOo";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const app = document.getElementById("app");
+
+// DOM helper — كل النصوص بتتحط textContent عشان مفيش حقن HTML من بيانات المستخدمين
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "style") el.style.cssText = v;
+    else el[k] = v;
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  return el;
+}
+const fmt = (d) => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const state = { tab: "asks", askFilter: "open", provFilter: "pending" };
+
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return renderLogin();
+  const { data: isAdmin } = await sb.rpc("is_admin");
+  if (!isAdmin) return renderLogin("هذا الحساب ليس أدمن. أضفه في جدول admin_users.");
+  renderShell();
+}
+
+function renderLogin(msg = "") {
+  const email = h("input", { type: "email", placeholder: "البريد الإلكتروني", dir: "ltr" });
+  const pass = h("input", { type: "password", placeholder: "كلمة المرور", dir: "ltr" });
+  const err = h("div", { class: "err" }, msg);
+  const go = async () => {
+    err.textContent = "";
+    const { error } = await sb.auth.signInWithPassword({ email: email.value.trim(), password: pass.value });
+    if (error) err.textContent = "بيانات الدخول غير صحيحة";
+    else boot();
+  };
+  pass.addEventListener("keydown", (e) => e.key === "Enter" && go());
+  app.replaceChildren(h("div", { id: "login" }, h("h1", { style: "color:var(--gold);text-align:center" }, "لوحة ملاذ · اختبار"), email, pass, err, h("button", { class: "btn", onclick: go }, "دخول")));
+}
+
+function renderShell() {
+  const body = h("div");
+  const tabs = h("div", { class: "tabs" },
+    [["asks", "أسئلة المرضى"], ["providers", "مقدمو الخدمة"]].map(([k, n]) =>
+      h("button", { class: "tab" + (state.tab === k ? " on" : ""), onclick: () => { state.tab = k; renderShell(); } }, n)));
+  app.replaceChildren(
+    h("header", {}, h("h1", {}, "لوحة ملاذ · اختبار"), h("button", { class: "btn ghost", onclick: async () => { await sb.auth.signOut(); renderLogin(); } }, "خروج")),
+    h("main", {}, tabs, body));
+  (state.tab === "asks" ? renderAsks : renderProviders)(body);
+}
+
+// ───────── أسئلة المرضى ─────────
+async function renderAsks(root) {
+  const filters = [["open", "تنتظر التوجيه"], ["routed", "موجّهة"], ["answered", "تم الرد"], ["all", "الكل"]];
+  const chips = h("div", { class: "chips" }, filters.map(([k, n]) => h("button", { class: "chip" + (state.askFilter === k ? " on" : ""), onclick: () => { state.askFilter = k; renderShell(); } }, n)));
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(chips, list);
+
+  let q = sb.from("ask_doctor_cases").select("*").order("created_at", { ascending: false }).limit(100);
+  if (state.askFilter === "open") q = q.eq("status", "new");
+  else if (state.askFilter === "routed") q = q.eq("status", "routed");
+  else if (state.askFilter === "answered") q = q.eq("status", "answered");
+  const [{ data: cases, error }, { data: specs }] = await Promise.all([q, sb.rpc("ask_specialty_counts")]);
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message));
+  if (!cases.length) return list.replaceChildren(h("div", { class: "empty" }, "لا توجد أسئلة"));
+
+  const docIds = [...new Set(cases.map((c) => c.assigned_doctor_id).filter(Boolean))];
+  const docs = {};
+  if (docIds.length) (await sb.from("providers").select("id,name,specialty").in("id", docIds)).data?.forEach((d) => (docs[d.id] = d));
+
+  const cards = [];
+  for (const c of cases) {
+    const stLabel = { new: "جديد", routed: "موجّه", answered: "تم الرد", cancelled: "ملغي" }[c.status] || c.status;
+    const stColor = { new: "var(--gold)", routed: "#2f80ed", answered: "var(--ok)", cancelled: "var(--bad)" }[c.status] || "var(--mu)";
+    const thumbs = h("div", { class: "thumbs" });
+    sb.from("ask_doctor_attachments").select("storage_path").eq("case_id", c.id).then(async ({ data }) => {
+      for (const a of data || []) {
+        const { data: s } = await sb.storage.from("ask-doctor-attachments").createSignedUrl(a.storage_path, 3600);
+        if (s?.signedUrl) thumbs.append(h("img", { src: s.signedUrl, onclick: () => window.open(s.signedUrl, "_blank") }));
+      }
+    });
+    const card = h("div", { class: "card" },
+      h("div", { class: "row" },
+        h("b", {}, c.case_number || "—"),
+        c.urgency_flag ? h("span", { class: "badge", style: "background:rgba(229,72,77,.15);color:var(--bad)" }, "⚠ أعراض عاجلة محتملة") : null,
+        h("span", { class: "sp" }),
+        h("span", { class: "badge", style: `background:${stColor}22;color:${stColor}` }, stLabel),
+        h("span", { class: "mu" }, fmt(c.created_at))),
+      h("div", { class: "mu" }, [c.patient_name, c.suggested_specialty ? "اقتراح النظام: " + c.suggested_specialty : null].filter(Boolean).join(" · ")),
+      h("div", { class: "msg" }, c.message),
+      thumbs);
+
+    if (c.status === "new" || c.status === "routed") {
+      const sel = h("select", {}, h("option", { value: "" }, "اختر التخصص…"),
+        (specs || []).map((s) => h("option", { value: s.specialty }, `${s.specialty} — ${s.doctors} أطباء · ${s.available} متاح`)));
+      sel.value = c.routed_specialty || ((specs || []).some((s) => s.specialty === c.suggested_specialty) ? c.suggested_specialty : "");
+      card.append(h("div", { class: "row" }, sel,
+        h("button", { class: "btn", onclick: async () => {
+          if (!sel.value) return alert("اختر التخصص أولاً");
+          const { data, error } = await sb.rpc("route_ask_case", { p_case: c.id, p_specialty: sel.value });
+          if (error || data !== "ok") return alert("تعذّر التوجيه: " + (error?.message || data));
+          renderShell();
+        } }, c.status === "routed" ? "إعادة توجيه" : "وجّه"),
+        h("button", { class: "btn bad", onclick: async () => {
+          if (!confirm("إلغاء هذا السؤال؟")) return;
+          await sb.from("ask_doctor_cases").update({ status: "cancelled" }).eq("id", c.id);
+          renderShell();
+        } }, "إلغاء")));
+      if (!(specs || []).length) card.append(h("div", { class: "mu" }, "لا يوجد أطباء مفعّلون يقدمون استشارة أونلاين حالياً."));
+    }
+    if (c.status === "answered") {
+      const d = docs[c.assigned_doctor_id];
+      card.append(h("div", { class: "card", style: "margin:8px 0 0;background:var(--ic)" },
+        h("div", { class: "mu" }, `رد ${d ? d.name + " · " + (d.specialty || "") : ""} — ${c.answered_at ? fmt(c.answered_at) : ""}`),
+        h("div", { class: "msg" }, c.answer || "")));
+    }
+    cards.push(card);
+  }
+  list.replaceChildren(...cards);
+}
+
+// ───────── مقدمو الخدمة ─────────
+async function renderProviders(root) {
+  const filters = [["pending", "بانتظار المراجعة"], ["active", "مفعّل"], ["suspended", "موقوف"], ["all", "الكل"]];
+  const chips = h("div", { class: "chips" }, filters.map(([k, n]) => h("button", { class: "chip" + (state.provFilter === k ? " on" : ""), onclick: () => { state.provFilter = k; renderShell(); } }, n)));
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(chips, list);
+  let q = sb.from("providers").select("*").order("created_at", { ascending: false }).limit(200);
+  if (state.provFilter !== "all") q = q.eq("status", state.provFilter);
+  const { data, error } = await q;
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message));
+  if (!data.length) return list.replaceChildren(h("div", { class: "empty" }, "لا يوجد مقدمو خدمة"));
+  const setStatus = async (id, status) => { await sb.from("providers").update({ status }).eq("id", id); renderShell(); };
+  list.replaceChildren(...data.map((p) => h("div", { class: "card" },
+    h("div", { class: "row" }, h("b", {}, p.name), h("span", { class: "mu" }, [p.service_type, p.grade, p.specialty].filter(Boolean).join(" · ")), h("span", { class: "sp" }),
+      h("span", { class: "badge", style: "background:var(--ic)" }, { pending: "بانتظار المراجعة", active: "مفعّل", suspended: "موقوف" }[p.status] || p.status)),
+    h("div", { class: "mu", dir: "ltr", style: "text-align:right" }, [p.email, p.phone].filter(Boolean).join(" · ")),
+    h("div", { class: "mu" }, [p.areas || p.area, p.experience ? p.experience + " سنة خبرة" : null, "سجّل " + fmt(p.created_at)].filter(Boolean).join(" · ")),
+    p.bio ? h("div", { class: "msg" }, p.bio) : null,
+    h("div", { class: "row", style: "margin-top:8px" },
+      p.status !== "active" ? h("button", { class: "btn ok", onclick: () => setStatus(p.id, "active") }, "تفعيل") : null,
+      p.status !== "suspended" ? h("button", { class: "btn bad", onclick: () => confirm("إيقاف الحساب؟") && setStatus(p.id, "suspended") }, "إيقاف") : null))));
+}
+
+boot();
+</script>
+</body>
+</html>

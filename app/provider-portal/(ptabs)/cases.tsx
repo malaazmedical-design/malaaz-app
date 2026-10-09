@@ -1,377 +1,183 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Redirect } from "expo-router";
+import { Image } from "expo-image";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Redirect } from "expo-router";
+import { PText } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
-import { supabase, DbAskDoctorCase, DbAskDoctorMessage } from "@/lib/supabase";
+import { supabase, AskInboxRow, DbAskDoctorAttachment } from "@/lib/supabase";
 
-const DARK = "#1C2B2A";
-const GOLD = "#C9A84C";
-
-const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  new:         { label: "جديد",       color: "#F59E0B" },
-  accepted:    { label: "مقبول",      color: "#16A34A" },
-  in_progress: { label: "جارية",      color: "#2563EB" },
-  completed:   { label: "مكتملة",     color: "#6B7280" },
-  cancelled:   { label: "ملغية",      color: "#DC2626" },
-};
-
-function CaseRow({ item, onPress }: { item: DbAskDoctorCase; onPress: () => void }) {
-  const st = STATUS_LABEL[item.status] ?? STATUS_LABEL.new;
-  const date = new Date(item.created_at).toLocaleDateString("ar-EG", { day: "2-digit", month: "short" });
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        backgroundColor: pressed ? "#FFFFFF08" : "#FFFFFF0D",
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: item.urgency_flag ? "#EF444444" : "#FFFFFF12",
-      })}
-    >
-      <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <View style={{ flex: 1, alignItems: "flex-end" }}>
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
-            {item.urgency_flag && <MaterialCommunityIcons name="alert-circle" size={14} color="#EF4444" />}
-            <Text style={{ color: GOLD, fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>{item.case_number ?? "—"}</Text>
-          </View>
-          <Text style={{ color: "#FFFFFFCC", fontFamily: "Cairo_400Regular", fontSize: 14, textAlign: "right", marginTop: 4 }} numberOfLines={2}>
-            {item.message}
-          </Text>
-          {item.suggested_specialty && (
-            <Text style={{ color: "#FFFFFF66", fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 2, textAlign: "right" }}>
-              {item.suggested_specialty}
-            </Text>
-          )}
-        </View>
-        <View style={{ alignItems: "flex-end", gap: 8, marginRight: 12 }}>
-          <View style={{ backgroundColor: st.color + "22", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: st.color, fontFamily: "Cairo_600SemiBold", fontSize: 11 }}>{st.label}</Text>
-          </View>
-          <Text style={{ color: "#FFFFFF44", fontFamily: "Cairo_400Regular", fontSize: 11 }}>{date}</Text>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-function Bubble({ msg, isMe }: { msg: DbAskDoctorMessage; isMe: boolean }) {
-  const time = new Date(msg.created_at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
-  return (
-    <View style={{ alignItems: isMe ? "flex-end" : "flex-start", marginBottom: 10, paddingHorizontal: 16 }}>
-      <View style={{
-        backgroundColor: isMe ? GOLD : "#FFFFFF15",
-        borderRadius: 16,
-        borderBottomRightRadius: isMe ? 4 : 16,
-        borderBottomLeftRadius: isMe ? 16 : 4,
-        padding: 12,
-        maxWidth: "80%",
-      }}>
-        <Text style={{ color: isMe ? DARK : "#FFFFFFEE", fontFamily: "Cairo_400Regular", fontSize: 14, lineHeight: 22 }}>
-          {msg.content}
-        </Text>
-      </View>
-      <Text style={{ color: "#FFFFFF44", fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 3 }}>{time}</Text>
-    </View>
-  );
-}
-
-function CaseModal({
-  item,
-  doctorId,
-  onClose,
-}: {
-  item: DbAskDoctorCase | null;
-  doctorId: string;
-  onClose: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-  const [caseData, setCaseData] = useState<DbAskDoctorCase | null>(item);
-  const [messages, setMessages] = useState<DbAskDoctorMessage[]>([]);
-  const [text, setText] = useState("");
-  const [accepting, setAccepting] = useState(false);
-  const [sending, setSending] = useState(false);
-  const flatRef = useRef<FlatList>(null);
-  const canChat = caseData && (caseData.status === "accepted" || caseData.status === "in_progress");
-  const isMyCase = caseData?.assigned_doctor_id === doctorId;
-
-  const loadMessages = useCallback(async () => {
-    if (!caseData?.id) return;
-    const { data } = await supabase.from("ask_doctor_messages").select("*").eq("case_id", caseData.id).order("created_at", { ascending: true });
-    setMessages((data as DbAskDoctorMessage[]) ?? []);
-  }, [caseData?.id]);
-
-  useEffect(() => { loadMessages(); }, [loadMessages]);
-
-  useEffect(() => {
-    if (!caseData?.id) return;
-    const channel = supabase.channel(`doc_case_${caseData.id}_${Date.now()}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ask_doctor_cases", filter: `id=eq.${caseData.id}` }, (p) => {
-        setCaseData((prev) => prev ? { ...prev, ...(p.new as DbAskDoctorCase) } : (p.new as DbAskDoctorCase));
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ask_doctor_messages", filter: `case_id=eq.${caseData.id}` }, (p) => {
-        setMessages((prev) => [...prev, p.new as DbAskDoctorMessage]);
-        setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [caseData?.id]);
-
-  const acceptCase = async () => {
-    if (!caseData?.id) return;
-    setAccepting(true);
-    const { error } = await supabase
-      .from("ask_doctor_cases")
-      .update({ status: "accepted", assigned_doctor_id: doctorId })
-      .eq("id", caseData.id)
-      .eq("status", "new");
-    if (error) {
-      Alert.alert("خطأ", "لم يتمكن من قبول الحالة — ربما قبلها طبيب آخر");
-    } else {
-      setCaseData((prev) => prev ? { ...prev, status: "accepted", assigned_doctor_id: doctorId } : prev);
-    }
-    setAccepting(false);
-  };
-
-  const completeCase = async () => {
-    if (!caseData?.id) return;
-    await supabase.from("ask_doctor_cases").update({ status: "completed" }).eq("id", caseData.id);
-    setCaseData((prev) => prev ? { ...prev, status: "completed" } : prev);
-  };
-
-  const sendMessage = async () => {
-    if (!text.trim() || !caseData?.id) return;
-    setSending(true);
-    const content = text.trim();
-    setText("");
-    await supabase.from("ask_doctor_messages").insert({
-      case_id: caseData.id,
-      sender_id: doctorId,
-      sender_type: "doctor",
-      content,
-    });
-    setSending(false);
-  };
-
-  if (!caseData) return null;
-  const st = STATUS_LABEL[caseData.status] ?? STATUS_LABEL.new;
-
-  return (
-    <Modal visible animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: DARK }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        {/* Header */}
-        <View style={{ paddingTop: insets.top + 12, paddingBottom: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#FFFFFF10" }}>
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
-            <Pressable onPress={onClose} style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: "#FFFFFF15", alignItems: "center", justifyContent: "center" }}>
-              <MaterialCommunityIcons name="arrow-right" size={22} color="#FFFFFFCC" />
-            </Pressable>
-            <View style={{ flex: 1, alignItems: "flex-end" }}>
-              <Text style={{ color: GOLD, fontFamily: "Cairo_700Bold", fontSize: 17 }}>{caseData.case_number ?? "استشارة"}</Text>
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 3 }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: st.color }} />
-                <Text style={{ color: st.color, fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>{st.label}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Case message */}
-        <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, backgroundColor: "#FFFFFF0A", borderRadius: 14, padding: 14 }}>
-          {caseData.urgency_flag && (
-            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <MaterialCommunityIcons name="alert-circle" size={14} color="#EF4444" />
-              <Text style={{ color: "#EF4444", fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>أعراض تستدعي الانتباه</Text>
-            </View>
-          )}
-          <Text style={{ color: "#FFFFFFCC", fontFamily: "Cairo_400Regular", fontSize: 14, textAlign: "right", lineHeight: 22 }}>
-            {caseData.message}
-          </Text>
-          {caseData.suggested_specialty && (
-            <Text style={{ color: GOLD, fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "right", marginTop: 8 }}>
-              التخصص المقترح: {caseData.suggested_specialty}
-            </Text>
-          )}
-          {caseData.patient_name && (
-            <Text style={{ color: "#FFFFFF66", fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 4 }}>
-              المريض: {caseData.patient_name}
-            </Text>
-          )}
-        </View>
-
-        {/* Accept / Complete buttons */}
-        {caseData.status === "new" && (
-          <View style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row-reverse", gap: 12 }}>
-            <Pressable
-              onPress={acceptCase}
-              disabled={accepting}
-              style={{ flex: 1, backgroundColor: "#16A34A", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
-            >
-              {accepting ? <ActivityIndicator color="#fff" size="small" /> : (
-                <Text style={{ color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 15 }}>قبول الحالة</Text>
-              )}
-            </Pressable>
-            <Pressable
-              onPress={onClose}
-              style={{ flex: 1, backgroundColor: "#FFFFFF15", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
-            >
-              <Text style={{ color: "#FFFFFFCC", fontFamily: "Cairo_700Bold", fontSize: 15 }}>رجوع</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {isMyCase && (caseData.status === "accepted" || caseData.status === "in_progress") && (
-          <Pressable
-            onPress={completeCase}
-            style={{ marginHorizontal: 16, marginBottom: 4, backgroundColor: "#6B728020", borderRadius: 14, paddingVertical: 10, alignItems: "center", borderWidth: 1, borderColor: "#6B728040" }}
-          >
-            <Text style={{ color: "#6B7280", fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>إنهاء الاستشارة</Text>
-          </Pressable>
-        )}
-
-        {/* Chat */}
-        {canChat && isMyCase ? (
-          <>
-            <FlatList
-              ref={flatRef}
-              data={messages}
-              keyExtractor={(m) => m.id}
-              contentContainerStyle={{ paddingVertical: 12 }}
-              onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
-              renderItem={({ item }) => <Bubble msg={item} isMe={item.sender_id === doctorId} />}
-              ListEmptyComponent={
-                <View style={{ alignItems: "center", paddingTop: 30 }}>
-                  <Text style={{ color: "#FFFFFF44", fontFamily: "Cairo_400Regular", fontSize: 13 }}>ابدأ المحادثة مع المريض</Text>
-                </View>
-              }
-            />
-            <View style={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 12, paddingTop: 10, flexDirection: "row-reverse", alignItems: "flex-end", gap: 10, borderTopWidth: 1, borderTopColor: "#FFFFFF10" }}>
-              <Pressable
-                onPress={sendMessage}
-                disabled={sending || !text.trim()}
-                style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: text.trim() ? GOLD : "#FFFFFF22", alignItems: "center", justifyContent: "center" }}
-              >
-                {sending ? <ActivityIndicator color={DARK} size="small" /> : <MaterialCommunityIcons name="send" size={20} color={text.trim() ? DARK : "#FFFFFF55"} />}
-              </Pressable>
-              <TextInput
-                value={text}
-                onChangeText={setText}
-                placeholder="اكتب رسالة..."
-                placeholderTextColor="#FFFFFF44"
-                multiline
-                textAlign="right"
-                style={{ flex: 1, backgroundColor: "#FFFFFF0D", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, color: "#FFFFFFEE", fontFamily: "Cairo_400Regular", fontSize: 14, maxHeight: 100, borderWidth: 1, borderColor: "#FFFFFF15" }}
-              />
-            </View>
-          </>
-        ) : (
-          canChat && !isMyCase ? (
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ color: "#FFFFFF44", fontFamily: "Cairo_400Regular", fontSize: 14 }}>هذه الحالة مع طبيب آخر</Text>
-            </View>
-          ) : null
-        )}
-
-        {caseData.status === "completed" && (
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-            <MaterialCommunityIcons name="check-circle" size={56} color="#16A34A" />
-            <Text style={{ color: "#FFFFFFCC", fontFamily: "Cairo_600SemiBold", fontSize: 16, marginTop: 12 }}>اكتملت الاستشارة</Text>
-          </View>
-        )}
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-// الاستشارات اتنقلت جوه تبويب الحجوزات — الراوت ده بيحوّل ليه
+// أسئلة المرضى اتنقلت جوه تبويب الحجوزات — الراوت ده بيحوّل ليه
 export default function DoctorCasesRedirect() {
   return <Redirect href="/provider-portal/(ptabs)/bookings" />;
 }
 
+// صندوق أسئلة "إسأل طبيب": الأسئلة الموجّهة لتخصصي (لسه ماحدش جاوب) + ردودي
 export function useDoctorCases() {
   const { provider } = useProvider();
-  const [cases, setCases] = useState<DbAskDoctorCase[]>([]);
+  const [rows, setRows] = useState<AskInboxRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!provider?.id) { setLoading(false); return; }
-    const { data } = await supabase
-      .from("ask_doctor_cases")
-      .select("*")
-      .or(`status.eq.new,assigned_doctor_id.eq.${provider.id}`)
-      .order("created_at", { ascending: false });
-    setCases((data as DbAskDoctorCase[]) ?? []);
+    const { data } = await supabase.rpc("ask_doctor_inbox");
+    setRows((data as AskInboxRow[]) ?? []);
     setLoading(false);
     setRefreshing(false);
   }, [provider?.id]);
 
   useEffect(() => { load(); }, [load]);
-
+  // الدكتور مالوش صلاحية realtime على الجدول (بيانات المريض) فبنحدّث دوريًا
   useEffect(() => {
-    if (!provider?.id) return;
-    const channel = supabase.channel(`doctor_cases_feed_${Date.now()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "ask_doctor_cases" }, () => { load(); })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [provider?.id, load]);
+    const iv = setInterval(load, 25000);
+    return () => clearInterval(iv);
+  }, [load]);
 
   const refresh = () => { setRefreshing(true); load(); };
-  return { cases, loading, refreshing, refresh, reload: load, newCount: cases.filter((c) => c.status === "new").length };
+  return { rows, loading, refreshing, refresh, reload: load, newCount: rows.filter((r) => !r.mine).length };
 }
 
-// قائمة الاستشارات داخل تبويب الحجوزات
+function QuestionSheet({ row, onClose, onDone }: { row: AskInboxRow; onClose: () => void; onDone: () => void }) {
+  const t = useMalaz();
+  const insets = useSafeAreaInsets();
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [files, setFiles] = useState<string[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("ask_doctor_attachments").select("*").eq("case_id", row.id);
+      const urls: string[] = [];
+      for (const a of (data as DbAskDoctorAttachment[]) ?? []) {
+        const { data: s } = await supabase.storage.from("ask-doctor-attachments").createSignedUrl(a.storage_path, 3600);
+        if (s?.signedUrl) urls.push(s.signedUrl);
+      }
+      setFiles(urls);
+    })();
+  }, [row.id]);
+
+  const send = async () => {
+    if (text.trim().length < 6) { Alert.alert("", "اكتب ردًا لا يقل عن 6 أحرف"); return; }
+    setSending(true);
+    const { data, error } = await supabase.rpc("answer_ask_case", { p_case: row.id, p_answer: text.trim() });
+    setSending(false);
+    if (error) { Alert.alert("خطأ", error.message); return; }
+    if (data === "taken") { Alert.alert("", "تم استلام السؤال من طبيب آخر"); onDone(); return; }
+    if (data !== "ok") { Alert.alert("", "تعذّر إرسال الرد"); return; }
+    onDone();
+  };
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: "rgba(0,0,0,.55)", justifyContent: "flex-end" }}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View style={{ backgroundColor: t.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: "88%", paddingBottom: insets.bottom + 12 }}>
+          <ScrollView contentContainerStyle={{ padding: 18, gap: 12 }} keyboardShouldPersistTaps="handled">
+            <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+              <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 19 }}>{row.mine ? "ردّك" : "الرد على السؤال"}</PText>
+              <Pressable onPress={onClose} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                <MaterialCommunityIcons name="close" size={19} color={t.text} />
+              </Pressable>
+            </View>
+            <View style={{ backgroundColor: t.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: row.urgency_flag ? "rgba(229,72,77,.5)" : t.border }}>
+              {row.urgency_flag ? (
+                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <MaterialCommunityIcons name="alert-circle" size={15} color={t.destructive} />
+                  <PText style={{ color: t.destructive, fontFamily: TJ.heavy, fontSize: 13 }}>أعراض قد تستدعي الانتباه</PText>
+                </View>
+              ) : null}
+              <PText style={{ color: t.text, fontFamily: TJ.medium, fontSize: 15, lineHeight: 25, textAlign: "right" }}>{row.message}</PText>
+              {files.length > 0 ? (
+                <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                  {files.map((u) => <Image key={u} source={{ uri: u }} style={{ width: 72, height: 72, borderRadius: 12 }} contentFit="cover" />)}
+                </View>
+              ) : row.attachments > 0 ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 8 }}>📎 {row.attachments} مرفقات…</PText> : null}
+            </View>
+
+            {row.mine ? (
+              <View style={{ backgroundColor: t.goldTint, borderRadius: 18, padding: 14 }}>
+                <PText style={{ color: t.text, fontFamily: TJ.medium, fontSize: 15, lineHeight: 25, textAlign: "right" }}>{row.answer}</PText>
+              </View>
+            ) : (
+              <>
+                <PText style={{ color: t.text, fontFamily: TJ.bold, fontSize: 14, textAlign: "right" }}>ردك</PText>
+                <TextInput
+                  value={text} onChangeText={setText} multiline textAlign="right" placeholder="اكتب ردك للمريض…" placeholderTextColor={t.muted}
+                  style={{ minHeight: 130, backgroundColor: t.card, borderRadius: 16, borderWidth: 1, borderColor: t.border, padding: 14, color: t.text, fontFamily: TJ.medium, fontSize: 15, textAlignVertical: "top" }}
+                />
+                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", lineHeight: 20 }}>
+                  لا تستخدم هذه الخدمة للحالات الطارئة. إن بدت الحالة طارئة انصح المريض بالتوجه للطوارئ. أول طبيب يجاوب هو اللي بيستلم السؤال.
+                </PText>
+                <Pressable onPress={send} disabled={sending}
+                  style={({ pressed }) => ({ height: 52, borderRadius: 16, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: pressed || sending ? 0.85 : 1 })}>
+                  {sending ? <ActivityIndicator color={t.onGold} /> : <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>اقبل وجاوب</PText>}
+                </Pressable>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 export function CasesPanel({ state }: { state: ReturnType<typeof useDoctorCases> }) {
   const t = useMalaz();
-  const { provider } = useProvider();
-  const [selected, setSelected] = useState<DbAskDoctorCase | null>(null);
-  const { cases, loading, reload } = state;
+  const { rows, loading, reload } = state;
+  const [tab, setTab] = useState<"open" | "mine">("open");
+  const [selected, setSelected] = useState<AskInboxRow | null>(null);
 
   if (loading) return <View style={{ paddingVertical: 60, alignItems: "center" }}><ActivityIndicator color={t.gold} /></View>;
+  const shown = rows.filter((r) => (tab === "open" ? !r.mine : r.mine));
+  const openCount = rows.filter((r) => !r.mine).length;
+
   return (
-    <View style={{ paddingHorizontal: 16, marginTop: 14, gap: 10 }}>
-      {cases.map((c) => {
-        const st = STATUS_LABEL[c.status] ?? STATUS_LABEL.new;
-        const date = new Date(c.created_at).toLocaleDateString("ar-EG", { day: "2-digit", month: "short" });
+    <View style={{ paddingHorizontal: 16, marginTop: 4, gap: 10 }}>
+      <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+        {([["open", "متاحة", openCount], ["mine", "ردودي", 0]] as const).map(([k, name, n]) => {
+          const on = tab === k;
+          return (
+            <Pressable key={k} onPress={() => setTab(k)}
+              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 14, backgroundColor: on ? t.goldTint : t.card, borderWidth: 1.5, borderColor: on ? t.gold : t.border }}>
+              <PText style={{ color: on ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 14 }}>{name}</PText>
+              {n > 0 ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13 }}>{n}</PText> : null}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {shown.map((r) => {
+        const date = new Date(r.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
         return (
-          <Pressable key={c.id} onPress={() => setSelected(c)}
-            style={({ pressed }) => ({ backgroundColor: t.card, borderRadius: 22, padding: 14, borderWidth: 1, borderColor: c.urgency_flag ? "rgba(229,72,77,.5)" : t.border, transform: [{ scale: pressed ? 0.985 : 1 }] })}>
-            <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, flex: 1 }}>
-                {c.urgency_flag ? <MaterialCommunityIcons name="alert-circle" size={15} color={t.destructive} /> : null}
-                <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13 }}>{c.case_number ?? "—"}</Text>
-              </View>
-              <View style={{ backgroundColor: st.color + "26", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ color: st.color, fontFamily: TJ.bold, fontSize: 12.5 }}>{st.label}</Text>
-              </View>
+          <Pressable key={r.id} onPress={() => setSelected(r)}
+            style={({ pressed }) => ({ backgroundColor: t.card, borderRadius: 22, padding: 14, borderWidth: 1, borderColor: r.urgency_flag ? "rgba(229,72,77,.5)" : t.border, transform: [{ scale: pressed ? 0.985 : 1 }] })}>
+            <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+              <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13 }}>{r.case_number ?? "—"}{r.routed_specialty ? ` · ${r.routed_specialty}` : ""}</PText>
+              <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{date}</PText>
             </View>
-            <Text numberOfLines={2} style={{ color: t.text, fontFamily: TJ.medium, fontSize: 14, textAlign: "right", marginTop: 8, lineHeight: 21 }}>{c.message}</Text>
-            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 4 }}>
-              {[c.suggested_specialty, date].filter(Boolean).join(" · ")}
-            </Text>
+            <PText numberOfLines={2} style={{ color: t.text, fontFamily: TJ.medium, fontSize: 14.5, textAlign: "right", marginTop: 8, lineHeight: 22 }}>{r.message}</PText>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
+              {r.urgency_flag ? <MaterialCommunityIcons name="alert-circle" size={15} color={t.destructive} /> : null}
+              {r.attachments > 0 ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>📎 {r.attachments}</PText> : null}
+              {r.mine ? <PText style={{ color: t.online, fontFamily: TJ.heavy, fontSize: 12.5 }}>✓ تم ردك</PText> : null}
+            </View>
           </Pressable>
         );
       })}
-      {cases.length === 0 ? (
-        <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "center", paddingVertical: 50 }}>لا توجد استشارات الآن</Text>
+
+      {shown.length === 0 ? (
+        <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "center", paddingVertical: 50, lineHeight: 24 }}>
+          {tab === "open"
+            ? "لا توجد أسئلة متاحة الآن.\nتأكد إن الاستشارة الأونلاين مفعّلة في تعديل الحساب عشان تستلم أسئلة تخصصك."
+            : "لسه ماجاوبتش على أي سؤال"}
+        </PText>
       ) : null}
-      {selected ? <CaseModal item={selected} doctorId={provider?.id ?? ""} onClose={() => { setSelected(null); reload(); }} /> : null}
+
+      {selected ? <QuestionSheet row={selected} onClose={() => setSelected(null)} onDone={() => { setSelected(null); reload(); }} /> : null}
     </View>
   );
 }

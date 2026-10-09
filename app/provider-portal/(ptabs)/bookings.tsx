@@ -35,7 +35,7 @@ function mapsUrl(b: DbBooking): string {
 export default function ProviderBookingsScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { focus, t: focusNonce } = useLocalSearchParams<{ focus?: string; t?: string }>();
+  const { focus, t: focusNonce, seg } = useLocalSearchParams<{ focus?: string; t?: string; seg?: string }>();
   const scrollRef = useRef<ScrollView>(null);
   const listY = useRef(0);
   const cardY = useRef<Record<string, number>>({});
@@ -53,6 +53,8 @@ export default function ProviderBookingsScreen() {
   const cs = useDoctorCases();
   const isDoctor = (provider?.service_type ?? "").includes("كشف");
   const [section, setSection] = useState<"bookings" | "cases">("bookings");
+  // إشعار "سؤال جديد" بيفتح تبويب الاستشارات
+  useEffect(() => { if (seg === "cases" && focusNonce) setSection("cases"); }, [seg, focusNonce]);
 
   const [filter, setFilter] = useState<BState | "all">("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -115,7 +117,7 @@ export default function ProviderBookingsScreen() {
         <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
           <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 24, textAlign: "right" }}>حجوزاتي</PText>
           <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "right", marginTop: 2 }}>
-            {section === "cases" ? "أسئلة العملاء واستشاراتهم" : "كل حجوزاتك وحالتها"}
+            {section === "cases" ? "أسئلة المرضى (إسأل طبيب)" : "كل حجوزاتك وحالتها"}
           </PText>
         </View>
 

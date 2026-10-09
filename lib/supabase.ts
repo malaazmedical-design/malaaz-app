@@ -210,11 +210,42 @@ export type DbAskDoctorCase = {
   suggested_specialty: string | null;
   location: string | null;
   urgency_flag: boolean;
-  status: "new" | "accepted" | "in_progress" | "completed" | "cancelled";
+  // new = تم الإرسال (عند الأدمن) · routed = موجّه لتخصص · answered = تم الرد · cancelled
+  status: "new" | "routed" | "answered" | "cancelled" | string;
   assigned_doctor_id: string | null;
   communication_type: "chat" | "voice" | "video" | null;
+  routed_specialty: string | null;
+  routed_at: string | null;
+  answer: string | null;
+  answered_at: string | null;
+  edited_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// صف صندوق أسئلة الدكتور (RPC ask_doctor_inbox) — من غير بيانات تواصل المريض
+export type AskInboxRow = {
+  id: string;
+  case_number: string | null;
+  message: string;
+  routed_specialty: string | null;
+  urgency_flag: boolean;
+  status: string;
+  created_at: string;
+  answer: string | null;
+  answered_at: string | null;
+  mine: boolean;
+  attachments: number;
+};
+
+export type AskCaseDoctor = {
+  provider_id: string;
+  name: string;
+  specialty: string | null;
+  grade: string | null;
+  photo_url: string | null;
+  online_price: number | null;
+  visit_price: number | null;
 };
 
 export type DbAskDoctorMessage = {
