@@ -59,7 +59,7 @@ function h(tag, props = {}, ...kids) {
   return el;
 }
 const fmt = (d) => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-const state = { tab: "asks", askFilter: "open", provFilter: "pending" };
+const state = { tab: "consults", askFilter: "open", provFilter: "pending", conFilter: "pay" };
 
 async function boot() {
   const { data: { session } } = await sb.auth.getSession();
@@ -86,12 +86,12 @@ function renderLogin(msg = "") {
 function renderShell() {
   const body = h("div");
   const tabs = h("div", { class: "tabs" },
-    [["asks", "أسئلة المرضى"], ["providers", "مقدمو الخدمة"]].map(([k, n]) =>
+    [["consults", "الاستشارات"], ["asks", "أسئلة المرضى"], ["providers", "مقدمو الخدمة"], ["prices", "الأسعار"]].map(([k, n]) =>
       h("button", { class: "tab" + (state.tab === k ? " on" : ""), onclick: () => { state.tab = k; renderShell(); } }, n)));
   app.replaceChildren(
     h("header", {}, h("h1", {}, "لوحة ملاذ · اختبار"), h("button", { class: "btn ghost", onclick: async () => { await sb.auth.signOut(); renderLogin(); } }, "خروج")),
     h("main", {}, tabs, body));
-  (state.tab === "asks" ? renderAsks : renderProviders)(body);
+  ({ consults: renderConsults, asks: renderAsks, providers: renderProviders, prices: renderPrices }[state.tab])(body);
 }
 
 // ───────── أسئلة المرضى ─────────
@@ -185,6 +185,76 @@ async function renderProviders(root) {
     h("div", { class: "row", style: "margin-top:8px" },
       p.status !== "active" ? h("button", { class: "btn ok", onclick: () => setStatus(p.id, "active") }, "تفعيل") : null,
       p.status !== "suspended" ? h("button", { class: "btn bad", onclick: () => confirm("إيقاف الحساب؟") && setStatus(p.id, "suspended") }, "إيقاف") : null))));
+}
+
+// ───────── الاستشارات الأونلاين ─────────
+const PERIODS = { morning: "صباحًا (8-12)", noon: "ظهرًا (12-4)", evening: "مساءً (4-9)", asap: "أسرع وقت ممكن" };
+const ALERTS = {
+  deadline: "⏰ انتهت مهلة الدفع", no_proposal: "⚠ الطبيب لم يحدد موعدًا", client_silent: "⚠ العميل لم يرد على الموعد",
+  client_rejected: "⚠ العميل رفض الموعد", doctor_late: "🔴 الطبيب متأخر عن الموعد", rating: "★ تقييم بانتظار الاعتماد", no_show: "العميل لم يحضر",
+};
+const CANCEL_REASONS = ["العميل لم يحوّل", "انتهت مهلة الدفع", "الطبيب لم يحضر", "العميل لم يرد على الموعد", "بناءً على طلب العميل", "الطبيب غير متاح", "سبب آخر"];
+
+async function renderConsults(root) {
+  const filters = [["pay", "في انتظار الدفع"], ["paid", "تم الدفع"], ["alerts", "تنبيهات"], ["live", "جارية"], ["ended", "منتهية"], ["cancelled", "ملغية"], ["all", "الكل"]];
+  root.append(h("div", { class: "chips" }, filters.map(([k, n]) => h("button", { class: "chip" + (state.conFilter === k ? " on" : ""), onclick: () => { state.conFilter = k; renderShell(); } }, n))));
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(list);
+  const { data, error } = await sb.rpc("admin_consultations");
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message));
+  const f = state.conFilter;
+  const rows = data.filter((c) =>
+    f === "all" ? true : f === "pay" ? c.pay_status === "pending" : f === "paid" ? c.pay_status === "paid" && c.state === "wait" :
+    f === "alerts" ? c.alerts.length > 0 : f === "live" ? c.state === "live" : f === "ended" ? c.state === "ended" : c.pay_status === "cancelled");
+  if (!rows.length) return list.replaceChildren(h("div", { class: "empty" }, "لا توجد استشارات"));
+  const act = async (fn, args) => { const { data: r, error: e } = await sb.rpc(fn, args); if (e || (r && r !== "ok")) alert("تعذّر: " + (e?.message || r)); renderShell(); };
+  list.replaceChildren(...rows.map((c) => {
+    const st = c.pay_status === "cancelled" ? "ملغي" : c.pay_status === "pending" ? "في انتظار الدفع" : c.state === "live" ? "جارية" : c.state === "ended" ? (c.no_show ? "لم يحضر المريض" : "منتهية") : "تم الدفع";
+    const wa = "https://wa.me/20" + (c.client_phone || "").replace(/\D/g, "").replace(/^0/, "");
+    const reason = h("select", {}, CANCEL_REASONS.map((r) => h("option", { value: r }, r)));
+    const card = h("div", { class: "card" },
+      h("div", { class: "row" }, h("b", {}, c.case_number), h("span", { class: "badge", style: "background:var(--ic)" }, st), h("span", { class: "sp" }), h("span", { class: "mu" }, fmt(c.created_at))),
+      h("div", { class: "row", style: "margin-top:6px" }, h("span", {}, "العميل: " + c.client_name), h("a", { href: wa, target: "_blank", style: "color:var(--gold);font-weight:800" }, c.client_phone || ""), h("span", { class: "sp" }), h("span", {}, "الطبيب: " + c.provider_name)),
+      h("div", { class: "mu" }, `${c.channel === "chat" ? "شات" : c.channel} · ${c.duration_min} د · ${c.price} ج.م · ${c.pay_method === "wallet" ? "محفظة" : "إنستاباي"} · ${c.period === "asap" ? PERIODS.asap : c.period_date + " " + PERIODS[c.period]}`),
+      c.appt_at ? h("div", { class: "mu" }, "الموعد المعتمد: " + fmt(c.appt_at)) : c.prop_at ? h("div", { class: "mu" }, "موعد مقترح: " + fmt(c.prop_at)) : null,
+      c.pay_status === "pending" && c.pay_deadline ? h("div", { class: "mu" }, "مهلة الدفع: " + fmt(c.pay_deadline)) : null,
+      c.cancel_reason ? h("div", { class: "mu", style: "color:var(--bad)" }, "سبب الإلغاء: " + c.cancel_reason) : null,
+      c.alerts.length ? h("div", { class: "row", style: "margin-top:6px" }, c.alerts.map((a) => h("span", { class: "badge", style: "background:rgba(229,72,77,.14);color:var(--bad)" }, ALERTS[a]))) : null,
+      c.rating ? h("div", { class: "msg" }, "★".repeat(c.rating) + (c.rating_text ? " — " + c.rating_text : "")) : null);
+    const bar = h("div", { class: "row", style: "margin-top:10px" });
+    if (c.state === "wait" && c.pay_status !== "cancelled") {
+      if (c.pay_status === "pending") bar.append(h("button", { class: "btn ok", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "paid" }) }, "تم الدفع"));
+      else if (c.prop_status === "none") bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "pending" }) }, "في انتظار الدفع"));
+      bar.append(reason, h("button", { class: "btn bad", onclick: () => confirm("إلغاء الاستشارة؟") && act("admin_set_payment", { p_id: c.id, p_status: "cancelled", p_reason: reason.value }) }, "إلغاء"));
+    }
+    if (c.prop_status === "no" || c.prop_status === "pending") bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_consultation_handled", { p_id: c.id }) }, "تم التواصل (السماح بموعد جديد)"));
+    if (c.alerts.includes("doctor_late")) bar.append(h("button", { class: "btn bad", onclick: () => confirm("إلغاء مع الاسترداد؟") && act("admin_refund_consultation", { p_id: c.id, p_cancel: true, p_reason: "الطبيب لم يحضر" }) }, "إلغاء مع الاسترداد"));
+    if (c.no_show && !c.refunded) bar.append(h("button", { class: "btn ghost", onclick: () => confirm("استرداد استثنائي؟") && act("admin_refund_consultation", { p_id: c.id }) }, "استرداد استثنائي"));
+    if (c.rating && !c.rating_ok) bar.append(h("button", { class: "btn", onclick: () => act("admin_approve_rating", { p_id: c.id }) }, "اعتماد التقييم"));
+    if (bar.children.length) card.append(bar);
+    return card;
+  }));
+}
+
+// ───────── نطاقات الأسعار ─────────
+async function renderPrices(root) {
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(h("div", { class: "mu", style: "margin-bottom:10px" }, "نطاق السعر الذي يستطيع مقدم الخدمة الاختيار منه (حسب الدرجة). التغيير يسري فورًا على التطبيق."), list);
+  const { data, error } = await sb.from("sub_services").select("*").order("service_name").order("group_name").order("name");
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message));
+  const rows = data.filter((s) => s.group_name === "online" || s.group_name === "specialty" || s.price_min != null);
+  const fields = [["price_min", "أدنى"], ["price_max", "أقصى"], ["price_min_specialist", "أخصائي أدنى"], ["price_max_specialist", "أخصائي أقصى"], ["price_min_consultant", "استشاري أدنى"], ["price_max_consultant", "استشاري أقصى"]];
+  list.replaceChildren(...rows.map((s) => {
+    const inputs = fields.map(([k, n]) => [k, n, h("input", { type: "number", value: s[k] ?? "", style: "width:90px", dir: "ltr" })]);
+    return h("div", { class: "card" },
+      h("div", { class: "row" }, h("b", {}, s.name), h("span", { class: "mu" }, `${s.service_name} · ${s.group_name}`)),
+      h("div", { class: "row", style: "margin-top:8px" }, inputs.map(([k, n, el]) => h("label", { class: "mu" }, n, h("br"), el)),
+        h("button", { class: "btn", onclick: async () => {
+          const patch = {}; inputs.forEach(([k, , el]) => (patch[k] = el.value === "" ? null : Number(el.value)));
+          const { error: e } = await sb.from("sub_services").update(patch).eq("id", s.id);
+          alert(e ? "تعذّر الحفظ: " + e.message : "تم الحفظ");
+        } }, "حفظ")));
+  }));
 }
 
 boot();
