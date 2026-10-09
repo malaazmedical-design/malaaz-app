@@ -40,6 +40,7 @@ export default function ProviderConsultation() {
   const [busy, setBusy] = useState(false);
   const [, setTick] = useState(0);
   const [slot, setSlot] = useState<Date | null>(null);
+  const [editing, setEditing] = useState(false);
   const [note, setNote] = useState("");
   const [recs, setRecs] = useState("");
   const [follow, setFollow] = useState<"none" | "week" | "two" | "month">("none");
@@ -134,9 +135,9 @@ export default function ProviderConsultation() {
         {stage === "pay_pending" ? <View style={card}>{head("في انتظار الدفع")}{body("الإدارة بتتواصل مع المريض لتأكيد الدفع. هيوصلك إشعار لما يتم الدفع ثم تحدد الموعد.")}</View> : null}
         {stage === "cancelled" ? <View style={[card, { borderColor: "rgba(229,72,77,.5)" }]}>{head("تم الإلغاء", t.destructive)}{body(`السبب: ${c.cancel_reason ?? "—"}`)}</View> : null}
 
-        {stage === "need_time" || stage === "time_rejected" ? (
+        {stage === "need_time" || stage === "time_rejected" || ((stage === "scheduled" || stage === "doctor_late") && editing) ? (
           <View style={[card, { borderColor: t.gold, borderWidth: 1.5 }]}>
-            {head(stage === "time_rejected" ? "المريض لا يناسبه الموعد" : "تم الدفع · حدد الموعد", stage === "time_rejected" ? t.destructive : t.text)}
+            {head(stage === "time_rejected" ? "المريض لا يناسبه الموعد" : editing ? "تعديل موعد الاستشارة" : "تم الدفع · حدد الموعد", stage === "time_rejected" ? t.destructive : t.text)}
             {stage === "time_rejected" ? body("الإدارة هتتواصل مع المريض، وبعدها تقدر تقترح موعدًا جديدًا.") : body("اختر وقتًا داخل فترة المريض، وهيوصله للموافقة.")}
             {stage === "need_time" ? (
               <>
@@ -151,7 +152,8 @@ export default function ProviderConsultation() {
                   })}
                 </View>
                 <View style={{ flexDirection: "row-reverse", marginTop: 14 }}>
-                  {btn("إرسال الموعد للمريض", () => slot && call("propose_consultation_time", { p_id: c.id, p_at: slot.toISOString() }), { disabled: !slot })}
+                  {btn("إرسال الموعد للمريض", () => { if (slot) call("propose_consultation_time", { p_id: c.id, p_at: slot.toISOString() }).then((ok) => { if (ok) { setEditing(false); setSlot(null); } }); }, { disabled: !slot })}
+                  {editing ? btn("إلغاء", () => { setEditing(false); setSlot(null); }, { kind: "ghost" }) : null}
                 </View>
               </>
             ) : null}
@@ -162,13 +164,14 @@ export default function ProviderConsultation() {
           <View style={card}>{head("تم الإرسال · في انتظار التأكيد")}<PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 19, textAlign: "right" }}>{dateTimeLabel(c.prop_at)}</PText></View>
         ) : null}
 
-        {(stage === "scheduled" || stage === "doctor_late") && c.appt_at ? (
+        {(stage === "scheduled" || stage === "doctor_late") && c.appt_at && !editing ? (
           <View style={[card, { borderColor: stage === "doctor_late" ? "rgba(229,72,77,.5)" : t.gold, borderWidth: 1.5 }]}>
             {head(stage === "doctor_late" ? "تأخرت عن موعد الاستشارة. ابدأها الآن" : "الموعد المعتمد", stage === "doctor_late" ? t.destructive : t.text)}
             <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 20, textAlign: "right" }}>{dateTimeLabel(c.appt_at)}</PText>
             {!canStart ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 8 }}>يفتح زر البدء قبل الموعد بـ 10 دقائق</PText> : null}
             <View style={{ flexDirection: "row-reverse", marginTop: 14 }}>
               {btn("ابدأ الجلسة", () => call("start_consultation", { p_id: c.id }), { disabled: !canStart })}
+              {btn("تعديل الموعد", () => setEditing(true), { kind: "ghost" })}
             </View>
           </View>
         ) : null}

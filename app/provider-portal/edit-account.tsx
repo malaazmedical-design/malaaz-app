@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Toggle } from "@/components/account/AccountUI";
 import { PText, PriceSlider, SearchableSelect, useCheckBurst } from "@/components/provider/PUI";
-import { FALLBACK_SPECIALTIES, gradesFor, priceRangeFor } from "@/lib/providerLists";
+import { FALLBACK_SPECIALTIES, gradeLabelFor, gradesFor, priceRangeFor } from "@/lib/providerLists";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { supabase } from "@/lib/supabase";
@@ -211,7 +211,7 @@ export default function ProviderProfileScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) { Alert.alert("تنبيه", "أدخل اسمك"); return; }
-    if (grades.length && !grade) { Alert.alert("تنبيه", isNurse ? "اختر الدرجة: أخصائي تمريض أو فني تمريض" : "اختر الدرجة العلمية: أخصائي أو استشاري"); return; }
+    if (grades.length && !grade && !serviceType.includes("أشعة")) { Alert.alert("تنبيه", isNurse ? "اختر المسمى الوظيفي: أخصائي تمريض أو فني تمريض" : "اختر الدرجة العلمية: أخصائي أو استشاري"); return; }
     if (isDoctor && !specialty) { Alert.alert("تنبيه", "اختر التخصص"); return; }
     if (!selectedAreas.length) { Alert.alert("تنبيه", "اختر منطقة واحدة على الأقل"); return; }
     setSaving(true);
@@ -356,7 +356,7 @@ export default function ProviderProfileScreen() {
 
         {grades.length ? (
           <>
-            {title("الدرجة", undefined, "مطلوب")}
+            {title(gradeLabelFor(serviceType), undefined, serviceType.includes("أشعة") ? undefined : "مطلوب")}
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
               {grades.map((g) => chip(g, grade === g, () => setGrade(g)))}
             </View>
@@ -464,6 +464,17 @@ export default function ProviderProfileScreen() {
                 ) : null}
               </View>
             ) : null}
+            {/* حجز العيادة: مش مفعّل حاليًا */}
+            <View style={{ marginTop: 10, flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, padding: 16, opacity: 0.6 }}>
+              <MaterialCommunityIcons name="hospital-building" size={22} color={t.muted} />
+              <View style={{ flex: 1 }}>
+                <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>حجز العيادة</PText>
+                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>هذه الخدمة قادمة قريبًا</PText>
+              </View>
+              <View style={{ backgroundColor: t.goldTint, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 12.5 }}>قريبًا</PText>
+              </View>
+            </View>
           </View>
         ) : null}
 
