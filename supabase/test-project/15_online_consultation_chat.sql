@@ -295,7 +295,7 @@ begin
   if public.consult_role(p_id) is distinct from 'd' then return 'forbidden'; end if;
   if p_min not in (5, 10) then return 'invalid'; end if;
   update public.consultations set extra_min = extra_min + p_min,
-         flags = flags - 'e5c' - 'e5d'
+         flags = flags - 'e5'
    where id = p_id and state = 'live' and now() < public.consult_end_at(consultations);
   if not found then return 'locked'; end if;
   return 'ok';
