@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CallPanel } from "@/components/consult/CallPanel";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { endAt, fmtClock } from "@/lib/consult";
 import { supabase, DbConsultation, DbConsultMessage } from "@/lib/supabase";
@@ -152,6 +153,8 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
           </View>
         ) : null}
       </View>
+
+      {c.channel !== "chat" ? <CallPanel c={c} role={role} /> : null}
 
       {canNoShow ? (
         <Pressable onPress={doNoShow} style={{ margin: 12, padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: "rgba(229,72,77,.5)", alignItems: "center" }}>

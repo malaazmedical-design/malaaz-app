@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, View } from "react-native";
 import { PText } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
-import { dateTimeLabel, dayLabel, PERIOD_LABEL, STAGE_META, Stage, stageOf } from "@/lib/consult";
+import { CHANNEL_LABEL, dateTimeLabel, dayLabel, PERIOD_LABEL, STAGE_META, Stage, stageOf } from "@/lib/consult";
 import { shortName } from "@/lib/providerFmt";
 import { supabase, DbConsultation } from "@/lib/supabase";
 
@@ -94,7 +94,7 @@ export function ConsultationsPanel({ state }: { state: ReturnType<typeof useProv
             {!folded ? (
               <>
                 <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 6 }}>
-                  استشارة أونلاين · شات · {r.duration_min + r.extra_min} د · {r.price} ج.م
+                  استشارة أونلاين · {CHANNEL_LABEL[r.channel]} · {r.duration_min + r.extra_min} د · {r.price} ج.م
                 </PText>
                 <PText style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 3 }}>
                   {r.appt_at ? dateTimeLabel(r.appt_at) : r.period === "asap" ? PERIOD_LABEL.asap : `${dayLabel(r.period_date)} · ${PERIOD_LABEL[r.period]}`}

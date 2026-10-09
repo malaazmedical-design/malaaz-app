@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConsultRoom } from "@/components/consult/ConsultRoom";
 import { PText } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
-import { dateTimeLabel, dayLabel, FOLLOW_LABEL, PAY_LABEL, PERIOD_LABEL, STAGE_META, stageOf, timeLabel } from "@/lib/consult";
+import { CHANNEL_LABEL, dateTimeLabel, dayLabel, FOLLOW_LABEL, PAY_LABEL, PERIOD_LABEL, STAGE_META, stageOf, timeLabel } from "@/lib/consult";
 import { shortName } from "@/lib/providerFmt";
 import { supabase, DbConsultation } from "@/lib/supabase";
 
@@ -123,7 +123,7 @@ export default function ProviderConsultation() {
           </View>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 6 }}>
             <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>القناة والمدة</PText>
-            <PText style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13.5 }}>شات · {c.duration_min + c.extra_min} دقيقة</PText>
+            <PText style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13.5 }}>{CHANNEL_LABEL[c.channel]} · {c.duration_min + c.extra_min} دقيقة</PText>
           </View>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 6 }}>
             <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>الدفع</PText>

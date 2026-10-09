@@ -54,6 +54,20 @@ export default function ProviderProfileScreen() {
   const [onlineOn, setOnlineOn] = useState(false);
   const [onlinePrice, setOnlinePrice] = useState<number | null>(null);
   const [onlineDur, setOnlineDur] = useState(15);
+  // voice / video channels (provider_channels): own price + length per channel
+  type Chan = { on: boolean; price: number | null; dur: number };
+  const [chan, setChan] = useState<Record<"voice" | "video", Chan>>({ voice: { on: false, price: null, dur: 15 }, video: { on: false, price: null, dur: 15 } });
+  useEffect(() => {
+    if (!provider?.id) return;
+    supabase.from("provider_channels").select("*").eq("provider_id", provider.id).then(({ data }) => {
+      if (!data) return;
+      setChan((cur) => {
+        const next = { ...cur };
+        for (const r of data as any[]) if (r.channel === "voice" || r.channel === "video") next[r.channel as "voice" | "video"] = { on: !!r.is_active, price: Number(r.price), dur: r.duration_min ?? 15 };
+        return next;
+      });
+    });
+  }, [provider?.id]);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -219,6 +233,19 @@ export default function ProviderProfileScreen() {
         const rows: { sub_service_id: string; custom_price: number; duration_min?: number }[] = [{ sub_service_id: specialtyRow.id, custom_price: clampTo(visitPrice, visitRange) }];
         if (onlineRow && onlineOn) rows.push({ sub_service_id: onlineRow.id, custom_price: clampTo(onlinePrice, onlineRange), duration_min: onlineDur });
         await saveMyServices(rows);
+        // voice / video: saved only together with an active online consultation, otherwise switched off
+        for (const k of ["voice", "video"] as const) {
+          const ch = chan[k];
+          if (provider?.id && onlineOn && ch.on) {
+            const { error } = await supabase.from("provider_channels").upsert(
+              { provider_id: provider.id, channel: k, price: clampTo(ch.price, onlineRange), duration_min: ch.dur, is_active: true, updated_at: new Date().toISOString() },
+              { onConflict: "provider_id,channel" },
+            );
+            if (error) throw new Error(error.message);
+          } else if (provider?.id) {
+            await supabase.from("provider_channels").delete().eq("provider_id", provider.id).eq("channel", k);
+          }
+        }
       }
       burst.show("تم حفظ الحساب");
     } catch (e: any) {
@@ -401,6 +428,38 @@ export default function ProviderProfileScreen() {
                         </Pressable>
                       ))}
                     </View>
+                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 14 }}>
+                      الشات هو الأساس. فعّل الصوت والفيديو لو تحب تستقبل مكالمات (سعر ومدة لكل قناة).
+                    </PText>
+                    {(["voice", "video"] as const).map((k) => {
+                      const ch = chan[k];
+                      return (
+                        <View key={k} style={{ marginTop: 10, backgroundColor: t.ic, borderRadius: 16, padding: 12 }}>
+                          <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+                              <MaterialCommunityIcons name={k === "voice" ? "phone-outline" : "video-outline"} size={20} color={t.goldText} />
+                              <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15 }}>{k === "voice" ? "استشارة صوتية" : "استشارة فيديو"}</PText>
+                            </View>
+                            <Toggle on={ch.on} onChange={(v) => setChan((cur) => ({ ...cur, [k]: { ...cur[k], on: v, price: cur[k].price ?? onlineRange.min } }))} />
+                          </View>
+                          {ch.on ? (
+                            <>
+                              <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 20, textAlign: "right", marginTop: 8 }}>{clampTo(ch.price, onlineRange)} ج.م</PText>
+                              <PriceSlider value={clampTo(ch.price, onlineRange)} min={onlineRange.min} max={onlineRange.max} disabled={onlineRange.max === onlineRange.min}
+                                onChange={(v: number) => setChan((cur) => ({ ...cur, [k]: { ...cur[k], price: v } }))} />
+                              <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
+                                {[10, 15, 20, 30].map((m) => (
+                                  <Pressable key={m} onPress={() => setChan((cur) => ({ ...cur, [k]: { ...cur[k], dur: m } }))}
+                                    style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: ch.dur === m ? t.goldTint : t.card, borderWidth: 1.5, borderColor: ch.dur === m ? t.gold : "transparent" }}>
+                                    <PText style={{ color: ch.dur === m ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 13 }}>{m} د</PText>
+                                  </Pressable>
+                                ))}
+                              </View>
+                            </>
+                          ) : null}
+                        </View>
+                      );
+                    })}
                   </>
                 ) : null}
               </View>

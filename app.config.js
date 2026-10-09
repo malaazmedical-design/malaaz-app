@@ -18,6 +18,9 @@ function googleServicesFor(pkg, file) {
   }
 }
 
+// Voice/video consultations (LiveKit) only ship in the ReVoice / Provider variants, the original app is untouched.
+const withCalls = isMizoTest || isProviderApp;
+
 module.exports = ({ config }) => {
   const androidPackage = isProviderApp
     ? PROVIDER_PACKAGE
@@ -35,9 +38,34 @@ module.exports = ({ config }) => {
       ? { ...config.splash, image: "./assets/images/provider/splash-icon.png", backgroundColor: "#F4F1EA" }
       : config.splash,
     web: isProviderApp ? { ...config.web, favicon: "./assets/images/provider/favicon.png" } : config.web,
+    ios: {
+      ...config.ios,
+      infoPlist: {
+        ...config.ios?.infoPlist,
+        ...(withCalls
+          ? {
+              NSCameraUsageDescription: "التطبيق يحتاج الكاميرا لمكالمات الفيديو مع الطبيب",
+              NSMicrophoneUsageDescription: "التطبيق يحتاج المايك لمكالمات الصوت والفيديو مع الطبيب",
+            }
+          : {}),
+      },
+    },
     android: {
       ...config.android,
       package: androidPackage,
+      permissions: [
+        ...(config.android?.permissions ?? []),
+        ...(withCalls
+          ? [
+              "android.permission.CAMERA",
+              "android.permission.MODIFY_AUDIO_SETTINGS",
+              "android.permission.BLUETOOTH",
+              "android.permission.BLUETOOTH_CONNECT",
+              "android.permission.ACCESS_NETWORK_STATE",
+              "android.permission.WAKE_LOCK",
+            ]
+          : []),
+      ],
       ...(isProviderApp
         ? {
             adaptiveIcon: {
@@ -59,6 +87,7 @@ module.exports = ({ config }) => {
         }
         return p;
       }),
+      ...(withCalls ? ["@livekit/react-native-expo-plugin"] : []),
       ...(process.env.FACEBOOK_APP_ID
         ? [[
             "react-native-fbsdk-next",

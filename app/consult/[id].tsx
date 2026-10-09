@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConsultRoom } from "@/components/consult/ConsultRoom";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { whatsappCompany } from "@/lib/contact";
-import { dateTimeLabel, dayLabel, FOLLOW_LABEL, PAY_LABEL, PERIOD_LABEL, STAGE_META, stageOf, timeLabel } from "@/lib/consult";
+import { CHANNEL_LABEL, dateTimeLabel, dayLabel, FOLLOW_LABEL, PAY_LABEL, PERIOD_LABEL, STAGE_META, stageOf, timeLabel } from "@/lib/consult";
 import { supabase, DbConsultation } from "@/lib/supabase";
 
 export default function ClientConsultation() {
@@ -103,7 +103,7 @@ export default function ClientConsultation() {
         <View style={card}>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between" }}>
             <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>القناة</Text>
-            <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13.5 }}>شات · {c.duration_min + c.extra_min} دقيقة</Text>
+            <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13.5 }}>{CHANNEL_LABEL[c.channel]} · {c.duration_min + c.extra_min} دقيقة</Text>
           </View>
           <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 6 }}>
             <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>الفترة</Text>

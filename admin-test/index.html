@@ -238,7 +238,7 @@ async function renderConsults(root) {
     const card = h("div", { class: "card" },
       h("div", { class: "row" }, h("b", {}, c.case_number), h("span", { class: "badge", style: "background:var(--ic)" }, st), h("span", { class: "sp" }), h("span", { class: "mu" }, fmt(c.created_at))),
       h("div", { class: "row", style: "margin-top:6px" }, h("span", {}, "العميل: " + c.client_name), h("a", { href: wa, target: "_blank", style: "color:var(--gold);font-weight:800" }, c.client_phone || ""), h("span", { class: "sp" }), h("span", {}, "الطبيب: " + c.provider_name)),
-      h("div", { class: "mu" }, `${c.channel === "chat" ? "شات" : c.channel} · ${c.duration_min} د · ${c.price} ج.م · ${c.pay_method === "wallet" ? "محفظة" : "إنستاباي"} · ${c.period === "asap" ? PERIODS.asap : c.period_date + " " + PERIODS[c.period]}`),
+      h("div", { class: "mu" }, `${{ chat: "شات", voice: "صوت", video: "فيديو" }[c.channel]} · ${c.duration_min} د · ${c.price} ج.م · ${c.pay_method === "wallet" ? "محفظة" : "إنستاباي"} · ${c.period === "asap" ? PERIODS.asap : c.period_date + " " + PERIODS[c.period]}`),
       c.appt_at ? h("div", { class: "mu" }, "الموعد المعتمد: " + fmt(c.appt_at)) : c.prop_at ? h("div", { class: "mu" }, "موعد مقترح: " + fmt(c.prop_at)) : null,
       c.pay_status === "pending" && c.pay_deadline ? h("div", { class: "mu" }, "مهلة الدفع: " + fmt(c.pay_deadline)) : null,
       c.cancel_reason ? h("div", { class: "mu", style: "color:var(--bad)" }, "سبب الإلغاء: " + c.cancel_reason) : null,

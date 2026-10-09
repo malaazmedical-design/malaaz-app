@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
-import { dateTimeLabel, dayLabel, PERIOD_LABEL, STAGE_META, stageOf } from "@/lib/consult";
+import { CHANNEL_LABEL, dateTimeLabel, dayLabel, PERIOD_LABEL, STAGE_META, stageOf } from "@/lib/consult";
 import { supabase, DbConsultation } from "@/lib/supabase";
 
 // قائمة استشارات العميل (جوه "حجوزاتي")
@@ -71,7 +71,7 @@ export function ClientConsultList() {
                 <Text style={{ color: m.color, fontFamily: TJ.bold, fontSize: 12.5 }}>{m.client}</Text>
               </View>
             </View>
-            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 6 }}>استشارة أونلاين · شات · {c.price} ج.م</Text>
+            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 6 }}>استشارة أونلاين · {CHANNEL_LABEL[c.channel]} · {c.price} ج.م</Text>
             <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>
               {c.appt_at ? dateTimeLabel(c.appt_at) : c.period === "asap" ? PERIOD_LABEL.asap : `${dayLabel(c.period_date)} · ${PERIOD_LABEL[c.period]}`}
             </Text>

@@ -47,6 +47,7 @@ export default function ProviderScreen() {
   const reviews = (id && providerReviews[id]) || [];
   // الاستشارة الأونلاين (لو الطبيب مفعّلها): سعر + مدة
   const [online, setOnline] = useState<{ price: number; dur: number } | null>(null);
+  const [extraChans, setExtraChans] = useState<string[]>([]);
   useEffect(() => {
     if (!id) return;
     (async () => {
@@ -55,6 +56,8 @@ export default function ProviderScreen() {
       if (!ids.length) return;
       const { data } = await supabase.from("provider_services").select("custom_price,duration_min").eq("provider_id", id).in("sub_service_id", ids).eq("is_active", true).limit(1);
       if (data?.[0]?.custom_price) setOnline({ price: Number(data[0].custom_price), dur: data[0].duration_min ?? 15 });
+      const { data: pcs } = await supabase.from("provider_channels").select("channel").eq("provider_id", id).eq("is_active", true);
+      setExtraChans((pcs ?? []).map((r: any) => r.channel));
     })();
   }, [id]);
 
@@ -276,7 +279,7 @@ export default function ProviderScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>استشارة أونلاين</Text>
-                <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>شات · {online.dur} دقيقة · للمتابعة</Text>
+                <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{["شات", ...(extraChans.includes("voice") ? ["صوت"] : []), ...(extraChans.includes("video") ? ["فيديو"] : [])].join(" · ")} · للمتابعة</Text>
               </View>
               <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>{online.price} ج.م</Text>
               <MaterialCommunityIcons name="chevron-left" size={20} color={t.muted} />

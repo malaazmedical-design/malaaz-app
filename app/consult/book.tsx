@@ -32,6 +32,8 @@ export default function BookConsultation() {
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const rtc = useRtcStatus();
+  const [channel, setChannel] = useState<"chat" | "voice" | "video">("chat");
+  const [chans, setChans] = useState<Record<string, { price: number; dur: number }>>({});
 
   useEffect(() => {
     (async () => {
@@ -44,6 +46,8 @@ export default function BookConsultation() {
         const { data: ps } = await supabase.from("provider_services").select("custom_price,duration_min").eq("provider_id", providerId).in("sub_service_id", ids).eq("is_active", true).limit(1);
         if (ps?.[0]) { setPrice(ps[0].custom_price); setDur(ps[0].duration_min ?? 15); }
       }
+      const { data: pcs } = await supabase.from("provider_channels").select("channel,price,duration_min").eq("provider_id", providerId).eq("is_active", true);
+      setChans(Object.fromEntries((pcs ?? []).map((r: any) => [r.channel, { price: Number(r.price), dur: r.duration_min ?? 15 }])));
       setLoading(false);
     })();
   }, [providerId]);
@@ -56,13 +60,14 @@ export default function BookConsultation() {
   };
   useEffect(() => { if (!periodOk(period)) setPeriod(["asap", "morning", "noon", "evening"].find(periodOk) ?? "morning"); /* eslint-disable-next-line */ }, [dayIdx]);
 
+  const sel = channel === "chat" ? (price != null ? { price, dur } : null) : chans[channel] ?? null;
   const docName = prov ? (prov.name.startsWith("د") ? prov.name : `د. ${prov.name}`) : "";
 
   const confirm = async () => {
     if (!client) { setConsent(false); router.push("/client-auth"); return; }
     setBusy(true);
     const { data, error } = await supabase.rpc("book_consultation", {
-      p_provider: providerId, p_channel: "chat", p_date: ymd(days[dayIdx]), p_period: period, p_pay_method: pay,
+      p_provider: providerId, p_channel: channel, p_date: ymd(days[dayIdx]), p_period: period, p_pay_method: pay,
     });
     setBusy(false);
     setConsent(false);
@@ -100,17 +105,26 @@ export default function BookConsultation() {
 
         {section("طريقة الاستشارة")}
         <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-          {([["chat", "شات", "chat-outline", true], ["voice", "صوت", "phone-outline", false], ["video", "فيديو", "video-outline", false]] as const).map(([k, name, icon, on]) => (
-            <View key={k} style={{ flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: 16, borderWidth: 1.5, borderColor: on ? t.gold : t.border, backgroundColor: on ? t.goldTint : t.card, opacity: on ? 1 : 0.45 }}>
-              <MaterialCommunityIcons name={icon} size={24} color={on ? t.goldText : t.muted} />
-              <Text style={{ color: on ? t.text : t.muted, fontFamily: TJ.heavy, fontSize: 14, marginTop: 4 }}>{name}</Text>
-              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5, marginTop: 2, textAlign: "center" }}>
-                {on ? `${price ?? "—"} ج.م · ${dur} د` : rtc.enabled && !rtc.available ? "متوقف مؤقتًا" : "قريبًا"}
-              </Text>
-            </View>
-          ))}
+          {([["chat", "شات", "chat-outline"], ["voice", "صوت", "phone-outline"], ["video", "فيديو", "video-outline"]] as const).map(([k, name, icon]) => {
+            const info = k === "chat" ? (price != null ? { price, dur } : null) : chans[k] ?? null;
+            const live = k === "chat" ? true : rtc.enabled && rtc.available;
+            const usable = !!info && live;
+            const on = channel === k && usable;
+            return (
+              <Pressable key={k} disabled={!usable} onPress={() => setChannel(k)}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: 16, borderWidth: 1.5, borderColor: on ? t.gold : t.border, backgroundColor: on ? t.goldTint : t.card, opacity: usable ? 1 : 0.45 }}>
+                <MaterialCommunityIcons name={icon} size={24} color={on ? t.goldText : t.muted} />
+                <Text style={{ color: on ? t.text : t.muted, fontFamily: TJ.heavy, fontSize: 14, marginTop: 4 }}>{name}</Text>
+                <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5, marginTop: 2, textAlign: "center" }}>
+                  {usable ? `${info!.price} ج.م · ${info!.dur} د`
+                    : k !== "chat" && !rtc.enabled ? "قريبًا"
+                    : k !== "chat" && !rtc.available ? "متوقف مؤقتًا"
+                    : "غير متاح"}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
-
         {rtc.enabled && !rtc.available ? (
           <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 8, lineHeight: 20 }}>
             الصوت والفيديو متوقفان مؤقتًا. الشات متاح ويمكنك الحجز به الآن.
@@ -160,9 +174,9 @@ export default function BookConsultation() {
       </ScrollView>
 
       <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: insets.bottom + 16, backgroundColor: t.bg, borderTopWidth: 1, borderTopColor: t.border }}>
-        <Pressable onPress={() => setConsent(true)} disabled={price == null}
-          style={({ pressed }) => ({ height: 54, borderRadius: 18, backgroundColor: price == null ? t.btn : t.gold, alignItems: "center", justifyContent: "center", transform: [{ scale: pressed ? 0.98 : 1 }] })}>
-          <Text style={{ color: price == null ? t.muted : t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>احجز مع {docName} الآن{price != null ? ` · ${price} ج.م` : ""}</Text>
+        <Pressable onPress={() => setConsent(true)} disabled={!sel}
+          style={({ pressed }) => ({ height: 54, borderRadius: 18, backgroundColor: !sel ? t.btn : t.gold, alignItems: "center", justifyContent: "center", transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+          <Text style={{ color: !sel ? t.muted : t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>احجز مع {docName} الآن{sel ? ` · ${sel.price} ج.م` : ""}</Text>
         </Pressable>
       </View>
 
