@@ -126,6 +126,7 @@ function RootLayoutNav() {
         name="ask-doctor"
         options={{ headerShown: false }}
       />
+      <Stack.Screen name="consult" options={{ headerShown: false }} />
     </Stack>
   );
 }

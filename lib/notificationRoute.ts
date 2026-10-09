@@ -22,6 +22,12 @@ export function routeForNotification(data: Record<string, unknown> | undefined |
     return;
   }
 
+  const consultId = typeof d.consultation_id === "string" ? d.consultation_id : undefined;
+  if (d.kind === "consult" && consultId) {
+    router.push(d.role === "provider" ? (`/provider-portal/consult/${consultId}` as any) : (`/consult/${consultId}` as any));
+    return;
+  }
+
   // provider side: a new offer (quick request) or a direct booking
   if (d.kind === "new_booking" || d.type === "OFFER_INSERT") {
     if (d.direct === true && bookingId) {

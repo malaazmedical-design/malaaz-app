@@ -97,7 +97,7 @@ type ProviderContextValue = {
   setOnWay: (id: string) => Promise<void>;
   saveProfile: (input: ProviderProfileInput) => Promise<void>;
   saveMyServices: (
-    rows: { sub_service_id: string; custom_price: number | null }[]
+    rows: { sub_service_id: string; custom_price: number | null; duration_min?: number }[]
   ) => Promise<void>;
 };
 
@@ -683,7 +683,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
 
   // ─── حفظ الخدمات والأسعار (حذف ثم إدراج زي الموقع) ──────────────────────
   const saveMyServices = async (
-    rows: { sub_service_id: string; custom_price: number | null }[]
+    rows: { sub_service_id: string; custom_price: number | null; duration_min?: number }[]
   ) => {
     if (!provider) return;
     const svcType = provider.service_type || "كشف منزلي";
@@ -703,6 +703,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
           provider_id: provider.id,
           sub_service_id: r.sub_service_id,
           custom_price: r.custom_price,
+          ...(r.duration_min ? { duration_min: r.duration_min } : {}),
           is_active: true,
         }))
       );

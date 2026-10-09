@@ -11,6 +11,7 @@ export default function ProviderPortalLayout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="(ptabs)" />
         <Stack.Screen name="edit-account" />
+        <Stack.Screen name="consult/[id]" />
       </Stack>
       <IncomingOfferModal />
     </ProviderProvider>

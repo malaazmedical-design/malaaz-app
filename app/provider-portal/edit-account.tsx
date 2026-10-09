@@ -53,6 +53,7 @@ export default function ProviderProfileScreen() {
   const [visitPrice, setVisitPrice] = useState<number | null>(null);
   const [onlineOn, setOnlineOn] = useState(false);
   const [onlinePrice, setOnlinePrice] = useState<number | null>(null);
+  const [onlineDur, setOnlineDur] = useState(15);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -110,6 +111,7 @@ export default function ProviderProfileScreen() {
     const on = onlineRow ? myServices.find((m) => m.sub_service_id === onlineRow.id) : undefined;
     setOnlineOn(!!on);
     setOnlinePrice(on?.custom_price ?? null);
+    setOnlineDur(on?.duration_min ?? 15);
   }, [specialtyRow, onlineRow, myServices]);
 
   // تجميع المناطق حسب المحافظة مع دعم البحث
@@ -214,8 +216,8 @@ export default function ProviderProfileScreen() {
       });
       if (isDoctor && specialtyRow) {
         // الدكتور: خدمة واحدة بس = التخصص المختار (+ الاستشارة الأونلاين لو مفعّلة)
-        const rows = [{ sub_service_id: specialtyRow.id, custom_price: clampTo(visitPrice, visitRange) }];
-        if (onlineRow && onlineOn) rows.push({ sub_service_id: onlineRow.id, custom_price: clampTo(onlinePrice, onlineRange) });
+        const rows: { sub_service_id: string; custom_price: number; duration_min?: number }[] = [{ sub_service_id: specialtyRow.id, custom_price: clampTo(visitPrice, visitRange) }];
+        if (onlineRow && onlineOn) rows.push({ sub_service_id: onlineRow.id, custom_price: clampTo(onlinePrice, onlineRange), duration_min: onlineDur });
         await saveMyServices(rows);
       }
       burst.show("تم حفظ الحساب");
@@ -389,6 +391,15 @@ export default function ProviderProfileScreen() {
                       <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{onlineRange.min}</PText>
                       <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن لـ {grade}</PText>
                       <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{onlineRange.max}</PText>
+                    </View>
+                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 14 }}>مدة الاستشارة بالشات</PText>
+                    <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
+                      {[10, 15, 20, 30].map((m) => (
+                        <Pressable key={m} onPress={() => setOnlineDur(m)}
+                          style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 14, backgroundColor: onlineDur === m ? t.goldTint : t.ic, borderWidth: 1.5, borderColor: onlineDur === m ? t.gold : "transparent" }}>
+                          <PText style={{ color: onlineDur === m ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 14 }}>{m} د</PText>
+                        </Pressable>
+                      ))}
                     </View>
                   </>
                 ) : null}

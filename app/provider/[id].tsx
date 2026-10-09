@@ -4,7 +4,7 @@ import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert, Platform, Pressable, ScrollView, Text, View,
 } from "react-native";
@@ -16,6 +16,7 @@ import { serviceIcon } from "@/constants/icons";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { callCompany, whatsappCompany } from "@/lib/contact";
 import { useApp } from "@/contexts/AppContext";
+import { supabase } from "@/lib/supabase";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const REVIEWS_PREVIEW = 3;
@@ -44,6 +45,18 @@ export default function ProviderScreen() {
   const { providers, profile, client, createBooking, providerReviews, coverageAreas } = useApp();
   const provider = providers.find((p) => p.id === id);
   const reviews = (id && providerReviews[id]) || [];
+  // الاستشارة الأونلاين (لو الطبيب مفعّلها): سعر + مدة
+  const [online, setOnline] = useState<{ price: number; dur: number } | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const { data: subs } = await supabase.from("sub_services").select("id").eq("group_name", "online");
+      const ids = (subs ?? []).map((x: any) => x.id);
+      if (!ids.length) return;
+      const { data } = await supabase.from("provider_services").select("custom_price,duration_min").eq("provider_id", id).in("sub_service_id", ids).eq("is_active", true).limit(1);
+      if (data?.[0]?.custom_price) setOnline({ price: Number(data[0].custom_price), dur: data[0].duration_min ?? 15 });
+    })();
+  }, [id]);
 
   const [selectedService, setSelectedService] = useState<ProviderService | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
@@ -250,6 +263,24 @@ export default function ProviderScreen() {
               <GoldButton label="اختار مقدم آخر" icon="account-search" onPress={() => router.replace("/(tabs)")} />
               <GoldButton label="طلب خدمة سريعة" icon="lightning-bolt" outline onPress={() => router.replace("/quick-request")} />
             </View>
+          ) : null}
+
+          {/* ─── استشارة أونلاين ─── */}
+          {online ? (
+            <Pressable
+              onPress={() => (provider.available ? router.push(`/consult/book?provider=${provider.id}`) : null)}
+              style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: t.card, borderWidth: 1.5, borderColor: t.gold, borderRadius: 20, padding: 14, opacity: provider.available ? 1 : 0.5, transform: [{ scale: pressed ? 0.98 : 1 }] })}
+            >
+              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
+                <MaterialCommunityIcons name="chat-processing-outline" size={25} color={t.gold} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>استشارة أونلاين</Text>
+                <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>شات · {online.dur} دقيقة · للمتابعة</Text>
+              </View>
+              <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>{online.price} ج.م</Text>
+              <MaterialCommunityIcons name="chevron-left" size={20} color={t.muted} />
+            </Pressable>
           ) : null}
 
           {/* ─── اختيار الخدمة ─── */}

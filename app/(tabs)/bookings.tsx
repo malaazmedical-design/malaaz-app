@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert, Modal, Platform, Pressable, ScrollView, Text, View, ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ClientConsultList } from "@/components/consult/ClientConsultList";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { Card, EmptyState, Pill, PrimaryButton } from "@/components/ui";
 import { PAYMENT_METHOD_LABELS } from "@/constants/data";
@@ -27,6 +28,8 @@ export default function BookingsScreen() {
   const { isTablet, colWidth } = useResponsive();
   const { bookings, loadingBookings, cancelBooking, refreshBookings, profile } = useApp();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+  const { seg: segParam } = useLocalSearchParams<{ seg?: string }>();
+  const [seg, setSeg] = useState<"bookings" | "consults">(segParam === "consults" ? "consults" : "bookings");
 
   const handleCancel = (booking: Booking) => {
     const doCancel = async () => {
@@ -58,9 +61,18 @@ export default function BookingsScreen() {
             <MaterialCommunityIcons name="refresh" size={20} color="#C9A84C" />
           </Pressable>
         </View>
+        <View style={{ flexDirection: "row-reverse", marginTop: 14, padding: 4, borderRadius: 16, backgroundColor: "#FFFFFF12" }}>
+          {([["bookings", "الحجوزات"], ["consults", "الاستشارات"]] as const).map(([k, name]) => (
+            <Pressable key={k} onPress={() => setSeg(k)} style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: seg === k ? "#C9A84C" : "transparent" }}>
+              <Text style={{ color: seg === k ? "#10201f" : "#FFFFFFAA", fontFamily: "Cairo_700Bold", fontSize: 14 }}>{name}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
-      {!profile.phone ? (
+      {seg === "consults" ? (
+        <ClientConsultList />
+      ) : !profile.phone ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
           <MaterialCommunityIcons name="account-outline" size={56} color={colors.mutedForeground} />
           <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 18, textAlign: "center", marginTop: 16 }}>

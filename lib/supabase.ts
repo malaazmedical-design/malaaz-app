@@ -188,6 +188,7 @@ export type DbProviderService = {
   provider_id: string;
   sub_service_id: string;
   custom_price: number | null;
+  duration_min?: number | null;
   is_active: boolean;
 };
 
@@ -299,4 +300,51 @@ export type DbClient = {
   // test project only (see supabase/test-project/05_new_columns.sql)
   birth_date?: string | null;
   gender?: "male" | "female" | null;
+};
+
+// ─── استشارة أونلاين (شات) ───
+export type DbConsultation = {
+  id: string;
+  case_number: string | null;
+  client_id: string;
+  provider_id: string;
+  client_name: string | null;
+  channel: "chat" | "voice" | "video";
+  price: number;
+  duration_min: number;
+  period_date: string;
+  period: "morning" | "noon" | "evening" | "asap";
+  pay_method: "wallet" | "instapay" | null;
+  pay_status: "pending" | "paid" | "cancelled";
+  cancel_reason: string | null;
+  pay_deadline: string | null;
+  paid_at: string | null;
+  prop_at: string | null;
+  prop_status: "none" | "pending" | "ok" | "no" | "handled";
+  appt_at: string | null;
+  state: "wait" | "live" | "ended";
+  started_at: string | null;
+  ended_at: string | null;
+  extra_min: number;
+  client_in_at: string | null;
+  no_show: boolean;
+  refunded: boolean;
+  sum_note: string | null;
+  sum_recs: string | null;
+  sum_follow: "none" | "week" | "two" | "month";
+  sum_at: string | null;
+  rating: number | null;
+  rating_text: string | null;
+  rating_ok: boolean;
+  created_at: string;
+};
+
+export type DbConsultMessage = {
+  id: string;
+  consultation_id: string;
+  sender: "c" | "d";
+  body: string | null;
+  file_path: string | null;
+  file_name: string | null;
+  created_at: string;
 };

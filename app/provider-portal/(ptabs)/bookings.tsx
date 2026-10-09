@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ConsultationsPanel, useProviderConsultations } from "@/components/provider/ConsultationsPanel";
 import { CasesPanel, useDoctorCases } from "./cases";
 import { PText, SwipeButton, useCheckBurst } from "@/components/provider/PUI";
 import { PAYMENT_METHOD_LABELS } from "@/constants/data";
@@ -51,8 +52,9 @@ export default function ProviderBookingsScreen() {
   const { provider, bookings, loadingBookings, refreshAll, updateBookingStatus, setOnWay, sendVisitNote } = useProvider();
   const burst = useCheckBurst();
   const cs = useDoctorCases();
+  const cons = useProviderConsultations();
   const isDoctor = (provider?.service_type ?? "").includes("كشف");
-  const [section, setSection] = useState<"bookings" | "cases">("bookings");
+  const [section, setSection] = useState<"bookings" | "consults" | "cases">("bookings");
   // إشعار "سؤال جديد" بيفتح تبويب الاستشارات
   useEffect(() => { if (seg === "cases" && focusNonce) setSection("cases"); }, [seg, focusNonce]);
 
@@ -117,13 +119,13 @@ export default function ProviderBookingsScreen() {
         <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
           <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 24, textAlign: "right" }}>حجوزاتي</PText>
           <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 14, textAlign: "right", marginTop: 2 }}>
-            {section === "cases" ? "أسئلة المرضى (إسأل طبيب)" : "كل حجوزاتك وحالتها"}
+            {section === "cases" ? "أسئلة المرضى (إسأل طبيب)" : section === "consults" ? "الاستشارات الأونلاين" : "كل حجوزاتك وحالتها"}
           </PText>
         </View>
 
         {isDoctor ? (
           <View style={{ flexDirection: "row-reverse", marginHorizontal: 16, marginBottom: 12, padding: 4, borderRadius: 18, backgroundColor: t.card, borderWidth: 1, borderColor: t.border }}>
-            {([["bookings", "الحجوزات", 0], ["cases", "الاستشارات", cs.newCount]] as const).map(([k, name, n]) => {
+            {([["bookings", "الحجوزات", 0], ["consults", "الاستشارات", cons.actionCount], ["cases", "الأسئلة", cs.newCount]] as const).map(([k, name, n]) => {
               const on = section === k;
               return (
                 <Pressable key={k} onPress={() => setSection(k)}
@@ -140,7 +142,7 @@ export default function ProviderBookingsScreen() {
           </View>
         ) : null}
 
-        {section === "cases" && isDoctor ? <CasesPanel state={cs} /> : (<>
+        {section === "consults" && isDoctor ? <ConsultationsPanel state={cons} /> : section === "cases" && isDoctor ? <CasesPanel state={cs} /> : (<>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16 }}>
           {FILTERS.map((f) => {

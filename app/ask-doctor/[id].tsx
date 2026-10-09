@@ -156,11 +156,17 @@ export default function CaseDetailScreen() {
           <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 20, padding: 16, gap: 10 }}>
             <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>احجز مع {docName} الآن</Text>
             <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right" }}>كمّل مع نفس الطبيب اللي رد عليك</Text>
-            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: t.ic, opacity: 0.75 }}>
-              <MaterialCommunityIcons name="message-video" size={22} color={t.goldText} />
-              <Text style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 14.5, textAlign: "right" }}>استشارة أونلاين</Text>
-              <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 12.5 }}>{doc.online_price != null ? `من ${doc.online_price} ج.م · ` : ""}قريبًا</Text>
-            </View>
+            {doc.online_price != null ? (
+              <Pressable
+                onPress={() => router.push(`/consult/book?provider=${doc.provider_id}`)}
+                style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: t.goldTint, borderWidth: 1.5, borderColor: t.gold, transform: [{ scale: pressed ? 0.98 : 1 }] })}
+              >
+                <MaterialCommunityIcons name="chat-processing-outline" size={22} color={t.goldText} />
+                <Text style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 14.5, textAlign: "right" }}>استشارة أونلاين</Text>
+                <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14.5 }}>{doc.online_price} ج.م</Text>
+                <MaterialCommunityIcons name="chevron-left" size={20} color={t.muted} />
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={() => router.push(`/provider/${doc.provider_id}`)}
               style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, borderRadius: 16, backgroundColor: t.goldTint, borderWidth: 1.5, borderColor: t.gold, transform: [{ scale: pressed ? 0.98 : 1 }] })}
