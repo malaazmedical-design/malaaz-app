@@ -195,8 +195,31 @@ const ALERTS = {
 };
 const CANCEL_REASONS = ["العميل لم يحوّل", "انتهت مهلة الدفع", "الطبيب لم يحضر", "العميل لم يرد على الموعد", "بناءً على طلب العميل", "الطبيب غير متاح", "سبب آخر"];
 
+async function rtcGauge() {
+  const { data } = await sb.rpc("admin_rtc_usage");
+  const u = data && data[0];
+  if (!u) return null;
+  const pct = Number(u.pct), limit = Number(u.monthly_limit);
+  const color = pct >= u.stop_pct ? "var(--bad)" : pct >= u.alert_pct ? "#e0a100" : "var(--ok)";
+  const lim = h("input", { type: "number", value: limit, style: "width:100px", dir: "ltr" });
+  const save = async (k, v) => { const { data: r } = await sb.rpc("admin_set_setting", { p_key: k, p_value: String(v) }); if (r !== "ok") alert("تعذّر: " + r); renderShell(); };
+  return h("div", { class: "card" },
+    h("div", { class: "row" }, h("b", {}, "رصيد الصوت والفيديو (LiveKit) هذا الشهر"), h("span", { class: "sp" }),
+      h("span", { class: "badge", style: `background:${color}22;color:${color}` }, `${u.used} / ${limit} دقيقة (${pct}%)`)),
+    h("div", { style: "height:10px;border-radius:6px;background:var(--ic);margin:10px 0;overflow:hidden" }, h("div", { style: `height:100%;width:${Math.min(100, pct)}%;background:${color}` })),
+    pct >= u.stop_pct ? h("div", { style: "color:var(--bad);font-weight:800" }, "🔴 الصوت والفيديو مخفيان عن العملاء تلقائيًا. الشات شغال. رقّي الباقة أو استنى أول الشهر.")
+      : pct >= u.alert_pct ? h("div", { style: "color:#e0a100;font-weight:800" }, `⚠ وصلت ${pct}% من الرصيد. قريبًا هيتوقف الصوت والفيديو تلقائيًا عند ${u.stop_pct}%.`) : null,
+    h("div", { class: "row", style: "margin-top:8px" },
+      h("span", { class: "mu" }, "الحد الشهري (دقيقة مشارك):"), lim, h("button", { class: "btn ghost", onclick: () => save("rtc_monthly_limit_min", lim.value) }, "حفظ"),
+      h("span", { class: "sp" }),
+      h("button", { class: "btn " + (u.enabled ? "bad" : "ok"), onclick: () => save("rtc_enabled", !u.enabled) }, u.enabled ? "إيقاف الصوت والفيديو" : "تفعيل الصوت والفيديو")),
+    h("div", { class: "mu" }, "الدقيقة بتتحسب لكل مشارك (مكالمة 10 دقايق بين اتنين = 20 دقيقة)."));
+}
+
 async function renderConsults(root) {
   const filters = [["pay", "في انتظار الدفع"], ["paid", "تم الدفع"], ["alerts", "تنبيهات"], ["live", "جارية"], ["ended", "منتهية"], ["cancelled", "ملغية"], ["all", "الكل"]];
+  const gauge = await rtcGauge();
+  if (gauge) root.append(gauge);
   root.append(h("div", { class: "chips" }, filters.map(([k, n]) => h("button", { class: "chip" + (state.conFilter === k ? " on" : ""), onclick: () => { state.conFilter = k; renderShell(); } }, n))));
   const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
   root.append(list);

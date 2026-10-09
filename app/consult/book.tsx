@@ -8,6 +8,7 @@ import { ProviderAvatar } from "@/components/ProviderAvatar";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
 import { PAY_LABEL, PERIOD_LABEL } from "@/lib/consult";
+import { useRtcStatus } from "@/lib/useRtcStatus";
 import { supabase } from "@/lib/supabase";
 
 type Prov = { id: string; name: string; specialty: string | null; grade: string | null; photo_url: string | null };
@@ -30,6 +31,7 @@ export default function BookConsultation() {
   const [pay, setPay] = useState<"wallet" | "instapay">("wallet");
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const rtc = useRtcStatus();
 
   useEffect(() => {
     (async () => {
@@ -102,10 +104,18 @@ export default function BookConsultation() {
             <View key={k} style={{ flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: 16, borderWidth: 1.5, borderColor: on ? t.gold : t.border, backgroundColor: on ? t.goldTint : t.card, opacity: on ? 1 : 0.45 }}>
               <MaterialCommunityIcons name={icon} size={24} color={on ? t.goldText : t.muted} />
               <Text style={{ color: on ? t.text : t.muted, fontFamily: TJ.heavy, fontSize: 14, marginTop: 4 }}>{name}</Text>
-              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5, marginTop: 2 }}>{on ? `${price ?? "—"} ج.م · ${dur} د` : "قريبًا"}</Text>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5, marginTop: 2, textAlign: "center" }}>
+                {on ? `${price ?? "—"} ج.م · ${dur} د` : rtc.enabled && !rtc.available ? "متوقف مؤقتًا" : "قريبًا"}
+              </Text>
             </View>
           ))}
         </View>
+
+        {rtc.enabled && !rtc.available ? (
+          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 8, lineHeight: 20 }}>
+            الصوت والفيديو متوقفان مؤقتًا. الشات متاح ويمكنك الحجز به الآن.
+          </Text>
+        ) : null}
 
         {section("اليوم")}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, flexDirection: "row-reverse" }}>
