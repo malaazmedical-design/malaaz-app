@@ -1095,6 +1095,10 @@ export const EN: Record<string, string> = {
   "لم يرد طبيب خلال 48 ساعة — تقدر تسأل من جديد": "No doctor replied within 48 hours — you can ask again",
   "اسأل من جديد": "Ask again",
   "هنا أسئلة المرضى لتخصصك. أول طبيب يضغط «اقبل وجاوب» هو اللي بيستلم السؤال.": "Patient questions for your specialty appear here. The first doctor to tap “Accept & answer” takes the question.",
+  "ابحث باسم الطبيب أو التخصص": "Search by doctor name or specialty",
+  "كل القنوات": "All channels",
+  "لا يوجد أطباء مطابقين الآن": "No matching doctors right now",
+  "اسأل سؤالك الآن": "Ask your question now",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",
