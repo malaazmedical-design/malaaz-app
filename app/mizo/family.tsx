@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  View, Text, StyleSheet, SafeAreaView, Pressable,
-  ScrollView, TextInput, Alert, Switch, Modal, ActivityIndicator,
-} from "react-native";
+import { View, StyleSheet, SafeAreaView, Pressable, ScrollView, Alert, Switch, Modal, ActivityIndicator } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {

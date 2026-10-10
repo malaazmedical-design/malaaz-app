@@ -4,7 +4,8 @@ import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
+import { Text } from "@/components/i18n";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,6 +14,7 @@ import { FamilySection } from "@/components/client/AccountSections";
 import { TJ, setThemeOverride, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
 import { whatsappCompany } from "@/lib/contact";
+import { setLang, useLang } from "@/lib/i18n";
 
 // يفتح صفحة التطبيق في المتجر (الحزمة الحالية حسب نسخة التطبيق)
 const rateApp = () => {
@@ -27,6 +29,7 @@ export default function AccountScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
   const { profile, client, needsPhone, clientLogout, addresses } = useApp();
+  const lang = useLang();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const [medCount, setMedCount] = useState(0);
 
@@ -54,7 +57,17 @@ export default function AccountScreen() {
         title="الوضع الداكن"
         toggle={{ on: t.isDark, onChange: (v) => setThemeOverride(v ? "dark" : "light") }}
       />
-      <Row icon="translate" title="اللغة" value="العربية" last />
+      <Row
+        icon="translate"
+        title="اللغة"
+        value={lang === "en" ? "English" : "العربية"}
+        onPress={() => Alert.alert("اللغة", "اختر لغة التطبيق", [
+          { text: "العربية", onPress: () => setLang("ar") },
+          { text: "English", onPress: () => setLang("en") },
+          { text: "إلغاء", style: "cancel" },
+        ])}
+        last
+      />
     </Group>
   );
 

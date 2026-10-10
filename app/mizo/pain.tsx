@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  View, Text, StyleSheet, SafeAreaView, Pressable, ScrollView, Animated,
-} from "react-native";
+import { View, StyleSheet, SafeAreaView, Pressable, ScrollView, Animated } from "react-native";
+import { Text } from "@/components/i18n";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";

@@ -4,20 +4,8 @@ import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  BackHandler,
-  FlatList,
-  Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, BackHandler, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {

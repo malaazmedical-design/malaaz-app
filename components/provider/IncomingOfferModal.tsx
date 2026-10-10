@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Modal, Pressable, Text, View } from "react-native";
+import { Alert, Modal, Pressable, View } from "react-native";
+import { Text } from "@/components/i18n";
 
 import { useProvider } from "@/contexts/ProviderContext";
 import { useColors } from "@/hooks/useColors";

@@ -2,7 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Platform, Pressable, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CallPanel } from "@/components/consult/CallPanel";
@@ -10,6 +11,7 @@ import { TJ, useMalaz } from "@/constants/malazTheme";
 import { endAt, fmtClock } from "@/lib/consult";
 import { supabase, DbConsultation, DbConsultMessage } from "@/lib/supabase";
 
+import { locale } from "@/lib/i18n";
 type Local = DbConsultMessage & { local?: boolean; fail?: boolean; uri?: string };
 
 // غرفة الاستشارة بالشات: واحدة للعميل ('c') والطبيب ('d')
@@ -214,7 +216,7 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
                 ) : null}
                 {m.body ? <Text style={{ color: me ? t.onGold : t.text, fontFamily: TJ.medium, fontSize: 15, lineHeight: 23, textAlign: "right" }}>{m.body}</Text> : null}
                 <Text style={{ color: me ? t.onGoldSub : t.muted, fontFamily: TJ.medium, fontSize: 10.5, marginTop: 3 }}>
-                  {m.fail ? "تعذر الإرسال · اضغط لإعادة المحاولة" : new Date(m.created_at).toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}
+                  {m.fail ? "تعذر الإرسال · اضغط لإعادة المحاولة" : new Date(m.created_at).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" })}
                 </Text>
               </Pressable>
             </View>

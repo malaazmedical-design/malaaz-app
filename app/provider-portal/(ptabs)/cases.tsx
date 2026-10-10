@@ -2,7 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Redirect } from "expo-router";
 import { Image } from "expo-image";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from "react-native";
+import { TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SkeletonCards } from "@/components/Skeleton";
@@ -11,6 +12,7 @@ import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { supabase, AskInboxRow, DbAskDoctorAttachment } from "@/lib/supabase";
 
+import { locale } from "@/lib/i18n";
 // أسئلة المرضى اتنقلت جوه تبويب الحجوزات — الراوت ده بيحوّل ليه
 export default function DoctorCasesRedirect() {
   return <Redirect href="/provider-portal/(ptabs)/bookings" />;
@@ -152,7 +154,7 @@ export function CasesPanel({ state }: { state: ReturnType<typeof useDoctorCases>
       </View>
 
       {shown.map((r) => {
-        const date = new Date(r.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
+        const date = new Date(r.created_at).toLocaleDateString(locale(), { day: "numeric", month: "short" });
         return (
           <Pressable key={r.id} onPress={() => setSelected(r)}
             style={({ pressed }) => ({ backgroundColor: t.card, borderRadius: 22, padding: 14, borderWidth: 1, borderColor: r.urgency_flag ? "rgba(229,72,77,.5)" : t.border, transform: [{ scale: pressed ? 0.985 : 1 }] })}>

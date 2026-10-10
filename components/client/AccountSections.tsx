@@ -2,9 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import {
-  ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View,
-} from "react-native";
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";

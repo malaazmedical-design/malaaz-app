@@ -2,7 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
+import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SkeletonCards } from "@/components/Skeleton";

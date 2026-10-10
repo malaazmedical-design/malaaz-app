@@ -3,7 +3,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Toggle } from "@/components/account/AccountUI";

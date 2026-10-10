@@ -2,7 +2,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { Text } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ProviderAvatar } from "@/components/ProviderAvatar";
@@ -11,6 +12,7 @@ import { askStatus } from "@/lib/askStatus";
 import { supabase, AskCaseDoctor, DbAskDoctorAttachment, DbAskDoctorCase } from "@/lib/supabase";
 
 
+import { locale } from "@/lib/i18n";
 function Step({ done, label, sub, last, color, t }: { done: boolean; label: string; sub?: string; last?: boolean; color: string; t: ReturnType<typeof useMalaz> }) {
   return (
     <View style={{ flexDirection: "row-reverse", gap: 12 }}>
@@ -79,7 +81,7 @@ export default function CaseDetailScreen() {
   const st = askStatus(c.status);
   const answered = c.status === "answered";
   const editable = c.status === "new" || c.status === "routed";
-  const fmt = (d: string) => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const fmt = (d: string) => new Date(d).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const docName = doc ? (doc.name.startsWith("د") ? doc.name : `د. ${doc.name}`) : "";
 
   return (

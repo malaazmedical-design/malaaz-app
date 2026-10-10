@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import React from "react";
-import { StyleProp, Text, View, ViewStyle } from "react-native";
+import { StyleProp, View, ViewStyle } from "react-native";
+import { Text } from "@/components/i18n";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import type { Provider } from "@/constants/data";

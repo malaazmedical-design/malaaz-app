@@ -1,9 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import {
-  View, Text, StyleSheet, ScrollView, Pressable, Image,
-  SafeAreaView, Animated, Platform, BackHandler,
-  Modal, TextInput, Alert, Vibration, useWindowDimensions,
-} from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, Image, SafeAreaView, Animated, Platform, BackHandler, Modal, Alert, Vibration, useWindowDimensions } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";

@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  View, Text, TextInput, StyleSheet, SafeAreaView,
-  Pressable, ScrollView, Alert, Switch,
-} from "react-native";
+import { View, StyleSheet, SafeAreaView, Pressable, ScrollView, Alert, Switch } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import * as Speech from "expo-speech";
 import { router, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

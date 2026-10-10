@@ -29,13 +29,15 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import { applyStoredTheme } from "@/constants/malazTheme";
+import { loadLang, patchAlert } from "@/lib/i18n";
 import { routeForNotification } from "@/lib/notificationRoute";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Updates from "expo-updates";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, AppState, Platform, Text, TouchableOpacity, View } from "react-native";
+import { Alert, AppState, Platform, TouchableOpacity, View } from "react-native";
+import { Text } from "@/components/i18n";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -139,7 +141,7 @@ export default function RootLayout() {
   });
   // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
-  useEffect(() => { applyStoredTheme(); }, []);
+  useEffect(() => { applyStoredTheme(); patchAlert(); loadLang(); }, []);
   const [updateReady, setUpdateReady] = useState(false);
   const updateReadyRef = useRef(false);
 

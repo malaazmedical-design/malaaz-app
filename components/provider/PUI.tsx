@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { Animated, FlatList, LayoutChangeEvent, Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, TextProps, View } from "react-native";
+import { Animated, FlatList, LayoutChangeEvent, Modal, PanResponder, Pressable, StyleSheet, TextProps, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { normalizeArabic } from "@/constants/data";

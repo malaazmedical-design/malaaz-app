@@ -3,10 +3,8 @@ import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
-import {
-  Alert, KeyboardAvoidingView, Modal, Platform, Pressable,
-  ScrollView, Text, TextInput, View, ActivityIndicator,
-} from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View, ActivityIndicator } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 

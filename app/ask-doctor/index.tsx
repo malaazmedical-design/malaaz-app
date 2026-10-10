@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, View } from "react-native";
+import { Text } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SkeletonCards } from "@/components/Skeleton";
@@ -10,6 +11,7 @@ import { useApp } from "@/contexts/AppContext";
 import { askStatus } from "@/lib/askStatus";
 import { supabase, DbAskDoctorCase } from "@/lib/supabase";
 
+import { locale } from "@/lib/i18n";
 export default function AskDoctorScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
@@ -79,7 +81,7 @@ export default function AskDoctorScreen() {
           }
           renderItem={({ item }) => {
             const st = askStatus(item.status);
-            const date = new Date(item.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
+            const date = new Date(item.created_at).toLocaleDateString(locale(), { day: "numeric", month: "short" });
             return (
               <Pressable
                 onPress={() => router.push(`/ask-doctor/${item.id}`)}

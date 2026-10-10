@@ -1,5 +1,6 @@
 import type { DbConsultation } from "@/lib/supabase";
 
+import { locale } from "@/lib/i18n";
 export const PERIOD_LABEL: Record<string, string> = {
   morning: "صباحًا (8 - 12)",
   noon: "ظهرًا (12 - 4)",
@@ -13,13 +14,13 @@ export const CHANNEL_LABEL: Record<string, string> = { chat: "شات", voice: "�
 
 export function dayLabel(date: string): string {
   const d = new Date(date + "T12:00:00");
-  return d.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+  return d.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
 }
 export function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" });
 }
 export function dateTimeLabel(iso: string): string {
-  return new Date(iso).toLocaleString("ar-EG", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleString(locale(), { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 }
 
 export function endAt(c: DbConsultation): number | null {

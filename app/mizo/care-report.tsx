@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
-import {
-  View, Text, TextInput, StyleSheet, SafeAreaView,
-  Pressable, ScrollView, Alert, ActivityIndicator,
-} from "react-native";
+import { View, StyleSheet, SafeAreaView, Pressable, ScrollView, Alert, ActivityIndicator } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";

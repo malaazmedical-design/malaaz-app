@@ -1,5 +1,6 @@
 import type { DbBooking } from "@/lib/supabase";
 
+import { locale } from "@/lib/i18n";
 export type Period = "morning" | "noon" | "evening" | "asap";
 
 export const PERIOD_LABEL: Record<Period, string> = {
@@ -35,7 +36,7 @@ export function dateLabelOf(text: string | null | undefined): string {
 export function isToday(text: string | null | undefined): boolean {
   const s = text ?? "";
   if (periodOf(s) === "asap") return true;
-  const today = new Date().toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+  const today = new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
   const d = dateLabelOf(s);
   return d === "اليوم" || s.includes(today);
 }

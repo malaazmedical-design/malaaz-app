@@ -3,18 +3,8 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  LayoutAnimation,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  UIManager,
-  View,
-} from "react-native";
+import { Alert, KeyboardAvoidingView, LayoutAnimation, Platform, Pressable, ScrollView, UIManager, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -28,6 +18,7 @@ import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { supabase } from "@/lib/supabase";
 
+import { locale } from "@/lib/i18n";
 const DARK = "#1C2B2A";
 const GOLD = "#C9A84C";
 
@@ -268,7 +259,7 @@ export default function ProviderProfileScreen() {
     }
     if (micOn) { setMicOn(false); return; }
     const rec = new SR();
-    rec.lang = "ar-EG";
+    rec.lang = locale();
     rec.onresult = (e: any) => setBio((prev) => (prev ? prev + " " : "") + e.results[0][0].transcript);
     rec.onend = () => setMicOn(false);
     rec.onerror = () => setMicOn(false);

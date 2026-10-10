@@ -5,9 +5,8 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, Text, View,
-} from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, View } from "react-native";
+import { Text } from "@/components/i18n";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -19,6 +18,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useRtcStatus } from "@/lib/useRtcStatus";
 import { supabase } from "@/lib/supabase";
 
+import { locale } from "@/lib/i18n";
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const REVIEWS_PREVIEW = 3;
 const REVIEWS_MAX = 5;
@@ -31,9 +31,9 @@ function getNextDays(count: number) {
     d.setDate(today.getDate() + i);
     days.push({
       // التاريخ بصيغة عربية مقروءة عشان يظهر كده في الحجز عند الأدمن والمقدم
-      key: d.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" }),
-      label: i === 0 ? "اليوم" : i === 1 ? "غداً" : d.toLocaleDateString("ar-EG", { weekday: "short" }),
-      sub: d.toLocaleDateString("ar-EG", { day: "numeric", month: "short" }),
+      key: d.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" }),
+      label: i === 0 ? "اليوم" : i === 1 ? "غداً" : d.toLocaleDateString(locale(), { weekday: "short" }),
+      sub: d.toLocaleDateString(locale(), { day: "numeric", month: "short" }),
     });
   }
   return days;

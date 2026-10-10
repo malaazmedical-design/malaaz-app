@@ -1,9 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import {
-  Alert, Modal, Platform, Pressable, ScrollView, Text, View, ActivityIndicator,
-} from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, View, ActivityIndicator } from "react-native";
+import { Text } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SkeletonCards } from "@/components/Skeleton";
@@ -16,6 +15,7 @@ import { Booking, useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { useResponsive } from "@/hooks/useResponsive";
 
+import { locale } from "@/lib/i18n";
 const STATUS_MAP: Record<string, { label: string; color: string; icon: string }> = {
   pending:   { label: "قيد المراجعة", color: "#F59E0B", icon: "clock-outline" },
   confirmed: { label: "مؤكد",         color: "#16A34A", icon: "check-circle" },
@@ -131,7 +131,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
 
   const date =
     booking.appointment_time ??
-    new Date(booking.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
+    new Date(booking.created_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <Card style={{ padding: 16 }}>
@@ -245,7 +245,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
                 {booking.providerName ? <DetailField label="مقدم الخدمة" value={booking.providerName} /> : null}
                 {booking.notes ? <DetailField label="ملاحظات" value={booking.notes} wide /> : null}
                 <DetailField label="رقم الحجز" value={`#${booking.id.slice(-6).toUpperCase()}`} />
-                <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })} />
+                <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" })} />
               </View>
 
               {/* استفسار واتساب برسالة جاهزة عن الحجز ده تحديداً */}

@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, View } from "react-native";
+import { Text } from "@/components/i18n";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { getLiveKit } from "@/lib/livekit";
