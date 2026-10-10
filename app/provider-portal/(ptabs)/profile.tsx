@@ -11,6 +11,7 @@ import { useProvider } from "@/contexts/ProviderContext";
 import { callCompany, whatsappCompany } from "@/lib/contact";
 import { initialOf } from "@/lib/providerFmt";
 import { FontSize, Lang, setProviderPref, useProviderPrefs } from "@/lib/providerPrefs";
+import { setLang, useLang } from "@/lib/i18n";
 
 const FS_OPTS: { k: FontSize; name: string }[] = [
   { k: "n", name: "عادي" },
@@ -29,6 +30,7 @@ export default function ProviderProfileScreen() {
   const insets = useSafeAreaInsets();
   const { provider, myServices, toggleAvailability, logout } = useProvider();
   const prefs = useProviderPrefs();
+  const lang = useLang();
   const [sheet, setSheet] = useState<null | "lang" | "support" | "logout">(null);
 
   if (!provider) return null;
@@ -74,7 +76,7 @@ export default function ProviderProfileScreen() {
             toggle={{ on: prefs.notifications, onChange: (v) => setProviderPref("notifications", v) }} />
           <Row icon="weather-night" title="الوضع الداكن" value={t.isDark ? "مفعّل" : "متوقف"}
             toggle={{ on: t.isDark, onChange: (v) => setThemeOverride(v ? "dark" : "light") }} />
-          <Row icon="translate" title="اللغة" value={prefs.lang === "ar" ? "العربية" : "English"} onPress={() => setSheet("lang")} />
+          <Row icon="translate" title="اللغة" value={lang === "ar" ? "العربية" : "English"} onPress={() => setSheet("lang")} />
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, minHeight: 60, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: t.border }}>
             <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
               <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 17 }}>أ</PText>
@@ -117,16 +119,15 @@ export default function ProviderProfileScreen() {
               <>
                 <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 18, textAlign: "right", marginBottom: 4 }}>اللغة</PText>
                 {([["ar", "العربية"], ["en", "English"]] as [Lang, string][]).map(([k, name]) => {
-                  const on = prefs.lang === k;
+                  const on = lang === k;
                   return (
-                    <Pressable key={k} onPress={() => { setProviderPref("lang", k); setSheet(null); }}
+                    <Pressable key={k} onPress={() => { setProviderPref("lang", k); setLang(k); setSheet(null); }}
                       style={{ flexDirection: "row-reverse", justifyContent: "space-between", padding: 15, borderRadius: 16, backgroundColor: on ? t.goldTint : t.ic, borderWidth: 1, borderColor: on ? t.gold : "transparent" }}>
                       <PText style={{ color: t.text, fontFamily: TJ.bold, fontSize: 15 }}>{name}</PText>
                       {on ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>✓</PText> : null}
                     </Pressable>
                   );
                 })}
-                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right" }}>الواجهة بالعربية حاليًا، والإنجليزية قريبًا.</PText>
               </>
             ) : null}
             {sheet === "support" ? (
