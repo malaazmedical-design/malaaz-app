@@ -127,7 +127,7 @@ export default function ProviderBookingsScreen() {
 
         {isDoctor ? (
           <View style={{ flexDirection: "row-reverse", marginHorizontal: 16, marginBottom: 12, padding: 4, borderRadius: 18, backgroundColor: t.card, borderWidth: 1, borderColor: t.border }}>
-            {([["bookings", "الحجوزات", 0], ["consults", "الاستشارات", cons.actionCount], ["cases", "الأسئلة", cs.newCount]] as const).map(([k, name, n]) => {
+            {([["bookings", "الحجوزات", bookings.filter((b) => b.status !== "completed" && b.status !== "cancelled").length], ["consults", "الاستشارات", cons.activeCount], ["cases", "الأسئلة", cs.newCount]] as const).map(([k, name, n]) => {
               const on = section === k;
               return (
                 <Pressable key={k} onPress={() => setSection(k)}

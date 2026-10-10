@@ -1104,6 +1104,8 @@ export const EN: Record<string, string> = {
   "غير مفعّلة": "Not enabled",
   "تم حفظ الخدمة": "Service saved",
   "الشات هو الأساس في الاستشارة الأونلاين ولا يمكن إيقافه": "Chat is the base of the online consultation and can't be turned off",
+  "لا توجد أسئلة متاحة الآن.\nتأكد إن الاستشارة الأونلاين مفعّلة في تعديل الحساب عشان تستلم أسئلة تخصصك.": "No questions available right now.\nMake sure online consultation is enabled in Edit account so you receive questions for your specialty.",
+  "زيارة منزلية": "Home visit",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",
@@ -1251,6 +1253,8 @@ export const EN: Record<string, string> = {
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
 // Texts with a dynamic part: the dynamic part is kept (or translated again when it is a known text).
 export const EN_PATTERNS: [RegExp, Fn][] = [
+  [/^(\d+) محدد$/, (m) => `${m[1]} selected`],
+  [/^عرض (\d+) نتيجة$/, (m) => `Show ${m[1]} results`],
   [/^(\d+) قنوات مفعّلة$/, (m) => `${m[1]} channels enabled`],
   [/^(\d+) دقيقة · (\d+) ج\.م$/, (m) => `${m[1]} min · ${m[2]} EGP`],
   [/^30 دقيقة · (\d+) ج\.م$/, (m) => `30 min · ${m[1]} EGP`],

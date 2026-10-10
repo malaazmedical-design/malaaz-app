@@ -609,9 +609,8 @@ export default function HomeScreen() {
                 <MaterialCommunityIcons name="arrow-right" size={22} color={t.text} />
               </Pressable>
               <Text style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 24, textAlign: "right" }}>مقدمو الخدمة</Text>
-              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>{filtered.length} نتيجة</Text>
             </View>
-            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 16, paddingHorizontal: 14, height: 46, marginTop: 14 }}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 16, paddingHorizontal: 14, height: 50, marginTop: 14 }}>
               <MaterialCommunityIcons name="magnify" size={20} color={t.muted} />
               <TextInput
                 value={search}
@@ -621,25 +620,20 @@ export default function HomeScreen() {
                 style={{ flex: 1, fontFamily: TJ.medium, fontSize: 14, color: t.text, textAlign: "right" }}
               />
             </View>
-            <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 10 }}>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, marginTop: 10 }}>
               <Pressable
                 onPress={openFilters}
-                style={{ flex: 1, height: 44, borderRadius: 14, backgroundColor: t.btn, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }}
+                style={{ flex: 1, height: 48, borderRadius: 16, backgroundColor: t.goldTint, borderWidth: 1, borderColor: t.goldRing, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }}
               >
-                <MaterialCommunityIcons name="tune-variant" size={18} color={t.gold} />
-                <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 15 }}>
-                  التصفية{activeCount > 0 ? ` (${activeCount})` : ""}
-                </Text>
+                <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>التصفية</Text>
+                {activeCount + specialtyCount > 0 ? (
+                  <View style={{ minWidth: 20, height: 20, borderRadius: 10, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 }}>
+                    <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 12 }}>{activeCount + specialtyCount}</Text>
+                  </View>
+                ) : null}
+                <MaterialCommunityIcons name="chevron-down" size={22} color={t.goldText} />
               </Pressable>
-              <Pressable
-                onPress={openSpecialty}
-                style={{ flex: 1, height: 44, borderRadius: 14, backgroundColor: specialtyCount > 0 ? t.goldTint : t.btn, borderWidth: specialtyCount > 0 ? 1 : 0, borderColor: t.gold, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 }}
-              >
-                <MaterialCommunityIcons name="stethoscope" size={18} color={t.gold} />
-                <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 15 }}>
-                  التخصص{specialtyCount > 0 ? ` (${specialtyCount})` : ""}
-                </Text>
-              </Pressable>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>{filtered.length} نتيجة</Text>
             </View>
             {appliedChips.length > 0 ? (
               <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 10 }}>
@@ -704,6 +698,8 @@ export default function HomeScreen() {
         onApply={() => { setFilters(pendingFilters); setShowFilterPanel(false); }}
         onClose={() => setShowFilterPanel(false)}
         onReset={() => setPendingFilters(DEFAULT_FILTERS)}
+        specialtyCount={specialtyCount}
+        onOpenSpecialty={() => { setShowFilterPanel(false); openSpecialty(); }}
       />
     </View>
   );
@@ -796,30 +792,52 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress, online 
   const { coverageAreas } = useApp();
   const govName = [...providerCities(provider.areas.length ? provider.areas : [provider.city], coverageAreas)][0] ?? provider.city;
   const t = useMalaz();
+  const visit = minPriceOf(provider);
+  const onl = lowestOnline(online);
+  const prices = [visit > 0 ? visit : null, onl].filter((x): x is number => x != null);
+  const from = prices.length ? Math.min(...prices) : null;
+  const chips: { label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"] }[] = [];
+  if (visit > 0) chips.push({ label: provider.serviceType === "doctor" ? "كشف منزلي" : "زيارة منزلية", icon: "home-outline" });
+  if (online?.chat != null) chips.push({ label: "شات", icon: "email-outline" });
+  if (online?.voice != null) chips.push({ label: "صوت", icon: "phone-outline" });
+  if (online?.video != null) chips.push({ label: "فيديو", icon: "video-outline" });
   return (
     <Pressable
       onPress={() => onPress(provider.id)}
-      style={({ pressed }) => ({
-        flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, borderRadius: 20,
-        backgroundColor: t.card, borderWidth: 1, borderColor: t.border, transform: [{ scale: pressed ? 0.98 : 1 }],
-      })}
+      style={({ pressed }) => ({ padding: 14, borderRadius: 22, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, transform: [{ scale: pressed ? 0.985 : 1 }] })}
     >
-      <View>
-        <ProviderAvatar provider={provider} style={{ width: 64, height: 64, borderRadius: 14 }} letterSize={28} />
-        <View style={{ position: "absolute", bottom: -3, left: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: provider.available ? t.online : t.offline, borderWidth: 2, borderColor: t.card }} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{provider.name}</Text>
-        <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "right", marginTop: 2 }}>
-          {provider.title} · {govName}
-        </Text>
-        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 }}>
-          <MaterialCommunityIcons name="star" size={13} color={t.gold} />
-          <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
-          {provider.reviewsCount > 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text> : null}
+      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+        <View>
+          <ProviderAvatar provider={provider} style={{ width: 64, height: 64, borderRadius: 14 }} letterSize={28} />
+          <View style={{ position: "absolute", bottom: -3, left: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: provider.available ? t.online : t.offline, borderWidth: 2, borderColor: t.card }} />
         </View>
-        <ServiceLines provider={provider} online={online} />
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>{provider.name}</Text>
+          <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 2 }}>{provider.title} · {govName}</Text>
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 4 }}>
+            <MaterialCommunityIcons name="star" size={14} color={t.gold} />
+            <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13 }}>{provider.rating.toFixed(1)}</Text>
+            {provider.reviewsCount > 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>({provider.reviewsCount})</Text> : null}
+            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>· {provider.yearsExperience} سنة خبرة</Text>
+          </View>
+        </View>
+        {from != null ? (
+          <View style={{ alignItems: "flex-start" }}>
+            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5 }}>ابتداء من</Text>
+            <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 19 }}>{from} ج.م</Text>
+          </View>
+        ) : null}
       </View>
+      {chips.length ? (
+        <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+          {chips.map((c) => (
+            <View key={c.label} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: t.ic }}>
+              <MaterialCommunityIcons name={c.icon} size={16} color={t.goldText} />
+              <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>{c.label}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </Pressable>
   );
 });
@@ -910,9 +928,10 @@ function SpecialtySheet({ visible, type, grade, selected, grades, options, resul
   );
 }
 
-function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount, onChange, onApply, onClose, onReset }: {
+function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount, onChange, onApply, onClose, onReset, specialtyCount, onOpenSpecialty }: {
   visible: boolean; pending: Filters; maxPriceLimit: number; priceSteps: number[]; resultCount: number;
   onChange: (f: Filters) => void; onApply: () => void; onClose: () => void; onReset: () => void;
+  specialtyCount: number; onOpenSpecialty: () => void;
 }) {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
@@ -920,40 +939,29 @@ function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount,
 
   const chip = (active: boolean) => ({
     flexDirection: "row-reverse" as const, alignItems: "center" as const, justifyContent: "center" as const, gap: 5,
-    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1.5,
+    paddingHorizontal: 20, paddingVertical: 11, borderRadius: 18, borderWidth: 1.5,
     borderColor: active ? t.gold : t.border, backgroundColor: active ? t.goldTint : t.card,
   });
-  const chipText = (active: boolean) => ({ color: active ? t.gold : t.text, fontFamily: TJ.bold, fontSize: 14 });
-  const heading = { color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" as const, marginBottom: 12 };
+  const chipText = (active: boolean) => ({ color: active ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 14.5 });
+  const heading = { color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" as const, marginBottom: 8 };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,.45)" }} onPress={onClose} />
-      <View style={{ backgroundColor: t.hdr, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingBottom: insets.bottom + 20, maxHeight: "90%" }}>
-        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 22, paddingBottom: 14 }}>
-          <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 22 }}>تصفية النتائج</Text>
-          <Pressable onPress={onReset}>
-            <Text style={{ color: t.destructive, fontFamily: TJ.bold, fontSize: 14 }}>إعادة تعيين</Text>
-          </Pressable>
-        </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 22 }}>
+      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,.55)" }} onPress={onClose} />
+      <View style={{ backgroundColor: t.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 12, maxHeight: "90%" }}>
+        <View style={{ alignSelf: "center", width: 44, height: 5, borderRadius: 3, backgroundColor: t.border, marginTop: 10 }} />
+        <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 21, textAlign: "center", paddingTop: 12, paddingBottom: 6 }}>تصفية النتائج</Text>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, gap: 18 }}>
           <View>
-            <Text style={heading}>الترتيب حسب</Text>
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
-              {SORT_OPTIONS.map((opt) => {
-                const active = pending.sortBy === opt.key;
-                return (
-                  <Pressable key={opt.key} onPress={() => onChange({ ...pending, sortBy: opt.key })} style={[chip(active), { width: "48%" }]}>
-                    <MaterialCommunityIcons name={opt.icon} size={14} color={active ? t.gold : t.muted} />
-                    <Text style={chipText(active)}>{opt.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+            <Text style={heading}>التخصص</Text>
+            <Pressable onPress={onOpenSpecialty} style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", height: 52, borderRadius: 16, borderWidth: 1, borderColor: t.border, backgroundColor: t.card, paddingHorizontal: 16 }}>
+              <Text style={{ color: t.text, fontFamily: TJ.medium, fontSize: 15 }}>{specialtyCount > 0 ? `${specialtyCount} محدد` : "كل التخصصات"}</Text>
+              <MaterialCommunityIcons name="chevron-down" size={22} color={t.muted} />
+            </Pressable>
           </View>
           <View>
             <Text style={heading}>طريقة الاستشارة</Text>
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
               {CONSULT_OPTIONS.map((o) => {
                 const active = pending.consult === o.key;
                 return (
@@ -965,13 +973,39 @@ function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount,
             </View>
           </View>
           <View>
+            <Text style={heading}>التوفر</Text>
+            <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+              {([[false, "الكل"], [true, "متاح الآن"]] as const).map(([v, name]) => {
+                const active = pending.onlyAvailable === v;
+                return (
+                  <Pressable key={name} onPress={() => onChange({ ...pending, onlyAvailable: v })} style={chip(active)}>
+                    <Text style={chipText(active)}>{name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <View>
+            <Text style={heading}>الترتيب</Text>
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+              {SORT_OPTIONS.map((opt) => {
+                const active = pending.sortBy === opt.key;
+                return (
+                  <Pressable key={opt.key} onPress={() => onChange({ ...pending, sortBy: opt.key })} style={chip(active)}>
+                    <Text style={chipText(active)}>{opt.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <View>
             <Text style={heading}>الحد الأدنى للتقييم</Text>
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
               {RATING_OPTIONS.map((r) => {
                 const active = pending.minRating === r;
                 return (
                   <Pressable key={r} onPress={() => onChange({ ...pending, minRating: r })} style={chip(active)}>
-                    <MaterialCommunityIcons name="star" size={13} color={active ? t.gold : t.muted} />
+                    <MaterialCommunityIcons name="star" size={13} color={active ? t.goldText : t.muted} />
                     <Text style={chipText(active)}>{r === 0 ? "الكل" : `${r}+`}</Text>
                   </Pressable>
                 );
@@ -980,7 +1014,7 @@ function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount,
           </View>
           <View>
             <Text style={heading}>الحد الأقصى للسعر</Text>
-            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
               {priceSteps.map((p) => {
                 const active = pending.maxPrice === p || (p === maxPriceLimit && pending.maxPrice >= maxPriceLimit);
                 return (
@@ -991,22 +1025,13 @@ function FilterPanel({ visible, pending, maxPriceLimit, priceSteps, resultCount,
               })}
             </View>
           </View>
-          <Pressable
-            onPress={() => onChange({ ...pending, onlyAvailable: !pending.onlyAvailable })}
-            style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", padding: 16, borderRadius: 18, borderWidth: 1, borderColor: t.border, backgroundColor: t.card }}
-          >
-            <View>
-              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>متاح الآن فقط</Text>
-              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right" }}>إظهار المتاحين حاليًا</Text>
-            </View>
-            <View style={{ width: 52, height: 30, borderRadius: 15, backgroundColor: pending.onlyAvailable ? t.gold : t.btn, justifyContent: "center", paddingHorizontal: 3, alignItems: pending.onlyAvailable ? "flex-end" : "flex-start" }}>
-              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff" }} />
-            </View>
-          </Pressable>
         </ScrollView>
-        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          <Pressable onPress={onApply} style={{ height: 54, borderRadius: 16, backgroundColor: t.gold, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>تطبيق الفلاتر ({resultCount})</Text>
+        <View style={{ flexDirection: "row-reverse", gap: 10, paddingHorizontal: 20, paddingTop: 16 }}>
+          <Pressable onPress={onReset} style={{ flex: 1, height: 54, borderRadius: 18, borderWidth: 1.5, borderColor: t.border, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15 }}>إعادة ضبط</Text>
+          </Pressable>
+          <Pressable onPress={onApply} style={{ flex: 1.6, height: 54, borderRadius: 18, backgroundColor: t.gold, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>عرض {resultCount} نتيجة</Text>
           </Pressable>
         </View>
       </View>

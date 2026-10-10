@@ -41,7 +41,9 @@ export function useProviderConsultations() {
   }, [provider?.id, load]);
 
   const actionCount = rows.filter((r) => ACTION.includes(stageOf(r))).length;
-  return { rows, loading, reload: load, actionCount };
+  // active = not finished and not cancelled (shown on the tab)
+  const activeCount = rows.filter((r) => { const f = FILTER_OF[stageOf(r)]; return f === "upcoming" || f === "live"; }).length;
+  return { rows, loading, reload: load, actionCount, activeCount };
 }
 
 export function ConsultationsPanel({ state }: { state: ReturnType<typeof useProviderConsultations> }) {
