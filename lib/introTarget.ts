@@ -1,5 +1,5 @@
 // مكان لوجو الهيدر في الشاشة الرئيسية — الافتتاحية بتقيسه وقت الخروج عشان اللوجو يطير لمكانه بدل ما يختفي بس.
-export type IntroTarget = { x: number; y: number; w: number; h: number };
+export type IntroTarget = { x: number; y: number; w: number; h: number; dark?: boolean };
 type Measurer = (cb: (t: IntroTarget | null) => void) => void;
 
 let measurer: Measurer | null = null;

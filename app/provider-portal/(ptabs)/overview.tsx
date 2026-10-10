@@ -94,7 +94,7 @@ export default function ProviderOverviewScreen() {
       >
         <View style={{ backgroundColor: t.hdr, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, paddingTop: insets.top + 12, paddingBottom: 22, paddingHorizontal: 20 }}>
           <View style={{ alignItems: "center", justifyContent: "center", height: 52 }}>
-            <IntroAnchor aspect={700 / 429} enabled={!t.isDark} style={{ height: 44, width: 150 }}>
+            <IntroAnchor aspect={700 / 429} dark={t.isDark} style={{ height: 44, width: 150 }}>
               <Image source={t.isDark ? LOGO_DARK : PROVIDER_LOGO_FULL} style={{ height: 44, width: 150 }} contentFit="contain" />
             </IntroAnchor>
           </View>

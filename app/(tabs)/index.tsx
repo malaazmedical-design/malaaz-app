@@ -375,7 +375,7 @@ export default function HomeScreen() {
           }}
         >
           <View style={{ height: 52, alignItems: "center", justifyContent: "center" }}>
-            <IntroAnchor aspect={1023 / 408} enabled={!t.isDark} style={{ width: 115, height: 46 }}>
+            <IntroAnchor aspect={1023 / 408} dark={t.isDark} style={{ width: 115, height: 46 }}>
               <Image source={t.isDark ? LOGO_DARK : LOGO_LIGHT} style={{ width: 115, height: 46 }} contentFit="contain" />
             </IntroAnchor>
             <Pressable

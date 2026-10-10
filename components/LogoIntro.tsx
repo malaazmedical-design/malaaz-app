@@ -77,6 +77,7 @@ export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?:
   const flyDy = useSharedValue(0);
   const flyS = useSharedValue(0.65);
   const hasTarget = useSharedValue(0);
+  const crossfade = useSharedValue(0); // الوضع الداكن: لوجو الهيدر بنص فاتح، فاللوجو الطاير بيتلاشى في آخر الطيران
   const logoRef = useRef<View>(null);
   const bg = useSharedValue(1);
 
@@ -116,6 +117,7 @@ export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?:
             flyDy.value = tg.y + tg.h / 2 - (y + mh / 2);
             flyS.value = tg.w / mw;
             hasTarget.value = 1;
+            crossfade.value = tg.dark ? 1 : 0;
           }
           go();
         });
@@ -128,7 +130,7 @@ export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?:
 
   const bgStyle = useAnimatedStyle(() => ({ opacity: bg.value }));
   const logoStyle = useAnimatedStyle(() => hasTarget.value
-    ? { transform: [{ translateX: exit.value * flyDx.value }, { translateY: exit.value * flyDy.value }, { scale: 1 + exit.value * (flyS.value - 1) }], opacity: 1 }
+    ? { transform: [{ translateX: exit.value * flyDx.value }, { translateY: exit.value * flyDy.value }, { scale: 1 + exit.value * (flyS.value - 1) }], opacity: crossfade.value && exit.value > 0.7 ? 1 - (exit.value - 0.7) / 0.3 : 1 }
     : { transform: [{ translateY: -exit.value * h * 0.6 }, { scale: 1 - exit.value * 0.35 }], opacity: 1 - exit.value * 0.6 });
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glow.value * (0.85 + breathe.value * 0.15) * (1 - exit.value),
