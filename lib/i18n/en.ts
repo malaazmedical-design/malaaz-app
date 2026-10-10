@@ -1122,6 +1122,13 @@ export const EN: Record<string, string> = {
   "بانتظار الطبيب": "Waiting for the doctor",
   "تبديل السماعة": "Switch speaker",
   "راجع المرفق ثم اضغط إرسال": "Review the attachment, then tap Send",
+  "حذف الرسالة؟": "Delete the message?",
+  "هتتحذف من عندك ومن عند الطرف الآخر.": "It will be deleted for you and for the other side.",
+  "تعذّر تعديل الرسالة": "Couldn't edit the message",
+  "تعذّر حذف الرسالة": "Couldn't delete the message",
+  "🚫 تم حذف هذه الرسالة": "🚫 This message was deleted",
+  "معدّلة · ": "Edited · ",
+  "تعديل الرسالة": "Edit message",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",

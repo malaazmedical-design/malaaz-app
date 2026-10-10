@@ -348,4 +348,6 @@ export type DbConsultMessage = {
   file_path: string | null;
   file_name: string | null;
   created_at: string;
+  edited_at?: string | null;
+  deleted_at?: string | null;
 };

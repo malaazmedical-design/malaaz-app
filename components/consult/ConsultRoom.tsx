@@ -28,6 +28,7 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
   // a picked photo / file waits for confirmation before it is uploaded and sent
   const [pending, setPending] = useState<{ uri: string; ext: string; mime: string; name: string; image: boolean } | null>(null);
   const [sendingFile, setSendingFile] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const listRef = useRef<FlatList>(null);
   const touched = useRef(false);
   const enterTried = useRef<string | null>(null);
@@ -67,6 +68,10 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
         const m = p.new as DbConsultMessage;
         setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev.filter((x) => !(x.local && !x.fail && x.sender === m.sender && x.body === m.body)), m]));
       })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "consultation_messages", filter: `consultation_id=eq.${c.id}` }, (p) => {
+        const m = p.new as DbConsultMessage;
+        setMsgs((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)));
+      })
       .subscribe((status) => setOffline(status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED"));
     return () => { supabase.removeChannel(ch); };
   }, [c.id]);
@@ -95,10 +100,38 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
   const send = () => {
     const body = text.trim();
     if (!body) return;
+    if (editing) {
+      const target = editing;
+      setEditing(null);
+      setText("");
+      if (body === target.text) return;
+      setMsgs((p) => p.map((x) => (x.id === target.id ? { ...x, body, edited_at: new Date().toISOString() } : x)));
+      supabase.rpc("edit_consultation_message", { p_msg: target.id, p_body: body }).then(({ data, error }) => {
+        if (error || data !== "ok") { Alert.alert("", data === "closed" ? "انتهت الجلسة" : "تعذّر تعديل الرسالة"); load(); }
+      });
+      return;
+    }
     setText("");
     const id = `local_${Date.now()}`;
     setMsgs((p) => [...p, { id, consultation_id: c.id, sender: mine, body, file_path: null, file_name: null, created_at: new Date().toISOString(), local: true }]);
     post(body, null, null, id);
+  };
+
+  // long-press an own message: edit (text only) / delete
+  const messageActions = (m: Local) => {
+    if (m.local || m.deleted_at || m.sender !== mine || c.state !== "live") return;
+    const del = () => Alert.alert("حذف الرسالة؟", "هتتحذف من عندك ومن عند الطرف الآخر.", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "حذف", style: "destructive", onPress: () => {
+        setMsgs((p) => p.map((x) => (x.id === m.id ? { ...x, body: null, file_path: null, file_name: null, deleted_at: new Date().toISOString() } : x)));
+        supabase.rpc("delete_consultation_message", { p_msg: m.id }).then(({ data, error }) => { if (error || data !== "ok") { Alert.alert("", "تعذّر حذف الرسالة"); load(); } });
+      } },
+    ]);
+    const buttons: any[] = [];
+    if (m.body && !m.file_path) buttons.push({ text: "تعديل", onPress: () => { setEditing({ id: m.id, text: m.body ?? "" }); setText(m.body ?? ""); } });
+    buttons.push({ text: "حذف", style: "destructive", onPress: del });
+    buttons.push({ text: "إلغاء", style: "cancel" });
+    Alert.alert("الرسالة", undefined, buttons);
   };
 
   const retry = (m: Local) => {
@@ -227,18 +260,19 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
           const url = m.uri ?? (m.file_path ? urls[m.file_path] : undefined);
           return (
             <View style={{ alignItems: me ? "flex-start" : "flex-end" }}>
-              <Pressable disabled={!m.fail} onPress={() => retry(m)}
+              <Pressable disabled={!m.fail && (m.sender !== mine || !!m.local || !!m.deleted_at)} onPress={() => { if (m.fail) retry(m); }} onLongPress={() => messageActions(m)} delayLongPress={350}
                 style={{ maxWidth: "82%", backgroundColor: me ? t.gold : t.card, borderWidth: me ? 0 : 1, borderColor: t.border, borderRadius: 18, padding: 10, opacity: m.local && !m.fail ? 0.7 : 1 }}>
-                {m.file_path && IMAGE_EXT.test(m.file_path) ? (url ? <Pressable onPress={() => setViewer(url)}><Image source={{ uri: url }} style={{ width: 200, height: 160, borderRadius: 12 }} contentFit="cover" /></Pressable> : <ActivityIndicator color={t.gold} />) : null}
-                {m.file_path && !IMAGE_EXT.test(m.file_path) ? (
+                {m.deleted_at ? <Text style={{ color: me ? t.onGoldSub : t.muted, fontFamily: TJ.medium, fontSize: 13.5, fontStyle: "italic", textAlign: "right" }}>🚫 تم حذف هذه الرسالة</Text> : null}
+                {!m.deleted_at && m.file_path && IMAGE_EXT.test(m.file_path) ? (url ? <Pressable onPress={() => setViewer(url)}><Image source={{ uri: url }} style={{ width: 200, height: 160, borderRadius: 12 }} contentFit="cover" /></Pressable> : <ActivityIndicator color={t.gold} />) : null}
+                {!m.deleted_at && m.file_path && !IMAGE_EXT.test(m.file_path) ? (
                   <Pressable onPress={() => url && Linking.openURL(url).catch(() => {})} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingVertical: 4 }}>
                     <MaterialCommunityIcons name="file-document-outline" size={26} color={me ? t.onGold : t.goldText} />
                     <Text numberOfLines={1} style={{ maxWidth: 190, color: me ? t.onGold : t.text, fontFamily: TJ.bold, fontSize: 14 }}>{m.file_name ?? "ملف"}</Text>
                   </Pressable>
                 ) : null}
-                {m.body ? <Text style={{ color: me ? t.onGold : t.text, fontFamily: TJ.medium, fontSize: 15, lineHeight: 23, textAlign: "right" }}>{m.body}</Text> : null}
+                {!m.deleted_at && m.body ? <Text style={{ color: me ? t.onGold : t.text, fontFamily: TJ.medium, fontSize: 15, lineHeight: 23, textAlign: "right" }}>{m.body}</Text> : null}
                 <Text style={{ color: me ? t.onGoldSub : t.muted, fontFamily: TJ.medium, fontSize: 10.5, marginTop: 3 }}>
-                  {m.fail ? "تعذر الإرسال · اضغط لإعادة المحاولة" : new Date(m.created_at).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" })}
+                  {m.fail ? "تعذر الإرسال · اضغط لإعادة المحاولة" : (m.edited_at && !m.deleted_at ? "معدّلة · " : "") + new Date(m.created_at).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" })}
                 </Text>
               </Pressable>
             </View>
@@ -268,6 +302,13 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
         </View>
       ) : null}
 
+      {editing ? (
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: t.border, backgroundColor: t.goldTint }}>
+          <MaterialCommunityIcons name="pencil-outline" size={18} color={t.goldText} />
+          <Text numberOfLines={1} style={{ flex: 1, color: t.text2, fontFamily: TJ.bold, fontSize: 13, textAlign: "right" }}>تعديل الرسالة</Text>
+          <Pressable onPress={() => { setEditing(null); setText(""); }}><Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>إلغاء</Text></Pressable>
+        </View>
+      ) : null}
       <View style={{ flexDirection: "row-reverse", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: insets.bottom + 10, borderTopWidth: 1, borderTopColor: t.border, backgroundColor: t.bg }}>
         <Pressable onPress={attach} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
           <MaterialCommunityIcons name="paperclip" size={22} color={t.text} />
