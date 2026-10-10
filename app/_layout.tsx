@@ -45,6 +45,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
+import { LogoIntro } from "@/components/LogoIntro";
+import { IS_PROVIDER_APP } from "@/lib/appVariant";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { AppProvider } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
@@ -261,7 +263,7 @@ export default function RootLayout() {
               <AppProvider>
                 <OfflineBanner />
                 <RootLayoutNav />
-                {!introDone ? <AnimatedSplash onDone={() => setIntroDone(true)} /> : null}
+                {!introDone ? (IS_PROVIDER_APP ? <AnimatedSplash onDone={() => setIntroDone(true)} /> : <LogoIntro onDone={() => setIntroDone(true)} />) : null}
                 {updateReady && introDone ? (
                   <TouchableOpacity
                     onPress={() => setUpdateReady(false)}
