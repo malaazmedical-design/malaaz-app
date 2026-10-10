@@ -102,7 +102,7 @@ export default function AskDoctorScreen() {
           const on = tab === k;
           return (
             <Pressable key={k} onPress={() => setTab(k)} style={{ flex: 1, alignItems: "center", justifyContent: "center", height: 50, borderRadius: 25, backgroundColor: on ? t.goldTint : t.card, borderWidth: 1.5, borderColor: on ? t.gold : t.border }}>
-              <Text style={{ color: on ? t.goldText : t.text, fontFamily: TJ.heavy, fontSize: 14.5 }}>{name}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: on ? t.goldText : t.text, fontFamily: TJ.heavy, fontSize: 14, paddingHorizontal: 6 }}>{name}</Text>
             </Pressable>
           );
         })}

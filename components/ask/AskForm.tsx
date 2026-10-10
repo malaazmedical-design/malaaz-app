@@ -149,12 +149,6 @@ export function AskForm({ edit, onSent, onCancelEdit, bottomInset = 0 }: { edit?
               <Pressable onPress={() => onCancelEdit?.()}><Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>إلغاء التعديل</Text></Pressable>
             </View>
           ) : null}
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: t.goldTint, borderRadius: 14, padding: 12, marginBottom: 14 }}>
-            <MaterialCommunityIcons name="gift-outline" size={20} color={t.goldText} />
-            <Text style={{ flex: 1, color: t.text2, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right", lineHeight: 21 }}>
-              السؤال مجاني للعميل. هيوصل لطبيب مختص وأول طبيب متاح هيرد عليك.
-            </Text>
-          </View>
 
           {isEmergency && (
             <View style={{ backgroundColor: "rgba(229,72,77,.12)", borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: t.destructive }}>
