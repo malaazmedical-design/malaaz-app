@@ -1099,6 +1099,8 @@ export const EN: Record<string, string> = {
   "كل القنوات": "All channels",
   "لا يوجد أطباء مطابقين الآن": "No matching doctors right now",
   "اسأل سؤالك الآن": "Ask your question now",
+  "نتيجة": "results",
+  "ابتداء من": "Starting from",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",
@@ -1246,6 +1248,10 @@ export const EN: Record<string, string> = {
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
 // Texts with a dynamic part: the dynamic part is kept (or translated again when it is a known text).
 export const EN_PATTERNS: [RegExp, Fn][] = [
+  [/^(\d+) نتيجة$/, (m) => `${m[1]} results`],
+  [/^عرض (\d+) طبيب$/, (m) => `Show ${m[1]} doctors`],
+  [/^(\d+) سنة خبرة$/, (m) => `${m[1]} yrs experience`],
+  [/^· (\d+) سنة خبرة$/, (m) => `· ${m[1]} yrs experience`],
   [/^(\d+) عروض جديدة تنتظر ردك$/, (m) => `${m[1]} new offers waiting for your reply`],
   [/^أنت في الطريق إلى (.+)$/, (m) => `You're on your way to ${m[1]}`],
   [/^الزيارة القادمة · (.+)$/, (m) => `Next visit · ${m[1]}`],
