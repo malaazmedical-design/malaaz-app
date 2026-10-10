@@ -35,7 +35,8 @@ export default function NewCaseScreen() {
   const { client, profile } = useApp();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const [message, setMessage] = useState("");
-  const [images, setImages] = useState<string[]>([]);
+  type Att = { uri: string; name: string; pdf: boolean };
+  const [images, setImages] = useState<Att[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(!!edit);
   const webTop = Platform.OS === "web" ? 67 : 0;
@@ -56,15 +57,35 @@ export default function NewCaseScreen() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") { Alert.alert("الأذونات", "نحتاج إذن الوصول للصور"); return; }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, quality: 0.7 });
-    if (!result.canceled) setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 4));
+    if (!result.canceled) setImages((prev) => [...prev, ...result.assets.map((a) => ({ uri: a.uri, name: a.fileName ?? "image", pdf: false }))].slice(0, 4));
   };
 
-  const uploadImage = async (uri: string, caseId: string, idx: number): Promise<string | null> => {
+  // PDF needs the native document picker (present in newer builds only)
+  const pickPdf = async () => {
+    let DocumentPicker: any = null;
+    try { DocumentPicker = require("expo-document-picker"); } catch { DocumentPicker = null; }
+    if (!DocumentPicker?.getDocumentAsync) { Alert.alert("", "إرفاق PDF يحتاج تحديث التطبيق. تقدر ترفق صور حاليًا."); return; }
     try {
-      const ext = (uri.split(".").pop() ?? "jpg").toLowerCase().split("?")[0];
+      const r = await DocumentPicker.getDocumentAsync({ type: "application/pdf", copyToCacheDirectory: true, multiple: false });
+      if (r.canceled || !r.assets?.[0]) return;
+      const a = r.assets[0];
+      if ((a.size ?? 0) > 10 * 1024 * 1024) { Alert.alert("", "حجم الملف أكبر من 10 ميجا"); return; }
+      setImages((prev) => [...prev, { uri: a.uri, name: a.name ?? "file.pdf", pdf: true }].slice(0, 4));
+    } catch { Alert.alert("", "تعذّر اختيار الملف"); }
+  };
+
+  const addAttachment = () => Alert.alert("إرفاق", "اختر نوع المرفق", [
+    { text: "صورة", onPress: pickImage },
+    { text: "ملف PDF", onPress: pickPdf },
+    { text: "إلغاء", style: "cancel" },
+  ]);
+
+  const uploadImage = async (a: Att, caseId: string, idx: number): Promise<string | null> => {
+    try {
+      const ext = a.pdf ? "pdf" : (a.uri.split(".").pop() ?? "jpg").toLowerCase().split("?")[0];
       const path = `${caseId}/${Date.now()}_${idx}.${ext}`;
-      const buf = await (await fetch(uri)).arrayBuffer();
-      const { error } = await supabase.storage.from("ask-doctor-attachments").upload(path, buf, { contentType: `image/${ext === "jpg" ? "jpeg" : ext}` });
+      const buf = await (await fetch(a.uri)).arrayBuffer();
+      const { error } = await supabase.storage.from("ask-doctor-attachments").upload(path, buf, { contentType: a.pdf ? "application/pdf" : `image/${ext === "jpg" ? "jpeg" : ext}` });
       return error ? null : path;
     } catch { return null; }
   };
@@ -74,7 +95,7 @@ export default function NewCaseScreen() {
     for (let i = 0; i < images.length; i++) {
       const path = await uploadImage(images[i], caseId, i);
       if (!path) { failed++; continue; }
-      await supabase.from("ask_doctor_attachments").insert({ case_id: caseId, storage_path: path, file_type: "image" });
+      await supabase.from("ask_doctor_attachments").insert({ case_id: caseId, storage_path: path, file_type: images[i].pdf ? "pdf" : "image" });
     }
     return failed;
   };
@@ -128,6 +149,13 @@ export default function NewCaseScreen() {
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.gold} /></View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
+          {edit ? (
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: t.goldTint, borderRadius: 14, padding: 12, marginBottom: 14 }}>
+              <MaterialCommunityIcons name="pencil-outline" size={18} color={t.goldText} />
+              <Text style={{ flex: 1, color: t.text2, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right" }}>بتعدّل سؤالك</Text>
+              <Pressable onPress={() => router.back()}><Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>إلغاء التعديل</Text></Pressable>
+            </View>
+          ) : null}
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: t.goldTint, borderRadius: 14, padding: 12, marginBottom: 14 }}>
             <MaterialCommunityIcons name="gift-outline" size={20} color={t.goldText} />
             <Text style={{ flex: 1, color: t.text2, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right", lineHeight: 21 }}>
@@ -161,18 +189,23 @@ export default function NewCaseScreen() {
           <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 14, textAlign: "right", marginTop: 20, marginBottom: 4 }}>
             مرفقات <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>(اختياري)</Text>
           </Text>
-          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginBottom: 10 }}>تحليل، أشعة، صورة — حتى 4 صور</Text>
+          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginBottom: 10 }}>تحليل، أشعة، صورة أو PDF — حتى 4 ملفات (PDF حتى 10 ميجا)</Text>
           <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 12 }}>
-            {images.map((uri, i) => (
-              <View key={uri}>
-                <Image source={{ uri }} style={{ width: 80, height: 80, borderRadius: 14 }} />
+            {images.map((a, i) => (
+              <View key={a.uri}>
+                {a.pdf ? (
+                  <View style={{ width: 80, height: 80, borderRadius: 14, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, alignItems: "center", justifyContent: "center", padding: 4 }}>
+                    <MaterialCommunityIcons name="file-pdf-box" size={30} color={t.destructive} />
+                    <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 10 }}>{a.name}</Text>
+                  </View>
+                ) : <Image source={{ uri: a.uri }} style={{ width: 80, height: 80, borderRadius: 14 }} />}
                 <Pressable onPress={() => setImages((p) => p.filter((_, k) => k !== i))} style={{ position: "absolute", top: -6, right: -6, backgroundColor: t.destructive, borderRadius: 10, width: 22, height: 22, alignItems: "center", justifyContent: "center" }}>
                   <MaterialCommunityIcons name="close" size={13} color="#fff" />
                 </Pressable>
               </View>
             ))}
             {images.length < 4 && (
-              <Pressable onPress={pickImage} style={{ width: 80, height: 80, borderRadius: 14, backgroundColor: t.card, borderWidth: 1.5, borderColor: t.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center" }}>
+              <Pressable onPress={addAttachment} style={{ width: 80, height: 80, borderRadius: 14, backgroundColor: t.card, borderWidth: 1.5, borderColor: t.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center" }}>
                 <MaterialCommunityIcons name="paperclip" size={26} color={t.muted} />
               </Pressable>
             )}

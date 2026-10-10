@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { Text } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -37,7 +37,7 @@ export default function CaseDetailScreen() {
   const webTop = Platform.OS === "web" ? 67 : 0;
   const [c, setC] = useState<DbAskDoctorCase | null>(null);
   const [doc, setDoc] = useState<AskCaseDoctor | null>(null);
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<{ url: string; pdf: boolean; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -51,10 +51,10 @@ export default function CaseDetailScreen() {
       setDoc(((d as AskCaseDoctor[]) ?? [])[0] ?? null);
     }
     const { data: atts } = await supabase.from("ask_doctor_attachments").select("*").eq("case_id", id).order("created_at");
-    const urls: string[] = [];
+    const urls: { url: string; pdf: boolean; name: string }[] = [];
     for (const a of (atts as DbAskDoctorAttachment[]) ?? []) {
       const { data: s } = await supabase.storage.from("ask-doctor-attachments").createSignedUrl(a.storage_path, 3600);
-      if (s?.signedUrl) urls.push(s.signedUrl);
+      if (s?.signedUrl) urls.push({ url: s.signedUrl, pdf: a.file_type === "pdf", name: a.storage_path.split("/").pop() ?? "file.pdf" });
     }
     setFiles(urls);
     setLoading(false);
@@ -119,7 +119,12 @@ export default function CaseDetailScreen() {
           {c.edited_at ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5, textAlign: "right", marginTop: 6 }}>اتعدّل {fmt(c.edited_at)}</Text> : null}
           {files.length > 0 ? (
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-              {files.map((u) => <Image key={u} source={{ uri: u }} style={{ width: 64, height: 64, borderRadius: 12 }} contentFit="cover" />)}
+              {files.map((f) => f.pdf ? (
+                <Pressable key={f.url} onPress={() => Linking.openURL(f.url)} style={{ width: 64, height: 64, borderRadius: 12, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
+                  <MaterialCommunityIcons name="file-pdf-box" size={30} color={t.destructive} />
+                  <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 10 }}>PDF</Text>
+                </Pressable>
+              ) : <Image key={f.url} source={{ uri: f.url }} style={{ width: 64, height: 64, borderRadius: 12 }} contentFit="cover" />)}
             </View>
           ) : null}
         </View>
@@ -127,7 +132,16 @@ export default function CaseDetailScreen() {
         {/* الحالة */}
         <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 20, padding: 16 }}>
           <Step t={t} color="#1fa65a" done label="تم الإرسال" sub={fmt(c.created_at)} />
-          <Step t={t} color="#1fa65a" done={answered} last label="تم الرد" sub={answered && c.answered_at ? fmt(c.answered_at) : "بانتظار رد طبيب مختص — هيجيلك إشعار"} />
+          {c.status === "expired" ? (
+            <Step t={t} color="#8a8a8a" done last label="انتهت المهلة" sub="لم يرد طبيب خلال 48 ساعة — تقدر تسأل من جديد" />
+          ) : (
+            <Step t={t} color="#1fa65a" done={answered} last label="تم الرد" sub={answered && c.answered_at ? fmt(c.answered_at) : "بانتظار رد طبيب مختص — هيجيلك إشعار"} />
+          )}
+          {c.status === "expired" ? (
+            <Pressable onPress={() => router.replace("/ask-doctor/new")} style={({ pressed }) => ({ height: 48, borderRadius: 14, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", marginTop: 12, opacity: pressed ? 0.88 : 1 })}>
+              <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>اسأل من جديد</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {/* الرد */}

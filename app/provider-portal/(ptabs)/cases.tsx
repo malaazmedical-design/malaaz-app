@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Redirect } from "expo-router";
 import { Image } from "expo-image";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, View } from "react-native";
 import { TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -49,15 +50,15 @@ function QuestionSheet({ row, onClose, onDone }: { row: AskInboxRow; onClose: ()
   const insets = useSafeAreaInsets();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<{ url: string; pdf: boolean }[]>([]);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("ask_doctor_attachments").select("*").eq("case_id", row.id);
-      const urls: string[] = [];
+      const urls: { url: string; pdf: boolean }[] = [];
       for (const a of (data as DbAskDoctorAttachment[]) ?? []) {
         const { data: s } = await supabase.storage.from("ask-doctor-attachments").createSignedUrl(a.storage_path, 3600);
-        if (s?.signedUrl) urls.push(s.signedUrl);
+        if (s?.signedUrl) urls.push({ url: s.signedUrl, pdf: a.file_type === "pdf" });
       }
       setFiles(urls);
     })();
@@ -96,7 +97,12 @@ function QuestionSheet({ row, onClose, onDone }: { row: AskInboxRow; onClose: ()
               <PText style={{ color: t.text, fontFamily: TJ.medium, fontSize: 15, lineHeight: 25, textAlign: "right" }}>{row.message}</PText>
               {files.length > 0 ? (
                 <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-                  {files.map((u) => <Image key={u} source={{ uri: u }} style={{ width: 72, height: 72, borderRadius: 12 }} contentFit="cover" />)}
+                  {files.map((f) => f.pdf ? (
+                    <Pressable key={f.url} onPress={() => Linking.openURL(f.url)} style={{ width: 72, height: 72, borderRadius: 12, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
+                      <MaterialCommunityIcons name="file-pdf-box" size={32} color={t.destructive} />
+                      <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 10 }}>PDF</PText>
+                    </Pressable>
+                  ) : <Image key={f.url} source={{ uri: f.url }} style={{ width: 72, height: 72, borderRadius: 12 }} contentFit="cover" />)}
                 </View>
               ) : row.attachments > 0 ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 8 }}>📎 {row.attachments} مرفقات…</PText> : null}
             </View>
@@ -133,6 +139,21 @@ export function CasesPanel({ state }: { state: ReturnType<typeof useDoctorCases>
   const { rows, loading, reload } = state;
   const [tab, setTab] = useState<"open" | "mine">("open");
   const [selected, setSelected] = useState<AskInboxRow | null>(null);
+  const [hint, setHint] = useState(false);
+
+  // first visit: a floating hint that disappears by itself or on tap
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    (async () => {
+      try {
+        if (await AsyncStorage.getItem("ask_hint_seen")) return;
+        setHint(true);
+        await AsyncStorage.setItem("ask_hint_seen", "1");
+        timer = setTimeout(() => setHint(false), 7000);
+      } catch { /* hint is optional */ }
+    })();
+    return () => { if (timer) clearTimeout(timer); };
+  }, []);
 
   if (loading) return <SkeletonCards count={3} padded={false} />;
   const shown = rows.filter((r) => (tab === "open" ? !r.mine : r.mine));
@@ -140,6 +161,14 @@ export function CasesPanel({ state }: { state: ReturnType<typeof useDoctorCases>
 
   return (
     <View style={{ paddingHorizontal: 16, marginTop: 4, gap: 10 }}>
+      {hint ? (
+        <Pressable onPress={() => setHint(false)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, backgroundColor: t.goldTint, borderWidth: 1, borderColor: t.gold, borderRadius: 14, padding: 12 }}>
+          <MaterialCommunityIcons name="lightbulb-on-outline" size={18} color={t.goldText} />
+          <PText style={{ flex: 1, color: t.text, fontFamily: TJ.bold, fontSize: 13, textAlign: "right", lineHeight: 20 }}>
+            هنا أسئلة المرضى لتخصصك. أول طبيب يضغط «اقبل وجاوب» هو اللي بيستلم السؤال.
+          </PText>
+        </Pressable>
+      ) : null}
       <View style={{ flexDirection: "row-reverse", gap: 8 }}>
         {([["open", "متاحة", openCount], ["mine", "ردودي", 0]] as const).map(([k, name, n]) => {
           const on = tab === k;

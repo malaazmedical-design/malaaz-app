@@ -45,6 +45,8 @@ export default function ProviderProfileScreen() {
   const [onlineOn, setOnlineOn] = useState(false);
   const [onlinePrice, setOnlinePrice] = useState<number | null>(null);
   const [onlineDur, setOnlineDur] = useState(15);
+  // خدمات التمريض/الأشعة: { subServiceId: { on, price } }
+  const [otherSvc, setOtherSvc] = useState<Record<string, { on: boolean; price: number | null }>>({});
   // voice / video channels (provider_channels): own price + length per channel
   type Chan = { on: boolean; price: number | null; dur: number };
   const [chan, setChan] = useState<Record<"voice" | "video", Chan>>({ voice: { on: false, price: null, dur: 15 }, video: { on: false, price: null, dur: 15 } });
@@ -105,6 +107,23 @@ export default function ProviderProfileScreen() {
   const visitRange = useMemo(() => priceRangeFor(specialtyRow, grade), [specialtyRow, grade]);
   const onlineRange = useMemo(() => priceRangeFor(onlineRow, grade), [onlineRow, grade]);
   const clampTo = (v: number | null, r: { min: number; max: number }) => (v == null ? r.min : Math.min(r.max, Math.max(r.min, v)));
+
+  // التمريض / الأشعة: كارت لكل خدمة من sub_services، السعر داخل نطاق الأدمن
+  const otherRows = useMemo(
+    () => (serviceType === "كشف منزلي" ? [] : subServices.filter((x) => x.service_name === serviceType && x.group_name !== "grade" && x.is_active)),
+    [subServices, serviceType],
+  );
+  const otherInit = useRef(false);
+  useEffect(() => {
+    if (otherInit.current || otherRows.length === 0) return;
+    otherInit.current = true;
+    const init: Record<string, { on: boolean; price: number | null }> = {};
+    for (const r of otherRows) {
+      const m = myServices.find((x) => x.sub_service_id === r.id);
+      init[r.id] = { on: !!m, price: m?.custom_price ?? null };
+    }
+    setOtherSvc(init);
+  }, [otherRows, myServices]);
 
   // القيم المحفوظة: أول مرة بس
   const pricesInit = useRef(false);
@@ -202,6 +221,7 @@ export default function ProviderProfileScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) { Alert.alert("تنبيه", "أدخل اسمك"); return; }
+    if (!/^01[0125]\d{8}$/.test(phone.trim())) { Alert.alert("تنبيه", "رقم الموبايل لازم يكون مصري من 11 رقم (01xxxxxxxxx)"); return; }
     if (grades.length && !grade && !serviceType.includes("أشعة")) { Alert.alert("تنبيه", isNurse ? "اختر المسمى الوظيفي: أخصائي تمريض أو فني تمريض" : "اختر الدرجة العلمية: أخصائي أو استشاري"); return; }
     if (isDoctor && !specialty) { Alert.alert("تنبيه", "اختر التخصص"); return; }
     if (!selectedAreas.length) { Alert.alert("تنبيه", "اختر منطقة واحدة على الأقل"); return; }
@@ -237,6 +257,12 @@ export default function ProviderProfileScreen() {
             await supabase.from("provider_channels").delete().eq("provider_id", provider.id).eq("channel", k);
           }
         }
+      }
+      if (!isDoctor && otherRows.length) {
+        const rows = otherRows
+          .filter((r) => otherSvc[r.id]?.on)
+          .map((r) => ({ sub_service_id: r.id, custom_price: clampTo(otherSvc[r.id].price, priceRangeFor(r, grade)) }));
+        await saveMyServices(rows);
       }
       burst.show("تم حفظ الحساب");
     } catch (e: any) {
@@ -320,7 +346,7 @@ export default function ProviderProfileScreen() {
         <View style={{ gap: 10 }}>
           <View>{label("الاسم الكامل")}<TextInput value={name} onChangeText={setName} style={input} placeholderTextColor={t.muted} /></View>
           <View style={{ flexDirection: "row-reverse", gap: 10 }}>
-            <View style={{ flex: 1.6 }}>{label("رقم الموبايل")}<TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={[input, { writingDirection: "ltr" }]} /></View>
+            <View style={{ flex: 1.6 }}>{label("رقم الموبايل")}<TextInput value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, "").slice(0, 11))} keyboardType="phone-pad" placeholder="01xxxxxxxxx" placeholderTextColor={t.muted} style={[input, { writingDirection: "ltr" }]} /></View>
             <View style={{ flex: 1 }}>{label("سنوات الخبرة")}<TextInput value={exp} onChangeText={(v) => setExp(v.replace(/[^\d.]/g, ""))} keyboardType="numeric" style={input} /></View>
           </View>
           <View>{label("رقم الواتساب (اختياري · لو مختلف عن الموبايل)")}<TextInput value={whatsapp} onChangeText={(v) => setWhatsapp(v.replace(/\D/g, "").slice(0, 11))} keyboardType="phone-pad" placeholder="01xxxxxxxxx" style={[input, { writingDirection: "ltr" }]} placeholderTextColor={t.muted} /></View>
@@ -412,7 +438,7 @@ export default function ProviderProfileScreen() {
                     </View>
                     <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 14 }}>مدة الاستشارة بالشات</PText>
                     <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
-                      {[10, 15, 20, 30].map((m) => (
+                      {[10, 15, 20, 30, 45].map((m) => (
                         <Pressable key={m} onPress={() => setOnlineDur(m)}
                           style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 14, backgroundColor: onlineDur === m ? t.goldTint : t.ic, borderWidth: 1.5, borderColor: onlineDur === m ? t.gold : "transparent" }}>
                           <PText style={{ color: onlineDur === m ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 14 }}>{m} د</PText>
@@ -439,7 +465,7 @@ export default function ProviderProfileScreen() {
                               <PriceSlider value={clampTo(ch.price, onlineRange)} min={onlineRange.min} max={onlineRange.max} disabled={onlineRange.max === onlineRange.min}
                                 onChange={(v: number) => setChan((cur) => ({ ...cur, [k]: { ...cur[k], price: v } }))} />
                               <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
-                                {[10, 15, 20, 30].map((m) => (
+                                {[10, 15, 20, 30, 45].map((m) => (
                                   <Pressable key={m} onPress={() => setChan((cur) => ({ ...cur, [k]: { ...cur[k], dur: m } }))}
                                     style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: ch.dur === m ? t.goldTint : t.card, borderWidth: 1.5, borderColor: ch.dur === m ? t.gold : "transparent" }}>
                                     <PText style={{ color: ch.dur === m ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 13 }}>{m} د</PText>
@@ -467,6 +493,45 @@ export default function ProviderProfileScreen() {
               </View>
             </View>
           </View>
+        ) : null}
+
+        {!isDoctor && otherRows.length ? (
+          <>
+            {title("خدماتي وأسعاري", undefined, "فعّل الخدمات اللي بتقدمها وحدد سعرك داخل نطاق الإدارة")}
+            <View style={{ gap: 12 }}>
+              {otherRows.map((r) => {
+                const st = otherSvc[r.id] ?? { on: false, price: null };
+                const range = priceRangeFor(r, grade);
+                const v = clampTo(st.price, range);
+                return (
+                  <View key={r.id} style={{ backgroundColor: t.card, borderWidth: 1, borderColor: st.on ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: st.on ? 1 : 0.85 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{r.name}</PText>
+                        {r.duration ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{r.duration}</PText> : null}
+                      </View>
+                      <Toggle on={st.on} onChange={(on) => setOtherSvc((cur) => ({ ...cur, [r.id]: { on, price: cur[r.id]?.price ?? range.min } }))} />
+                    </View>
+                    {st.on ? (
+                      <>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
+                          <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>{v} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText></PText>
+                        </View>
+                        <PriceSlider value={v} min={range.min} max={range.max} disabled={range.max === range.min}
+                          onChange={(n: number) => setOtherSvc((cur) => ({ ...cur, [r.id]: { on: true, price: n } }))} />
+                        <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{range.min}</PText>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن</PText>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{range.max}</PText>
+                        </View>
+                      </>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          </>
         ) : null}
 
         {title("مناطق التغطية", selectedAreas.length, "المحافظات والمدن المفعّلة من الإدارة")}
