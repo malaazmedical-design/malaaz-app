@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Image, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Animated, {
   Easing,
@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from "react-native-svg";
+import { getIntroTarget } from "@/lib/introTarget";
 import { LOGO_H, LOGO_PATHS, LOGO_W } from "./logoPaths";
 import { PROVIDER_LOGO_H, PROVIDER_LOGO_MASK, PROVIDER_LOGO_PATHS, PROVIDER_LOGO_W } from "./providerLogoPaths";
 
@@ -71,6 +72,12 @@ export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?:
   const glow = useSharedValue(0);
   const breathe = useSharedValue(0);
   const exit = useSharedValue(0);
+  // وجهة الطيران: مكان لوجو الهيدر لو معروف، وإلا الارتفاع والتلاشي
+  const flyDx = useSharedValue(0);
+  const flyDy = useSharedValue(0);
+  const flyS = useSharedValue(0.65);
+  const hasTarget = useSharedValue(0);
+  const logoRef = useRef<View>(null);
   const bg = useSharedValue(1);
 
   useEffect(() => {
@@ -82,19 +89,36 @@ export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?:
     outline.value = withDelay(1600, withTiming(0, { duration: 500 }));
     shine.value = withDelay(1750, withTiming(1, { duration: 800, easing: Easing.inOut(Easing.quad) }));
     tag.value = withDelay(1500, withTiming(1, { duration: 600, easing: ease }));
-    // الخروج: اللوجو يرتفع ويصغر شوية، والتوهج والجملة يختفوا، وبعدها الخلفية كلها
-    exit.value = withDelay(2600, withTiming(1, { duration: 700, easing: easeIO }));
-    bg.value = withDelay(2700, withTiming(0, { duration: 600, easing: Easing.inOut(Easing.quad) }, (finished) => {
-      if (finished) runOnJS(onDone)();
-    }));
+    // الخروج: اللوجو يطير لمكانه في هيدر الشاشة الرئيسية (لو معروف)، والتوهج والجملة يختفوا، وبعدها الخلفية
+    const startExit = () => {
+      const tg = getIntroTarget();
+      const go = () => {
+        exit.value = withTiming(1, { duration: 750, easing: easeIO });
+        bg.value = withDelay(100, withTiming(0, { duration: 600, easing: Easing.inOut(Easing.quad) }, (finished) => {
+          if (finished) runOnJS(onDone)();
+        }));
+      };
+      if (tg && logoRef.current) {
+        logoRef.current.measureInWindow((x, y, mw, mh) => {
+          if (mw > 0 && mh > 0) {
+            flyDx.value = tg.x + tg.w / 2 - (x + mw / 2);
+            flyDy.value = tg.y + tg.h / 2 - (y + mh / 2);
+            flyS.value = tg.w / mw;
+            hasTarget.value = 1;
+          }
+          go();
+        });
+      } else go();
+    };
+    const timer = setTimeout(startExit, 2600);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const bgStyle = useAnimatedStyle(() => ({ opacity: bg.value }));
-  const logoStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -exit.value * h * 0.6 }, { scale: 1 - exit.value * 0.35 }],
-    opacity: 1 - exit.value * 0.6,
-  }));
+  const logoStyle = useAnimatedStyle(() => hasTarget.value
+    ? { transform: [{ translateX: exit.value * flyDx.value }, { translateY: exit.value * flyDy.value }, { scale: 1 + exit.value * (flyS.value - 1) }], opacity: 1 }
+    : { transform: [{ translateY: -exit.value * h * 0.6 }, { scale: 1 - exit.value * 0.35 }], opacity: 1 - exit.value * 0.6 });
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glow.value * (0.85 + breathe.value * 0.15) * (1 - exit.value),
     transform: [{ scale: 0.55 + glow.value * 0.45 }],
@@ -131,7 +155,7 @@ export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?:
         </Svg>
       </Animated.View>
 
-      <Animated.View style={[{ width: w, height: h }, logoStyle]}>
+      <Animated.View ref={logoRef} collapsable={false} style={[{ width: w, height: h }, logoStyle]}>
         <Animated.View style={[StyleSheet.absoluteFillObject, restStyle]}>
           <Image source={L.rest} style={{ width: w, height: h }} resizeMode="contain" />
         </Animated.View>

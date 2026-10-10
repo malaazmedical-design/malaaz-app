@@ -69,6 +69,7 @@ const CARD_STEP = CARD_W + CARD_GAP;
 const TOP_N = 10;
 const PAGE = 10;
 
+import { IntroAnchor } from "@/components/IntroAnchor";
 const LOGO_LIGHT = require("../../assets/images/malaz/logo-light.png");
 const LOGO_DARK = require("../../assets/images/malaz/logo-dark.png");
 
@@ -374,7 +375,9 @@ export default function HomeScreen() {
           }}
         >
           <View style={{ height: 52, alignItems: "center", justifyContent: "center" }}>
-            <Image source={t.isDark ? LOGO_DARK : LOGO_LIGHT} style={{ width: 115, height: 46 }} contentFit="contain" />
+            <IntroAnchor aspect={1023 / 408} enabled={!t.isDark} style={{ width: 115, height: 46 }}>
+              <Image source={t.isDark ? LOGO_DARK : LOGO_LIGHT} style={{ width: 115, height: 46 }} contentFit="contain" />
+            </IntroAnchor>
             <Pressable
               onPress={() => router.push("/profile")}
               accessibilityLabel="حسابي"

@@ -14,7 +14,8 @@ import {
   PERIOD_HOURS, PERIOD_LABEL, STATE_META, initialOf, isToday, periodOf, shortName, stateOf,
 } from "@/lib/providerFmt";
 
-const LOGO_LIGHT = require("../../../assets/images/malaz/logo-light.png");
+import { IntroAnchor } from "@/components/IntroAnchor";
+const PROVIDER_LOGO_FULL = require("../../../assets/images/intro/provider-full.png");
 const LOGO_DARK = require("../../../assets/images/malaz/logo-dark.png");
 
 const SLOTS = ["morning", "noon", "evening"] as const;
@@ -93,7 +94,9 @@ export default function ProviderOverviewScreen() {
       >
         <View style={{ backgroundColor: t.hdr, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, paddingTop: insets.top + 12, paddingBottom: 22, paddingHorizontal: 20 }}>
           <View style={{ alignItems: "center", justifyContent: "center", height: 52 }}>
-            <Image source={t.isDark ? LOGO_DARK : LOGO_LIGHT} style={{ height: 44, width: 150 }} contentFit="contain" />
+            <IntroAnchor aspect={700 / 429} enabled={!t.isDark} style={{ height: 44, width: 150 }}>
+              <Image source={t.isDark ? LOGO_DARK : PROVIDER_LOGO_FULL} style={{ height: 44, width: 150 }} contentFit="contain" />
+            </IntroAnchor>
           </View>
           <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, marginTop: 14 }}>
             <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: t.ic, borderWidth: 1.5, borderColor: t.goldRing, alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
