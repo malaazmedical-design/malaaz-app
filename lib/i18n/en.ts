@@ -1101,6 +1101,9 @@ export const EN: Record<string, string> = {
   "اسأل سؤالك الآن": "Ask your question now",
   "نتيجة": "results",
   "ابتداء من": "Starting from",
+  "غير مفعّلة": "Not enabled",
+  "تم حفظ الخدمة": "Service saved",
+  "الشات هو الأساس في الاستشارة الأونلاين ولا يمكن إيقافه": "Chat is the base of the online consultation and can't be turned off",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",
@@ -1248,6 +1251,9 @@ export const EN: Record<string, string> = {
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
 // Texts with a dynamic part: the dynamic part is kept (or translated again when it is a known text).
 export const EN_PATTERNS: [RegExp, Fn][] = [
+  [/^(\d+) قنوات مفعّلة$/, (m) => `${m[1]} channels enabled`],
+  [/^(\d+) دقيقة · (\d+) ج\.م$/, (m) => `${m[1]} min · ${m[2]} EGP`],
+  [/^30 دقيقة · (\d+) ج\.م$/, (m) => `30 min · ${m[1]} EGP`],
   [/^(\d+) نتيجة$/, (m) => `${m[1]} results`],
   [/^عرض (\d+) طبيب$/, (m) => `Show ${m[1]} doctors`],
   [/^(\d+) سنة خبرة$/, (m) => `${m[1]} yrs experience`],

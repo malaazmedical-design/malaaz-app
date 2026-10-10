@@ -42,6 +42,9 @@ export default function ProviderProfileScreen() {
   const [grade, setGrade] = useState("");
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [visitPrice, setVisitPrice] = useState<number | null>(null);
+  const [visitOn, setVisitOn] = useState(true);
+  const [expanded, setExpanded] = useState<null | "visit" | "online">(null);
+  const [svcSaving, setSvcSaving] = useState(false);
   const [onlineOn, setOnlineOn] = useState(false);
   const [onlinePrice, setOnlinePrice] = useState<number | null>(null);
   const [onlineDur, setOnlineDur] = useState(15);
@@ -132,6 +135,7 @@ export default function ProviderProfileScreen() {
     pricesInit.current = true;
     const mine = myServices.find((m) => m.sub_service_id === specialtyRow.id);
     setVisitPrice(mine?.custom_price ?? null);
+    setVisitOn(!!mine || myServices.length === 0);
     const on = onlineRow ? myServices.find((m) => m.sub_service_id === onlineRow.id) : undefined;
     setOnlineOn(!!on);
     setOnlinePrice(on?.custom_price ?? null);
@@ -219,6 +223,35 @@ export default function ProviderProfileScreen() {
     );
   };
 
+  // Doctor services: home visit (their specialty) + online consultation with its channels. Also used by each card's own "حفظ".
+  const saveDoctorServices = async () => {
+    if (!specialtyRow) return;
+    const rows: { sub_service_id: string; custom_price: number; duration_min?: number }[] = [];
+    if (visitOn) rows.push({ sub_service_id: specialtyRow.id, custom_price: clampTo(visitPrice, visitRange) });
+    if (onlineRow && onlineOn) rows.push({ sub_service_id: onlineRow.id, custom_price: clampTo(onlinePrice, onlineRange), duration_min: onlineDur });
+    await saveMyServices(rows);
+    // voice / video: saved only together with an active online consultation, otherwise switched off
+    for (const k of ["voice", "video"] as const) {
+      const ch = chan[k];
+      if (provider?.id && onlineOn && ch.on) {
+        const { error } = await supabase.from("provider_channels").upsert(
+          { provider_id: provider.id, channel: k, price: clampTo(ch.price, onlineRange), duration_min: ch.dur, is_active: true, updated_at: new Date().toISOString() },
+          { onConflict: "provider_id,channel" },
+        );
+        if (error) throw new Error(error.message);
+      } else if (provider?.id) {
+        await supabase.from("provider_channels").delete().eq("provider_id", provider.id).eq("channel", k);
+      }
+    }
+  };
+
+  const saveCard = async () => {
+    setSvcSaving(true);
+    try { await saveDoctorServices(); setExpanded(null); burst.show("تم حفظ الخدمة"); }
+    catch (e: any) { Alert.alert("خطأ", e.message ?? "تعذر الحفظ"); }
+    finally { setSvcSaving(false); }
+  };
+
   const handleSave = async () => {
     if (!name.trim()) { Alert.alert("تنبيه", "أدخل اسمك"); return; }
     if (!/^01[0125]\d{8}$/.test(phone.trim())) { Alert.alert("تنبيه", "رقم الموبايل لازم يكون مصري من 11 رقم (01xxxxxxxxx)"); return; }
@@ -239,25 +272,7 @@ export default function ProviderProfileScreen() {
         specialty: serviceType === "كشف منزلي" ? specialty : (specialty ?? provider?.specialty ?? null),
         photoUrl,
       });
-      if (isDoctor && specialtyRow) {
-        // الدكتور: خدمة واحدة بس = التخصص المختار (+ الاستشارة الأونلاين لو مفعّلة)
-        const rows: { sub_service_id: string; custom_price: number; duration_min?: number }[] = [{ sub_service_id: specialtyRow.id, custom_price: clampTo(visitPrice, visitRange) }];
-        if (onlineRow && onlineOn) rows.push({ sub_service_id: onlineRow.id, custom_price: clampTo(onlinePrice, onlineRange), duration_min: onlineDur });
-        await saveMyServices(rows);
-        // voice / video: saved only together with an active online consultation, otherwise switched off
-        for (const k of ["voice", "video"] as const) {
-          const ch = chan[k];
-          if (provider?.id && onlineOn && ch.on) {
-            const { error } = await supabase.from("provider_channels").upsert(
-              { provider_id: provider.id, channel: k, price: clampTo(ch.price, onlineRange), duration_min: ch.dur, is_active: true, updated_at: new Date().toISOString() },
-              { onConflict: "provider_id,channel" },
-            );
-            if (error) throw new Error(error.message);
-          } else if (provider?.id) {
-            await supabase.from("provider_channels").delete().eq("provider_id", provider.id).eq("channel", k);
-          }
-        }
-      }
+      if (isDoctor) await saveDoctorServices();
       if (!isDoctor && otherRows.length) {
         const rows = otherRows
           .filter((r) => otherSvc[r.id]?.on)
@@ -395,104 +410,142 @@ export default function ProviderProfileScreen() {
         ) : null}
 
         {isDoctor && grade && specialty && specialtyRow ? (
-          <View style={{ marginTop: 22, gap: 12 }}>
-            <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.goldRing, borderRadius: 22, padding: 16 }}>
-              <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>سعر الكشف المنزلي</PText>
-              <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{grade} · {specialty}</PText>
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
-                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
-                <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>
-                  {clampTo(visitPrice, visitRange)} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText>
-                </PText>
-              </View>
-              <PriceSlider value={clampTo(visitPrice, visitRange)} min={visitRange.min} max={visitRange.max} disabled={visitRange.max === visitRange.min} onChange={setVisitPrice} />
-              <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
-                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{visitRange.min}</PText>
-                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن لـ {grade}</PText>
-                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{visitRange.max}</PText>
-              </View>
-            </View>
-
-            {onlineRow ? (
-              <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: onlineOn ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: onlineOn ? 1 : 0.85 }}>
-                <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>استشارة أونلاين</PText>
-                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>ردّ على أسئلة المرضى بالشات ({onlineRow.duration ?? "15 دقيقة"})</PText>
-                  </View>
-                  <Toggle on={onlineOn} onChange={(v) => { setOnlineOn(v); if (v && onlinePrice == null) setOnlinePrice(onlineRange.min); }} />
-                </View>
-                {onlineOn ? (
-                  <>
-                    <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
-                      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
-                      <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>
-                        {clampTo(onlinePrice, onlineRange)} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText>
-                      </PText>
+          <>
+            {title("خدماتي وأسعاري", undefined, "فعّل الخدمات وحدد سعرك ضمن نطاق الأدمن")}
+            <View style={{ gap: 12 }}>
+              {/* كشف منزلي */}
+              {(() => {
+                const open = expanded === "visit";
+                const v = clampTo(visitPrice, visitRange);
+                return (
+                  <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: visitOn ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: visitOn ? 1 : 0.85 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>كشف منزلي</PText>
+                        <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>30 دقيقة · {v} ج.م</PText>
+                      </View>
+                      <Pressable onPress={() => setExpanded(open ? null : "visit")} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                        <MaterialCommunityIcons name={open ? "close" : "pencil-outline"} size={18} color={t.gold} />
+                      </Pressable>
+                      <Toggle on={visitOn} onChange={setVisitOn} />
                     </View>
-                    <PriceSlider value={clampTo(onlinePrice, onlineRange)} min={onlineRange.min} max={onlineRange.max} disabled={onlineRange.max === onlineRange.min} onChange={setOnlinePrice} />
-                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
-                      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{onlineRange.min}</PText>
-                      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن لـ {grade}</PText>
-                      <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{onlineRange.max}</PText>
-                    </View>
-                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 14 }}>مدة الاستشارة بالشات</PText>
-                    <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
-                      {[10, 15, 20, 30, 45].map((m) => (
-                        <Pressable key={m} onPress={() => setOnlineDur(m)}
-                          style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 14, backgroundColor: onlineDur === m ? t.goldTint : t.ic, borderWidth: 1.5, borderColor: onlineDur === m ? t.gold : "transparent" }}>
-                          <PText style={{ color: onlineDur === m ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 14 }}>{m} د</PText>
-                        </Pressable>
-                      ))}
-                    </View>
-                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 14 }}>
-                      الشات هو الأساس. فعّل الصوت والفيديو لو تحب تستقبل مكالمات (سعر ومدة لكل قناة).
-                    </PText>
-                    {(["voice", "video"] as const).map((k) => {
-                      const ch = chan[k];
-                      return (
-                        <View key={k} style={{ marginTop: 10, backgroundColor: t.ic, borderRadius: 16, padding: 12 }}>
-                          <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
-                            <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
-                              <MaterialCommunityIcons name={k === "voice" ? "phone-outline" : "video-outline"} size={20} color={t.goldText} />
-                              <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15 }}>{k === "voice" ? "استشارة صوتية" : "استشارة فيديو"}</PText>
-                            </View>
-                            <Toggle on={ch.on} onChange={(v) => setChan((cur) => ({ ...cur, [k]: { ...cur[k], on: v, price: cur[k].price ?? onlineRange.min } }))} />
-                          </View>
-                          {ch.on ? (
-                            <>
-                              <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 20, textAlign: "right", marginTop: 8 }}>{clampTo(ch.price, onlineRange)} ج.م</PText>
-                              <PriceSlider value={clampTo(ch.price, onlineRange)} min={onlineRange.min} max={onlineRange.max} disabled={onlineRange.max === onlineRange.min}
-                                onChange={(v: number) => setChan((cur) => ({ ...cur, [k]: { ...cur[k], price: v } }))} />
-                              <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
-                                {[10, 15, 20, 30, 45].map((m) => (
-                                  <Pressable key={m} onPress={() => setChan((cur) => ({ ...cur, [k]: { ...cur[k], dur: m } }))}
-                                    style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: ch.dur === m ? t.goldTint : t.card, borderWidth: 1.5, borderColor: ch.dur === m ? t.gold : "transparent" }}>
-                                    <PText style={{ color: ch.dur === m ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 13 }}>{m} د</PText>
-                                  </Pressable>
-                                ))}
-                              </View>
-                            </>
-                          ) : null}
+                    {open ? (
+                      <View style={{ marginTop: 12 }}>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>السعر</PText>
+                          <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>{v} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText></PText>
                         </View>
-                      );
-                    })}
-                  </>
-                ) : null}
-              </View>
-            ) : null}
-            {/* حجز العيادة: مش مفعّل حاليًا */}
-            <View style={{ marginTop: 10, flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, padding: 16, opacity: 0.6 }}>
-              <MaterialCommunityIcons name="hospital-building" size={22} color={t.muted} />
-              <View style={{ flex: 1 }}>
-                <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>حجز العيادة</PText>
-                <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>هذه الخدمة قادمة قريبًا</PText>
-              </View>
-              <View style={{ backgroundColor: t.goldTint, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 12.5 }}>قريبًا</PText>
+                        <PriceSlider value={v} min={visitRange.min} max={visitRange.max} disabled={visitRange.max === visitRange.min} onChange={setVisitPrice} />
+                        <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{visitRange.min}</PText>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن</PText>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{visitRange.max}</PText>
+                        </View>
+                        <Pressable onPress={saveCard} disabled={svcSaving} style={({ pressed }) => ({ marginTop: 12, height: 46, borderRadius: 14, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: pressed || svcSaving ? 0.85 : 1 })}>
+                          <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>{svcSaving ? "جاري الحفظ..." : "حفظ"}</PText>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })()}
+
+              {/* استشارة أونلاين */}
+              {onlineRow ? (() => {
+                const open = expanded === "online";
+                const activeCh = [["chat", "شات", "email-outline"] as const, ...(["voice", "video"] as const).filter((k) => chan[k].on).map((k) => [k, k === "voice" ? "صوتية" : "فيديو", k === "voice" ? "phone-outline" : "video-outline"] as const)];
+                return (
+                  <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: onlineOn ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: onlineOn ? 1 : 0.85 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>استشارة أونلاين</PText>
+                        <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>{onlineOn ? `${activeCh.length} قنوات مفعّلة` : "غير مفعّلة"}</PText>
+                      </View>
+                      <Pressable onPress={() => setExpanded(open ? null : "online")} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                        <MaterialCommunityIcons name={open ? "close" : "pencil-outline"} size={18} color={t.gold} />
+                      </Pressable>
+                      <Toggle on={onlineOn} onChange={(v) => { setOnlineOn(v); if (v && onlinePrice == null) setOnlinePrice(onlineRange.min); }} />
+                    </View>
+                    {onlineOn && !open ? (
+                      <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 12 }}>
+                        {activeCh.map(([k, label, icon]) => (
+                          <View key={k} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: t.ic }}>
+                            <MaterialCommunityIcons name={icon} size={16} color={t.goldText} />
+                            <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>{label}</PText>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                    {open && onlineOn ? (
+                      <View style={{ marginTop: 12, gap: 10 }}>
+                        {(["chat", "voice", "video"] as const).map((k) => {
+                          const isChat = k === "chat";
+                          const on = isChat ? true : chan[k].on;
+                          const price = isChat ? clampTo(onlinePrice, onlineRange) : clampTo(chan[k].price, onlineRange);
+                          const dur = isChat ? onlineDur : chan[k].dur;
+                          const title2 = isChat ? "شات" : k === "voice" ? "مكالمة صوتية" : "مكالمة فيديو";
+                          const icon = isChat ? "email-outline" : k === "voice" ? "phone-outline" : "video-outline";
+                          return (
+                            <View key={k} style={{ borderRadius: 18, borderWidth: 1, borderColor: on ? t.goldRing : t.border, padding: 12, backgroundColor: t.bg }}>
+                              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                                <PText style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 15.5, textAlign: "right" }}>{title2}</PText>
+                                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                                  <MaterialCommunityIcons name={icon} size={16} color={t.gold} />
+                                </View>
+                                <Toggle on={on} onChange={(v) => {
+                                  if (isChat) { Alert.alert("", "الشات هو الأساس في الاستشارة الأونلاين ولا يمكن إيقافه"); return; }
+                                  setChan((cur) => ({ ...cur, [k]: { ...cur[k], on: v, price: cur[k].price ?? onlineRange.min } }));
+                                }} />
+                              </View>
+                              {on ? (
+                                <>
+                                  <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 10 }}>مدة الجلسة</PText>
+                                  <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 6 }}>
+                                    {[10, 15, 20, 30, 45].map((m) => (
+                                      <Pressable key={m} onPress={() => (isChat ? setOnlineDur(m) : setChan((cur) => ({ ...cur, [k]: { ...cur[k], dur: m } })))}
+                                        style={{ flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, backgroundColor: dur === m ? t.goldTint : t.ic, borderWidth: 1.5, borderColor: dur === m ? t.gold : "transparent" }}>
+                                        <PText style={{ color: dur === m ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 13 }}>{m} د</PText>
+                                      </Pressable>
+                                    ))}
+                                  </View>
+                                  <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+                                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>السعر</PText>
+                                    <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 22 }}>{price} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 13 }}>ج.م</PText></PText>
+                                  </View>
+                                  <PriceSlider value={price} min={onlineRange.min} max={onlineRange.max} disabled={onlineRange.max === onlineRange.min}
+                                    onChange={(n: number) => (isChat ? setOnlinePrice(n) : setChan((cur) => ({ ...cur, [k]: { ...cur[k], price: n } })))} />
+                                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
+                                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>{onlineRange.min}</PText>
+                                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>نطاق الأدمن</PText>
+                                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>{onlineRange.max}</PText>
+                                  </View>
+                                </>
+                              ) : null}
+                            </View>
+                          );
+                        })}
+                        <Pressable onPress={saveCard} disabled={svcSaving} style={({ pressed }) => ({ height: 46, borderRadius: 14, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: pressed || svcSaving ? 0.85 : 1 })}>
+                          <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>{svcSaving ? "جاري الحفظ..." : "حفظ"}</PText>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })() : null}
+
+              {/* حجز العيادة: قريبًا */}
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, padding: 16, opacity: 0.6 }}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ alignSelf: "flex-end", backgroundColor: t.goldTint, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 4 }}>
+                    <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 12 }}>قريبًا</PText>
+                  </View>
+                  <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>حجز العيادة</PText>
+                  <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>30 دقيقة</PText>
+                </View>
+                <Toggle on={false} onChange={() => {}} />
               </View>
             </View>
-          </View>
+          </>
         ) : null}
 
         {!isDoctor && otherRows.length ? (
