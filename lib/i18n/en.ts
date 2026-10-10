@@ -1121,6 +1121,7 @@ export const EN: Record<string, string> = {
   "بانتظار دخول أحد الطرفين": "Waiting for either side to join",
   "بانتظار الطبيب": "Waiting for the doctor",
   "تبديل السماعة": "Switch speaker",
+  "راجع المرفق ثم اضغط إرسال": "Review the attachment, then tap Send",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",

@@ -25,6 +25,9 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
   const [offline, setOffline] = useState(false);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [viewer, setViewer] = useState<string | null>(null);
+  // a picked photo / file waits for confirmation before it is uploaded and sent
+  const [pending, setPending] = useState<{ uri: string; ext: string; mime: string; name: string; image: boolean } | null>(null);
+  const [sendingFile, setSendingFile] = useState(false);
   const listRef = useRef<FlatList>(null);
   const touched = useRef(false);
   const enterTried = useRef<string | null>(null);
@@ -126,7 +129,7 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
     if (r.canceled) return;
     const uri = r.assets[0].uri;
     const ext = (uri.split(".").pop() ?? "jpg").toLowerCase().split("?")[0];
-    await uploadAndSend(uri, ext, `image/${ext === "jpg" ? "jpeg" : ext}`, "صورة");
+    setPending({ uri, ext, mime: `image/${ext === "jpg" ? "jpeg" : ext}`, name: "صورة", image: true });
   };
 
   // PDF / documents need the native document picker (available in builds that include it)
@@ -140,8 +143,16 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
       const a = r.assets[0];
       const ext = ((a.name ?? "").split(".").pop() ?? "pdf").toLowerCase();
       const mime = a.mimeType ?? (ext === "pdf" ? "application/pdf" : `image/${ext}`);
-      await uploadAndSend(a.uri, ext, mime, a.name ?? "ملف");
+      setPending({ uri: a.uri, ext, mime, name: a.name ?? "ملف", image: mime.startsWith("image/") });
     } catch { Alert.alert("", "تعذّر اختيار الملف"); }
+  };
+
+  const confirmPending = async () => {
+    if (!pending || sendingFile) return;
+    setSendingFile(true);
+    await uploadAndSend(pending.uri, pending.ext, pending.mime, pending.name);
+    setSendingFile(false);
+    setPending(null);
   };
 
   const attach = () => Alert.alert("إرفاق", "اختر نوع المرفق", [
@@ -234,6 +245,28 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
           );
         }}
       />
+
+      {pending ? (
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: t.border, backgroundColor: t.card }}>
+          {pending.image ? (
+            <Image source={{ uri: pending.uri }} style={{ width: 64, height: 64, borderRadius: 12 }} contentFit="cover" />
+          ) : (
+            <View style={{ width: 64, height: 64, borderRadius: 12, backgroundColor: t.ic, alignItems: "center", justifyContent: "center" }}>
+              <MaterialCommunityIcons name="file-document-outline" size={30} color={t.goldText} />
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.bold, fontSize: 14, textAlign: "right" }}>{pending.name}</Text>
+            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "right", marginTop: 2 }}>راجع المرفق ثم اضغط إرسال</Text>
+          </View>
+          <Pressable onPress={() => setPending(null)} disabled={sendingFile} style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: t.btn }}>
+            <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 13.5 }}>إلغاء</Text>
+          </Pressable>
+          <Pressable onPress={confirmPending} disabled={sendingFile} style={{ paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, backgroundColor: t.gold, opacity: sendingFile ? 0.6 : 1 }}>
+            {sendingFile ? <ActivityIndicator color={t.onGold} /> : <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 13.5 }}>إرسال</Text>}
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={{ flexDirection: "row-reverse", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: insets.bottom + 10, borderTopWidth: 1, borderTopColor: t.border, backgroundColor: t.bg }}>
         <Pressable onPress={attach} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
