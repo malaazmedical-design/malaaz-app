@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, BackHandler, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, BackHandler, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -90,7 +90,7 @@ type CarouselItem = Provider | { id: "__all__" };
 export default function HomeScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { profile, providers, loadingProviders, coverageAreas, subServices } = useApp();
+  const { profile, providers, loadingProviders, coverageAreas, subServices, refreshProviders } = useApp();
   const offers = useOnlineOffers();
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
@@ -357,6 +357,7 @@ export default function HomeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView
+        refreshControl={<RefreshControl refreshing={loadingProviders} onRefresh={refreshProviders} tintColor={t.gold} />}
         contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

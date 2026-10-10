@@ -33,6 +33,7 @@ import {
   ServiceType,
   PaymentMethod,
 } from "@/constants/data";
+import { useOnReconnect } from "@/lib/reconnect";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -596,6 +597,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshProviders();
   }, [refreshProviders]);
+
+  // connection came back: reload the lists without restarting the app
+  useOnReconnect(refreshProviders);
 
   // Realtime: تحديث مناطق التغطية فور تغييرها من الأدمن (بدون إعادة تشغيل التطبيق)
   useEffect(() => {

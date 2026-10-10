@@ -30,6 +30,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import { applyStoredTheme } from "@/constants/malazTheme";
 import { loadEnglishNames, loadLang, patchAlert } from "@/lib/i18n";
+import { useOnReconnect } from "@/lib/reconnect";
 import { routeForNotification } from "@/lib/notificationRoute";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
@@ -142,6 +143,7 @@ export default function RootLayout() {
   // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
   useEffect(() => { applyStoredTheme(); patchAlert(); loadLang(); loadEnglishNames(); }, []);
+  useOnReconnect(loadEnglishNames);
   const [updateReady, setUpdateReady] = useState(false);
   const updateReadyRef = useRef(false);
 
