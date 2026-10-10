@@ -140,12 +140,13 @@ export default function ProviderConsultation() {
           <View style={[card, { borderColor: t.gold, borderWidth: 1.5 }]}>
             {head(stage === "time_rejected" ? "المريض لا يناسبه الموعد" : editing ? "تعديل موعد الاستشارة" : "تم الدفع · حدد الموعد", stage === "time_rejected" ? t.destructive : t.text)}
             {stage === "time_rejected" ? body("الإدارة هتتواصل مع المريض، وبعدها تقدر تقترح موعدًا جديدًا.") : body("اختر وقتًا داخل فترة المريض، وهيوصله للموافقة.")}
-            {stage === "need_time" ? (
+            {stage === "need_time" || editing ? (
               <>
                 <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
                   {slots.length === 0 ? body("انتهت هذه الفترة. تواصل مع الإدارة.") : slots.map((s) => {
                     const on = slot?.getTime() === s.getTime();
                     return (
+
                       <Pressable key={s.getTime()} onPress={() => setSlot(s)} style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: on ? t.gold : t.border, backgroundColor: on ? t.goldTint : t.ic }}>
                         <PText style={{ color: on ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 14 }}>{timeLabel(s.toISOString())}</PText>
                       </Pressable>

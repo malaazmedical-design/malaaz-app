@@ -58,7 +58,7 @@ export default function ProviderBookingsScreen() {
   const isDoctor = (provider?.service_type ?? "").includes("كشف");
   const [section, setSection] = useState<"bookings" | "consults" | "cases">("bookings");
   // إشعار "سؤال جديد" بيفتح تبويب الاستشارات
-  useEffect(() => { if (seg === "cases" && focusNonce) setSection("cases"); }, [seg, focusNonce]);
+  useEffect(() => { if ((seg === "cases" || seg === "consults") && focusNonce) setSection(seg); }, [seg, focusNonce]);
 
   const [filter, setFilter] = useState<BState | "all">("all");
   const [open, setOpen] = useState<string | null>(null);

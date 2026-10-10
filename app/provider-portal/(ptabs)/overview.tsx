@@ -4,7 +4,9 @@ import React, { useMemo } from "react";
 import { Alert, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useProviderConsultations } from "@/components/provider/ConsultationsPanel";
 import { PText } from "@/components/provider/PUI";
+import { CHANNEL_LABEL, dateTimeLabel, stageOf } from "@/lib/consult";
 import { missingProfessionalInfo } from "@/lib/providerLists";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
@@ -21,6 +23,12 @@ export default function ProviderOverviewScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
   const { provider, bookings, offers, loadingBookings, refreshAll, toggleAvailability } = useProvider();
+
+  const cons = useProviderConsultations();
+  const consStages = useMemo(() => cons.rows.map((c) => ({ c, s: stageOf(c) })), [cons.rows]);
+  const liveCons = consStages.find((x) => x.s === "live");
+  const needTime = consStages.find((x) => x.s === "need_time");
+  const nextCons = consStages.filter((x) => x.s === "scheduled" && x.c.appt_at).sort((a, b) => new Date(a.c.appt_at!).getTime() - new Date(b.c.appt_at!).getTime())[0];
 
   const states = useMemo(() => bookings.map((b) => ({ b, s: stateOf(b) })), [bookings]);
   const onway = states.find((x) => x.s === "onway");
@@ -56,8 +64,14 @@ export default function ProviderOverviewScreen() {
   const smart = (() => {
     if (!available) return { t: "أنت غير متاح الآن", s: "العملاء لا يرونك في نتائج البحث", a: "تفعيل", go: () => flip(true) };
     if (onway) return { t: `أنت في الطريق إلى ${shortName(onway.b.patient_name)}`, s: onway.b.sub_option ?? onway.b.service_type, a: "عرض الحجز", go: () => goBookings(onway.b.id) };
+    if (liveCons)
+      return { t: "جلسة استشارة جارية", s: `${shortName(liveCons.c.client_name)} · ${CHANNEL_LABEL[liveCons.c.channel]}`, a: "ادخل الجلسة", go: () => router.push(`/provider-portal/consult/${liveCons.c.id}`) };
     if (offers.length > 0)
       return { t: offers.length === 1 ? "عرض جديد ينتظر ردك" : `${offers.length} عروض جديدة تنتظر ردك`, s: "أول من يقبل يحجز", a: "عرض العروض", go: goOffers };
+    if (needTime)
+      return { t: "استشارة بانتظار تحديد موعد", s: `${shortName(needTime.c.client_name)} · ${CHANNEL_LABEL[needTime.c.channel]}`, a: "حدد الموعد", go: () => router.push(`/provider-portal/consult/${needTime.c.id}`) };
+    if (nextCons && (!confirmed || new Date(nextCons.c.appt_at!).getTime() - Date.now() < 3 * 3600000))
+      return { t: "الاستشارة القادمة", s: `${shortName(nextCons.c.client_name)} · ${dateTimeLabel(nextCons.c.appt_at!)}`, a: "عرض الاستشارة", go: () => router.push(`/provider-portal/consult/${nextCons.c.id}`) };
     if (confirmed)
       return { t: `الزيارة القادمة · ${PERIOD_LABEL[periodOf(confirmed.b.appointment_time)]}`, s: `${shortName(confirmed.b.patient_name)} · ${confirmed.b.area ?? ""}`, a: "عرض الحجز", go: () => goBookings(confirmed.b.id) };
     return { t: "لا توجد مهام الآن", s: "سنُعلمك عند وصول عرض جديد", a: null as string | null, go: () => {} };
@@ -65,6 +79,7 @@ export default function ProviderOverviewScreen() {
 
   const stats = [
     { v: bookings.length, l: "إجمالي حجوزاتي", go: () => goBookings(), c: t.text },
+    { v: cons.activeCount, l: "استشارات", go: () => router.navigate({ pathname: "/provider-portal/(ptabs)/bookings", params: { seg: "consults", t: String(Date.now()) } }), c: t.gold },
     { v: offers.length, l: "عروض جديدة", go: goOffers, c: t.gold },
     { v: doneCount, l: "مكتملة", go: () => goBookings(), c: STATE_META.done.color },
   ];

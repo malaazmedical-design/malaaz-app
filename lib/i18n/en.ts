@@ -1112,6 +1112,10 @@ export const EN: Record<string, string> = {
   "مرفقات": "Attachments",
   "💡 كل ما وصفت المدة والشدة والأعراض المصاحبة بوضوح، كان الرد أدق. الخدمة دي مش للحالات الطارئة.": "💡 The clearer you describe the duration, severity and accompanying symptoms, the more accurate the reply. This service is not for emergencies.",
   "⚠️ لا يوجد اتصال بالإنترنت": "⚠️ No internet connection",
+  "جلسة استشارة جارية": "Consultation in progress",
+  "استشارة بانتظار تحديد موعد": "Consultation waiting for a time",
+  "الاستشارة القادمة": "Next consultation",
+  "عرض الاستشارة": "View consultation",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",
