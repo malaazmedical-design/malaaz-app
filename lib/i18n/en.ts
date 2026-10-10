@@ -1106,6 +1106,7 @@ export const EN: Record<string, string> = {
   "الشات هو الأساس في الاستشارة الأونلاين ولا يمكن إيقافه": "Chat is the base of the online consultation and can't be turned off",
   "لا توجد أسئلة متاحة الآن.\nتأكد إن الاستشارة الأونلاين مفعّلة في تعديل الحساب عشان تستلم أسئلة تخصصك.": "No questions available right now.\nMake sure online consultation is enabled in Edit account so you receive questions for your specialty.",
   "زيارة منزلية": "Home visit",
+  "عرض الكل": "View all",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",
