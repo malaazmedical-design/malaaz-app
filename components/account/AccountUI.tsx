@@ -51,8 +51,8 @@ export function Row({ icon, title, value, onPress, danger, toggle, last }: {
       <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: danger ? "rgba(229,72,77,.14)" : t.ic, alignItems: "center", justifyContent: "center" }}>
         <MaterialCommunityIcons name={icon} size={19} color={danger ? t.destructive : t.gold} />
       </View>
-      <Text style={{ flex: 1, color, fontFamily: TJ.bold, fontSize: 14.5, textAlign: "right" }}>{title}</Text>
-      {value ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{value}</Text> : null}
+      <Text style={{ flexGrow: 1, flexShrink: 1, color, fontFamily: TJ.bold, fontSize: 14.5, textAlign: "right" }}>{title}</Text>
+      {value ? <Text numberOfLines={2} style={{ flexShrink: 1, maxWidth: "50%", color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "left" }}>{value}</Text> : null}
       {toggle ? <Toggle {...toggle} /> : onPress ? <MaterialCommunityIcons name="chevron-left" size={20} color={t.muted} /> : null}
     </Pressable>
   );
