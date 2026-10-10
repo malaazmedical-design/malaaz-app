@@ -252,6 +252,13 @@ async function renderConsults(root) {
       else if (c.prop_status === "none") bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "pending" }) }, "في انتظار الدفع"));
       bar.append(reason, h("button", { class: "btn bad", onclick: () => confirm("إلغاء الاستشارة؟") && act("admin_set_payment", { p_id: c.id, p_status: "cancelled", p_reason: reason.value }) }, "إلغاء"));
     }
+    if (c.state === "wait" && c.pay_status === "paid") {
+      const when = h("input", { type: "datetime-local", dir: "ltr" });
+      bar.append(when, h("button", { class: "btn ghost", onclick: () => {
+        if (!when.value) return alert("اختر التاريخ والوقت");
+        if (confirm("تحديد الموعد وإبلاغ الطبيب والعميل؟")) act("admin_set_appointment", { p_id: c.id, p_at: new Date(when.value).toISOString() });
+      } }, c.appt_at ? "تعديل الموعد" : "تحديد الموعد"));
+    }
     if (c.prop_status === "no" || c.prop_status === "pending") bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_consultation_handled", { p_id: c.id }) }, "تم التواصل (السماح بموعد جديد)"));
     if (c.alerts.includes("doctor_late")) bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_doctor_contacted", { p_id: c.id }) }, "تم التواصل مع الطبيب"));
     if (c.alerts.includes("doctor_late") || (c.state === "wait" && c.admin_contacted_at && c.pay_status === "paid" && !c.refunded)) bar.append(h("button", { class: "btn bad", onclick: () => confirm("إلغاء مع الاسترداد؟") && act("admin_refund_consultation", { p_id: c.id, p_cancel: true, p_reason: "الطبيب لم يحضر" }) }, "إلغاء مع الاسترداد"));
