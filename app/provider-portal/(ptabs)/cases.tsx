@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Modal, Platfor
 import { TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ImageViewer } from "@/components/ImageViewer";
 import { SkeletonCards } from "@/components/Skeleton";
 import { PText } from "@/components/provider/PUI";
 import { TJ, useMalaz } from "@/constants/malazTheme";
@@ -51,6 +52,7 @@ function QuestionSheet({ row, onClose, onDone }: { row: AskInboxRow; onClose: ()
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [files, setFiles] = useState<{ url: string; pdf: boolean }[]>([]);
+  const [viewer, setViewer] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -102,7 +104,7 @@ function QuestionSheet({ row, onClose, onDone }: { row: AskInboxRow; onClose: ()
                       <MaterialCommunityIcons name="file-pdf-box" size={32} color={t.destructive} />
                       <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 10 }}>PDF</PText>
                     </Pressable>
-                  ) : <Image key={f.url} source={{ uri: f.url }} style={{ width: 72, height: 72, borderRadius: 12 }} contentFit="cover" />)}
+                  ) : <Pressable key={f.url} onPress={() => setViewer(f.url)}><Image source={{ uri: f.url }} style={{ width: 72, height: 72, borderRadius: 12 }} contentFit="cover" /></Pressable>)}
                 </View>
               ) : row.attachments > 0 ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 8 }}>📎 {row.attachments} مرفقات…</PText> : null}
             </View>
@@ -130,6 +132,7 @@ function QuestionSheet({ row, onClose, onDone }: { row: AskInboxRow; onClose: ()
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      <ImageViewer uri={viewer} onClose={() => setViewer(null)} />
     </Modal>
   );
 }

@@ -7,6 +7,7 @@ import { Text } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ProviderAvatar } from "@/components/ProviderAvatar";
+import { ImageViewer } from "@/components/ImageViewer";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { askStatus } from "@/lib/askStatus";
 import { supabase, AskCaseDoctor, DbAskDoctorAttachment, DbAskDoctorCase } from "@/lib/supabase";
@@ -38,6 +39,7 @@ export default function CaseDetailScreen() {
   const [c, setC] = useState<DbAskDoctorCase | null>(null);
   const [doc, setDoc] = useState<AskCaseDoctor | null>(null);
   const [files, setFiles] = useState<{ url: string; pdf: boolean; name: string }[]>([]);
+  const [viewer, setViewer] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -124,7 +126,7 @@ export default function CaseDetailScreen() {
                   <MaterialCommunityIcons name="file-pdf-box" size={30} color={t.destructive} />
                   <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 10 }}>PDF</Text>
                 </Pressable>
-              ) : <Image key={f.url} source={{ uri: f.url }} style={{ width: 64, height: 64, borderRadius: 12 }} contentFit="cover" />)}
+              ) : <Pressable key={f.url} onPress={() => setViewer(f.url)}><Image source={{ uri: f.url }} style={{ width: 64, height: 64, borderRadius: 12 }} contentFit="cover" /></Pressable>)}
             </View>
           ) : null}
         </View>
@@ -195,6 +197,7 @@ export default function CaseDetailScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <ImageViewer uri={viewer} onClose={() => setViewer(null)} />
     </View>
   );
 }

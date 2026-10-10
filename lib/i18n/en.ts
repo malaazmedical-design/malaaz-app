@@ -1116,6 +1116,8 @@ export const EN: Record<string, string> = {
   "استشارة بانتظار تحديد موعد": "Consultation waiting for a time",
   "الاستشارة القادمة": "Next consultation",
   "عرض الاستشارة": "View consultation",
+  "فتح في المتصفح": "Open in browser",
+  "إغلاق": "Close",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",

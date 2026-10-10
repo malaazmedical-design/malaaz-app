@@ -7,6 +7,7 @@ import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CallPanel } from "@/components/consult/CallPanel";
+import { ImageViewer } from "@/components/ImageViewer";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { endAt, fmtClock } from "@/lib/consult";
 import { supabase, DbConsultation, DbConsultMessage } from "@/lib/supabase";
@@ -23,6 +24,7 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
   const [now, setNow] = useState(Date.now());
   const [offline, setOffline] = useState(false);
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [viewer, setViewer] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
   const touched = useRef(false);
   const end = endAt(c);
@@ -207,7 +209,7 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
             <View style={{ alignItems: me ? "flex-start" : "flex-end" }}>
               <Pressable disabled={!m.fail} onPress={() => retry(m)}
                 style={{ maxWidth: "82%", backgroundColor: me ? t.gold : t.card, borderWidth: me ? 0 : 1, borderColor: t.border, borderRadius: 18, padding: 10, opacity: m.local && !m.fail ? 0.7 : 1 }}>
-                {m.file_path && IMAGE_EXT.test(m.file_path) ? (url ? <Image source={{ uri: url }} style={{ width: 200, height: 160, borderRadius: 12 }} contentFit="cover" /> : <ActivityIndicator color={t.gold} />) : null}
+                {m.file_path && IMAGE_EXT.test(m.file_path) ? (url ? <Pressable onPress={() => setViewer(url)}><Image source={{ uri: url }} style={{ width: 200, height: 160, borderRadius: 12 }} contentFit="cover" /></Pressable> : <ActivityIndicator color={t.gold} />) : null}
                 {m.file_path && !IMAGE_EXT.test(m.file_path) ? (
                   <Pressable onPress={() => url && Linking.openURL(url).catch(() => {})} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, paddingVertical: 4 }}>
                     <MaterialCommunityIcons name="file-document-outline" size={26} color={me ? t.onGold : t.goldText} />
@@ -234,6 +236,7 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
           <MaterialCommunityIcons name="send" size={20} color={text.trim() ? t.onGold : t.muted} style={{ transform: [{ scaleX: -1 }] }} />
         </Pressable>
       </View>
+      <ImageViewer uri={viewer} onClose={() => setViewer(null)} />
     </KeyboardAvoidingView>
   );
 }
