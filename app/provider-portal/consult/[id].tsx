@@ -180,8 +180,7 @@ export default function ProviderConsultation() {
 
         {stage === "need_summary" ? (
           <View style={[card, { borderColor: t.gold, borderWidth: 1.5 }]}>
-            {head("اكتب ملخص الاستشارة")}
-            <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginBottom: 8 }}>بدون أدوية أو روشتة — الاستشارة ليست كشفًا.</PText>
+            {head("ملخص الاستشارة")}
             <TextInput value={note} onChangeText={setNote} multiline textAlign="right" placeholder="ملاحظات الطبيب" placeholderTextColor={t.muted}
               style={{ minHeight: 90, backgroundColor: t.ic, borderRadius: 14, padding: 12, color: t.text, fontFamily: TJ.medium, fontSize: 14.5, textAlignVertical: "top" }} />
             <TextInput value={recs} onChangeText={setRecs} multiline textAlign="right" placeholder="التوصيات" placeholderTextColor={t.muted}

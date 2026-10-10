@@ -196,7 +196,7 @@ export default function ClientConsultation() {
                 <>
                   <Text style={{ color: t.goldText, fontSize: 26, textAlign: "right" }}>{"★".repeat(c.rating)}{"☆".repeat(5 - c.rating)}</Text>
                   {c.rating_text ? body(c.rating_text) : null}
-                  <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 6 }}>{c.rating_ok ? "تم اعتماد تقييمك" : "تقييمك قيد مراجعة الإدارة"}</Text>
+                  <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 6 }}>تم الإرسال</Text>
                 </>
               ) : (
                 <>
