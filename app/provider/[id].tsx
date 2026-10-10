@@ -451,7 +451,7 @@ export default function ProviderScreen() {
         >
           <MaterialCommunityIcons name={onlineSel ? "chat-processing-outline" : "calendar-check"} size={20} color={t.onGold} />
           <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>
-            {!provider.available ? "غير متاح حالياً" : submitting ? "جاري الحجز..." : onlineSel ? `احجز مع ${provider.name.startsWith("د") ? provider.name : `د. ${provider.name}`} الآن` : "تأكيد الحجز"}
+            {!provider.available ? "غير متاح حالياً" : submitting ? "جاري الحجز..." : `احجز مع ${provider.serviceType === "doctor" && !provider.name.startsWith("د") ? `د. ${provider.name}` : provider.name} الآن`}
           </Text>
         </Pressable>
       </BlurView>
