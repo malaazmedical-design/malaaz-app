@@ -57,9 +57,11 @@ Deno.serve(async (req) => {
     const remaining = Math.floor((new Date(access.ends_at).getTime() - Date.now()) / 1000);
     if (remaining <= 0) return json({ error: "ended" }, 409);
 
-    const url = Deno.env.get("LIVEKIT_URL")!;
-    const apiKey = Deno.env.get("LIVEKIT_API_KEY")!;
-    const secret = Deno.env.get("LIVEKIT_API_SECRET")!;
+    // secrets pasted from a dashboard often carry a trailing space / newline / quotes: clean them
+    const clean = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
+    const url = clean(Deno.env.get("LIVEKIT_URL"));
+    const apiKey = clean(Deno.env.get("LIVEKIT_API_KEY"));
+    const secret = clean(Deno.env.get("LIVEKIT_API_SECRET"));
     if (!url || !apiKey || !secret) return json({ error: "server_not_configured" }, 500);
 
     const now = Math.floor(Date.now() / 1000);
@@ -81,6 +83,15 @@ Deno.serve(async (req) => {
       },
       secret,
     );
+    // ask LiveKit itself whether it accepts this token, so a wrong key / secret / url is reported clearly (no secret is revealed)
+    try {
+      const host = url.replace(/^wss?:\/\//, "").replace(/\/+$/, "");
+      const r = await fetch(`https://${host}/rtc/validate?access_token=${token}`);
+      if (r.status === 401 || r.status === 403) {
+        const body = (await r.text()).slice(0, 120);
+        return json({ error: "livekit_rejected_token", detail: `${r.status} ${body} | key=${apiKey.slice(0, 6)}… (${apiKey.length} chars) secret=${secret.length} chars host=${host}` }, 502);
+      }
+    } catch { /* LiveKit unreachable from here: let the app try anyway */ }
     return json({ url, token, channel: access.channel, role: access.role });
   } catch (e) {
     return json({ error: "server_error", detail: String(e) }, 500);

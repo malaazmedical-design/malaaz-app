@@ -56,11 +56,15 @@ export function CallPanel({ c, role }: { c: DbConsultation; role: "c" | "d" }) {
     const { data, error } = await supabase.functions.invoke("livekit-token", { body: { consultation_id: c.id } });
     setBusy(false);
     if (error || !data?.token) {
-      const code = (data as any)?.error ?? "";
+      // a non-2xx answer comes back as an error whose body holds the server's reason
+      let body: any = data;
+      try { if (!body && (error as any)?.context?.json) body = await (error as any).context.json(); } catch {}
+      const code = body?.error ?? "";
+      const detail = body?.detail ? ` ${String(body.detail)}` : "";
       setFallbackMsg(
         code === "rtc_unavailable"
           ? "الصوت والفيديو متوقفان مؤقتًا. كمّل الاستشارة بالشات."
-          : `تعذّر بدء المكالمة. تأكد من الإنترنت أو كمّل بالشات.${code || error?.message ? `\n(${String(code || error?.message).slice(0, 120)})` : ""}`,
+          : `تعذّر بدء المكالمة. تأكد من الإنترنت أو كمّل بالشات.${code || error?.message ? `\n(${String(code || error?.message)}${detail})`.slice(0, 260) : ""}`,
       );
       setPhase("fallback");
       return;
