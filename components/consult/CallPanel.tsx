@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, View } from "react-native";
 import { Text } from "@/components/i18n";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";
@@ -140,10 +140,31 @@ export function CallPanel({ c, role, onEntered }: { c: DbConsultation; role: "c"
 
 function CallRoom({ lk, conn, isVideo, otherName, onFail, LiveKitRoom, AudioSession, cid, onEntered }: any) {
   const t = useMalaz();
+  // voice calls play through the earpiece (far less echo), video calls through the loudspeaker; the user can switch
+  const [speaker, setSpeaker] = useState(isVideo);
   useEffect(() => {
-    AudioSession.startAudioSession();
+    (async () => {
+      try {
+        await AudioSession.configureAudio({
+          android: {
+            preferredOutputList: isVideo ? ["bluetooth", "headset", "speaker", "earpiece"] : ["bluetooth", "headset", "earpiece", "speaker"],
+            audioTypeOptions: lk.rn.AndroidAudioTypePresets?.communication ?? { manageAudioFocus: true, audioMode: "inCommunication", audioFocusMode: "gain", audioStreamType: "voiceCall", audioAttributesUsageType: "voiceCommunication", audioAttributesContentType: "speech" },
+          },
+          ios: { defaultOutput: isVideo ? "speaker" : "earpiece" },
+        });
+      } catch { /* defaults are fine */ }
+      AudioSession.startAudioSession();
+    })();
     return () => { AudioSession.stopAudioSession(); };
-  }, [AudioSession]);
+  }, [AudioSession, lk, isVideo]);
+  const toggleSpeaker = async () => {
+    const next = !speaker;
+    setSpeaker(next);
+    try {
+      if (Platform.OS === "ios") await AudioSession.selectAudioOutput(next ? "force_speaker" : "default");
+      else await AudioSession.selectAudioOutput(next ? "speaker" : "earpiece");
+    } catch { setSpeaker(!next); }
+  };
 
   return (
     <LiveKitRoom
@@ -151,18 +172,18 @@ function CallRoom({ lk, conn, isVideo, otherName, onFail, LiveKitRoom, AudioSess
       token={conn.token}
       connect
       onConnected={() => { supabase.rpc("enter_consultation", { p_id: cid }).then(() => onEntered?.()); }}
-      audio
+      audio={{ echoCancellation: true, noiseSuppression: true, autoGainControl: true }}
       video={isVideo}
       options={{ adaptiveStream: { pixelDensity: "screen" }, dynacast: true }}
       onError={(e: any) => onFail(`انقطعت المكالمة. كمّل بالشات أو أعد المحاولة.${e?.message ? `\n(${String(e.message).slice(0, 140)})` : ""}`)}
       onDisconnected={(reason: any) => { if (reason !== undefined && reason !== null && reason !== 1) onFail(`انقطعت المكالمة. كمّل بالشات أو أعد المحاولة.\n(code ${String(reason)})`); }}
     >
-      <RoomBody lk={lk} isVideo={isVideo} otherName={otherName} />
+      <RoomBody lk={lk} isVideo={isVideo} otherName={otherName} speaker={speaker} onToggleSpeaker={toggleSpeaker} />
     </LiveKitRoom>
   );
 }
 
-function RoomBody({ lk, isVideo, otherName }: { lk: NonNullable<ReturnType<typeof getLiveKit>>; isVideo: boolean; otherName: string }) {
+function RoomBody({ lk, isVideo, otherName, speaker, onToggleSpeaker }: { lk: NonNullable<ReturnType<typeof getLiveKit>>; isVideo: boolean; otherName: string; speaker: boolean; onToggleSpeaker: () => void }) {
   const t = useMalaz();
   const { useConnectionState, useRemoteParticipants, useLocalParticipant, useTracks, VideoTrack, isTrackReference } = lk.rn as any;
   const { ConnectionState, Track } = lk.client as any;
@@ -213,6 +234,10 @@ function RoomBody({ lk, isVideo, otherName }: { lk: NonNullable<ReturnType<typeo
         <Pressable onPress={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled).catch(() => Alert.alert("", "تعذّر تشغيل الميكروفون"))}
           style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isMicrophoneEnabled ? "rgba(255,255,255,.18)" : t.destructive, alignItems: "center", justifyContent: "center" }}>
           <MaterialCommunityIcons name={isMicrophoneEnabled ? "microphone" : "microphone-off"} size={22} color="#fff" />
+        </Pressable>
+        <Pressable onPress={onToggleSpeaker} accessibilityLabel="تبديل السماعة"
+          style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: speaker ? "rgba(201,168,76,.45)" : "rgba(255,255,255,.18)", alignItems: "center", justifyContent: "center" }}>
+          <MaterialCommunityIcons name={speaker ? "volume-high" : "phone-in-talk"} size={22} color="#fff" />
         </Pressable>
         {isVideo ? (
           <Pressable onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled).catch(() => Alert.alert("", "تعذّر تشغيل الكاميرا"))}
