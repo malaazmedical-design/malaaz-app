@@ -14,6 +14,7 @@ import { whatsappCompany } from "@/lib/contact";
 import { Booking, useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { useResponsive } from "@/hooks/useResponsive";
+import { useClientConsultCount } from "@/lib/useClientConsultCount";
 
 import { locale } from "@/lib/i18n";
 const STATUS_MAP: Record<string, { label: string; color: string; icon: string }> = {
@@ -28,6 +29,8 @@ export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const { isTablet, colWidth } = useResponsive();
   const { bookings, loadingBookings, cancelBooking, refreshBookings, profile } = useApp();
+  const consultCount = useClientConsultCount();
+  const activeBookings = bookings.filter((b) => b.status === "pending" || b.status === "confirmed").length;
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const { seg: segParam } = useLocalSearchParams<{ seg?: string }>();
   const [seg, setSeg] = useState<"bookings" | "consults">(segParam === "consults" ? "consults" : "bookings");
@@ -63,9 +66,14 @@ export default function BookingsScreen() {
           </Pressable>
         </View>
         <View style={{ flexDirection: "row-reverse", marginTop: 14, padding: 4, borderRadius: 16, backgroundColor: "#FFFFFF12" }}>
-          {([["bookings", "الحجوزات"], ["consults", "الاستشارات"]] as const).map(([k, name]) => (
-            <Pressable key={k} onPress={() => setSeg(k)} style={{ flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 12, backgroundColor: seg === k ? "#C9A84C" : "transparent" }}>
+          {([["bookings", "الحجوزات", activeBookings], ["consults", "الاستشارات", consultCount]] as const).map(([k, name, n]) => (
+            <Pressable key={k} onPress={() => setSeg(k)} style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8, borderRadius: 12, backgroundColor: seg === k ? "#C9A84C" : "transparent" }}>
               <Text style={{ color: seg === k ? "#10201f" : "#FFFFFFAA", fontFamily: "Cairo_700Bold", fontSize: 14 }}>{name}</Text>
+              {n > 0 ? (
+                <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: seg === k ? "#10201f" : "#C9A84C", alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: seg === k ? "#C9A84C" : "#10201f", fontFamily: "Cairo_700Bold", fontSize: 12 }}>{n}</Text>
+                </View>
+              ) : null}
             </Pressable>
           ))}
         </View>
