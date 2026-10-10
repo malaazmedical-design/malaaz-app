@@ -829,6 +829,7 @@ function SpecialtySheet({ visible, type, grade, selected, grades, options, resul
 }) {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
+  const [dropOpen, setDropOpen] = useState(false);
   const chip = (active: boolean) => ({
     flexDirection: "row-reverse" as const, alignItems: "center" as const, justifyContent: "center" as const, gap: 5,
     paddingHorizontal: 20, paddingVertical: 11, borderRadius: 18, borderWidth: 1.5,
@@ -875,17 +876,32 @@ function SpecialtySheet({ visible, type, grade, selected, grades, options, resul
           {type !== "all" && options.length > 0 ? (
             <View>
               <Text style={heading}>{type === "doctor" ? "التخصص" : type === "nurse" ? "الخدمة" : "نوع الأشعة"}</Text>
-              <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 10 }}>
-                {options.map((it) => {
-                  const active = selected.includes(it.name);
-                  const empty = it.count === 0 && !active;
-                  return (
-                    <Pressable key={it.name} disabled={empty} onPress={() => onToggle(it.name)} style={[chip(active), empty ? { opacity: 0.4 } : null]}>
-                      <Text style={chipText(active)}>{it.name} ({it.count})</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <Pressable onPress={() => setDropOpen((v) => !v)} style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: selected.length ? t.gold : t.border, backgroundColor: t.card, paddingHorizontal: 16, paddingVertical: 10, gap: 10 }}>
+                <Text numberOfLines={2} style={{ flex: 1, color: selected.length ? t.text : t.muted, fontFamily: TJ.medium, fontSize: 15, textAlign: "right" }}>
+                  {selected.length === 0 ? (type === "doctor" ? "كل التخصصات" : "الكل") : selected.length <= 2 ? selected.join("، ") : `${selected.length} محدد`}
+                </Text>
+                <MaterialCommunityIcons name={dropOpen ? "chevron-up" : "chevron-down"} size={22} color={t.muted} />
+              </Pressable>
+              {dropOpen ? (
+                <View style={{ marginTop: 8, borderRadius: 16, borderWidth: 1, borderColor: t.border, backgroundColor: t.card, overflow: "hidden", maxHeight: 280 }}>
+                  <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
+                    {options.map((it, i) => {
+                      const active = selected.includes(it.name);
+                      const empty = it.count === 0 && !active;
+                      return (
+                        <Pressable key={it.name} disabled={empty} onPress={() => onToggle(it.name)}
+                          style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 16, borderTopWidth: i ? 1 : 0, borderTopColor: t.border, backgroundColor: active ? t.goldTint : "transparent", opacity: empty ? 0.4 : 1 }}>
+                          <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: active ? t.gold : t.border, backgroundColor: active ? t.gold : "transparent", alignItems: "center", justifyContent: "center" }}>
+                            {active ? <MaterialCommunityIcons name="check" size={15} color={t.onGold} /> : null}
+                          </View>
+                          <Text style={{ flex: 1, color: active ? t.goldText : t.text, fontFamily: TJ.bold, fontSize: 14.5, textAlign: "right" }}>{it.name}</Text>
+                          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>({it.count})</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              ) : null}
             </View>
           ) : null}
           {type === "all" ? (
