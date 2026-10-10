@@ -11,7 +11,7 @@ type Phase = "check" | "joining" | "in" | "fallback";
 type Conn = { url: string; token: string };
 
 // Voice / video part of a live consultation. The chat room below it stays open all the time (also as the fallback).
-export function CallPanel({ c, role }: { c: DbConsultation; role: "c" | "d" }) {
+export function CallPanel({ c, role, onEntered }: { c: DbConsultation; role: "c" | "d"; onEntered?: () => void }) {
   const t = useMalaz();
   const lk = getLiveKit();
   const isVideo = c.channel === "video";
@@ -132,11 +132,13 @@ export function CallPanel({ c, role }: { c: DbConsultation; role: "c" | "d" }) {
       onFail={(msg: string) => { setFallbackMsg(msg); setPhase("fallback"); }}
       LiveKitRoom={LiveKitRoom}
       AudioSession={AudioSession}
+      cid={c.id}
+      onEntered={onEntered}
     />
   );
 }
 
-function CallRoom({ lk, conn, isVideo, otherName, onFail, LiveKitRoom, AudioSession }: any) {
+function CallRoom({ lk, conn, isVideo, otherName, onFail, LiveKitRoom, AudioSession, cid, onEntered }: any) {
   const t = useMalaz();
   useEffect(() => {
     AudioSession.startAudioSession();
@@ -148,6 +150,7 @@ function CallRoom({ lk, conn, isVideo, otherName, onFail, LiveKitRoom, AudioSess
       serverUrl={conn.url}
       token={conn.token}
       connect
+      onConnected={() => { supabase.rpc("enter_consultation", { p_id: cid }).then(() => onEntered?.()); }}
       audio
       video={isVideo}
       options={{ adaptiveStream: { pixelDensity: "screen" }, dynacast: true }}

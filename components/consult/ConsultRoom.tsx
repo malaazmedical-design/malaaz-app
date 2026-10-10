@@ -27,6 +27,7 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
   const [viewer, setViewer] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
   const touched = useRef(false);
+  const enterTried = useRef<string | null>(null);
   const end = endAt(c);
   const remaining = end ? end - now : 0;
   const mine = role;
@@ -42,7 +43,14 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
     if (remaining > 0) touched.current = false;
   }, [remaining, end, c.id, onChanged]);
 
-  useEffect(() => { if (role === "c") supabase.rpc("enter_consultation", { p_id: c.id }); }, [role, c.id]);
+  // the session clock starts when someone really enters: chat = opening the room (calls start it when they connect)
+  useEffect(() => {
+    if (c.state !== "live" || c.started_at || c.channel !== "chat" || enterTried.current === c.id) return;
+    enterTried.current = c.id;
+    supabase.rpc("enter_consultation", { p_id: c.id }).then(() => onChanged());
+  }, [c.id, c.state, c.started_at, c.channel, onChanged]);
+  // the client's own entry is recorded for every channel (so "client in" is known), without starting the clock for calls
+  useEffect(() => { if (role === "c" && c.channel !== "chat" && !c.client_in_at && c.state === "live" && c.started_at) supabase.rpc("enter_consultation", { p_id: c.id }); }, [role, c.id, c.channel, c.client_in_at, c.state, c.started_at]);
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("consultation_messages").select("*").eq("consultation_id", c.id).order("created_at");
@@ -152,9 +160,10 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
     { text: "نعم", style: "destructive", onPress: () => supabase.rpc("end_consultation", { p_id: c.id, p_no_show: true }).then(() => onChanged()) },
   ]);
 
-  const startedMs = c.started_at ? new Date(c.started_at).getTime() : now;
-  const canNoShow = role === "d" && !c.client_in_at && now - startedMs >= 10 * 60000;
-  const low = remaining <= 5 * 60000;
+  const openedMs = new Date(c.opened_at ?? c.started_at ?? now).getTime();
+  const notStarted = !c.started_at;
+  const canNoShow = role === "d" && !c.client_in_at && now - openedMs >= 10 * 60000;
+  const low = !notStarted && remaining <= 5 * 60000;
   const waitingClient = role === "d" && !c.client_in_at;
 
   return (
@@ -168,10 +177,10 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
       <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: t.border }}>
         <View style={{ backgroundColor: low ? "rgba(229,72,77,.15)" : t.goldTint, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, flexDirection: "row-reverse", alignItems: "center", gap: 6 }}>
           <MaterialCommunityIcons name="timer-outline" size={18} color={low ? t.destructive : t.goldText} />
-          <Text style={{ color: low ? t.destructive : t.goldText, fontFamily: TJ.heavy, fontSize: 17, writingDirection: "ltr" }}>{fmtClock(remaining)}</Text>
+          <Text style={{ color: low ? t.destructive : t.goldText, fontFamily: TJ.heavy, fontSize: 17, writingDirection: "ltr" }}>{fmtClock(notStarted ? c.duration_min * 60000 : remaining)}</Text>
         </View>
         <Text style={{ flex: 1, color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right" }}>
-          {waitingClient ? "بانتظار دخول المريض" : low ? "متبقي أقل من 5 دقائق" : "الجلسة جارية"}
+          {notStarted ? (role === "d" ? "بانتظار دخول أحد الطرفين" : "بانتظار الطبيب") : waitingClient ? "بانتظار دخول المريض" : low ? "متبقي أقل من 5 دقائق" : "الجلسة جارية"}
         </Text>
         {role === "d" ? (
           <View style={{ flexDirection: "row-reverse", gap: 6 }}>
@@ -187,7 +196,7 @@ export function ConsultRoom({ c, role, onChanged }: { c: DbConsultation; role: "
         ) : null}
       </View>
 
-      {c.channel !== "chat" ? <CallPanel c={c} role={role} /> : null}
+      {c.channel !== "chat" ? <CallPanel c={c} role={role} onEntered={onChanged} /> : null}
 
       {canNoShow ? (
         <Pressable onPress={doNoShow} style={{ margin: 12, padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: "rgba(229,72,77,.5)", alignItems: "center" }}>

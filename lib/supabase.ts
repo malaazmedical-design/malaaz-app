@@ -324,6 +324,7 @@ export type DbConsultation = {
   appt_at: string | null;
   state: "wait" | "live" | "ended";
   started_at: string | null;
+  opened_at: string | null;
   ended_at: string | null;
   extra_min: number;
   client_in_at: string | null;

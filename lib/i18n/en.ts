@@ -1118,6 +1118,8 @@ export const EN: Record<string, string> = {
   "عرض الاستشارة": "View consultation",
   "فتح في المتصفح": "Open in browser",
   "إغلاق": "Close",
+  "بانتظار دخول أحد الطرفين": "Waiting for either side to join",
+  "بانتظار الطبيب": "Waiting for the doctor",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",
