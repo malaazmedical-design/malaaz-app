@@ -249,7 +249,7 @@ async function renderConsults(root) {
         h("div", { class: "mu" }, "المتابعة: " + ({ none: "لا يلزم متابعة", week: "بعد أسبوع", two: "بعد أسبوعين", month: "بعد شهر" }[c.sum_follow] || c.sum_follow) + " · " + fmt(c.sum_at))) : (c.state === "ended" && !c.no_show ? h("div", { class: "mu" }, "ملخص الدكتور: لم يُكتب بعد") : null),
       c.admin_contacted_at ? h("div", { class: "mu", style: "color:var(--ok)" }, "✓ تم التواصل مع الطبيب " + fmt(c.admin_contacted_at)) : null,
       c.refunded ? h("div", { class: "row", style: "margin-top:6px" }, h("span", { class: "badge", style: "background:rgba(31,166,90,.15);color:var(--ok)" }, "تم الاسترداد")) : null,
-      c.rating ? h("div", { class: "msg" }, "★".repeat(c.rating) + (c.rating_text ? " — " + c.rating_text : ""), " ", c.rating_ok ? h("span", { class: "badge", style: "background:rgba(31,166,90,.15);color:var(--ok)" }, "تم الاعتماد · منشور في صفحة الدكتور") : h("span", { class: "badge", style: "background:var(--ic)" }, "بانتظار الاعتماد")) : null);
+      c.rating ? h("div", { class: "msg" }, "★".repeat(c.rating) + (c.rating_text ? " — " + c.rating_text : ""), " ", c.rating_ok ? h("span", { class: "badge", style: "background:rgba(31,166,90,.15);color:var(--ok)" }, "تم الاعتماد · منشور في صفحة الدكتور") : c.rating_hidden ? h("span", { class: "badge", style: "background:rgba(229,72,77,.14);color:var(--bad)" }, "تم إلغاء النشر") : h("span", { class: "badge", style: "background:var(--ic)" }, "بانتظار الاعتماد")) : null);
     const bar = h("div", { class: "row", style: "margin-top:10px" });
     if (c.state === "wait" && c.pay_status !== "cancelled") {
       if (c.pay_status === "pending") bar.append(h("button", { class: "btn ok", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "paid" }) }, "تم الدفع"));
@@ -267,7 +267,8 @@ async function renderConsults(root) {
     if (c.alerts.includes("doctor_late")) bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_doctor_contacted", { p_id: c.id }) }, "تم التواصل مع الطبيب"));
     if (c.alerts.includes("doctor_late") || (c.state === "wait" && c.admin_contacted_at && c.pay_status === "paid" && !c.refunded)) bar.append(h("button", { class: "btn bad", onclick: () => confirm("إلغاء مع الاسترداد؟") && act("admin_refund_consultation", { p_id: c.id, p_cancel: true, p_reason: "الطبيب لم يحضر" }) }, "إلغاء مع الاسترداد"));
     if (c.no_show && !c.refunded) bar.append(h("button", { class: "btn ghost", onclick: () => confirm("استرداد استثنائي؟") && act("admin_refund_consultation", { p_id: c.id }) }, "استرداد استثنائي"));
-    if (c.rating && !c.rating_ok) bar.append(h("button", { class: "btn", onclick: () => act("admin_approve_rating", { p_id: c.id }) }, "اعتماد التقييم"));
+    if (c.rating && !c.rating_ok) bar.append(h("button", { class: "btn", onclick: () => act("admin_approve_rating", { p_id: c.id }) }, c.rating_hidden ? "إعادة النشر" : "اعتماد التقييم"));
+    if (c.rating && c.rating_ok) bar.append(h("button", { class: "btn bad", onclick: () => confirm("إلغاء نشر التقييم من صفحة الدكتور؟") && act("admin_unpublish_rating", { p_id: c.id }) }, "إلغاء النشر"));
     if (bar.children.length) card.append(bar);
     return card;
   }));
