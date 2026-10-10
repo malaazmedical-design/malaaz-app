@@ -537,15 +537,11 @@ export default function HomeScreen() {
             <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, flex: 1, textAlign: "right" }}>
               {loadingProviders ? "جاري التحميل..." : `${filtered.length} نتيجة`}
             </Text>
-            {filtered.length > 1 ? (
-              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-                <Pressable onPress={() => scrollRow(-1)} accessibilityLabel="السابق" style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={t.text} />
-                </Pressable>
-                <Pressable onPress={() => scrollRow(1)} accessibilityLabel="التالي" style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
-                  <MaterialCommunityIcons name="chevron-left" size={20} color={t.text} />
-                </Pressable>
-              </View>
+            {filtered.length > 0 ? (
+              <Pressable onPress={() => setViewAll(true)} hitSlop={8} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 2 }}>
+                <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14 }}>عرض الكل</Text>
+                <MaterialCommunityIcons name="chevron-left" size={20} color={t.goldText} />
+              </Pressable>
             ) : null}
           </View>
 
@@ -796,52 +792,30 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress, online 
   const { coverageAreas } = useApp();
   const govName = [...providerCities(provider.areas.length ? provider.areas : [provider.city], coverageAreas)][0] ?? provider.city;
   const t = useMalaz();
-  const visit = minPriceOf(provider);
-  const onl = lowestOnline(online);
-  const prices = [visit > 0 ? visit : null, onl].filter((x): x is number => x != null);
-  const from = prices.length ? Math.min(...prices) : null;
-  const chips: { label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"] }[] = [];
-  if (visit > 0) chips.push({ label: provider.serviceType === "doctor" ? "كشف منزلي" : "زيارة منزلية", icon: "home-outline" });
-  if (online?.chat != null) chips.push({ label: "شات", icon: "email-outline" });
-  if (online?.voice != null) chips.push({ label: "صوت", icon: "phone-outline" });
-  if (online?.video != null) chips.push({ label: "فيديو", icon: "video-outline" });
   return (
     <Pressable
       onPress={() => onPress(provider.id)}
-      style={({ pressed }) => ({ padding: 14, borderRadius: 22, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, transform: [{ scale: pressed ? 0.985 : 1 }] })}
+      style={({ pressed }) => ({
+        flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, borderRadius: 20,
+        backgroundColor: t.card, borderWidth: 1, borderColor: t.border, transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
     >
-      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
-        <View>
-          <ProviderAvatar provider={provider} style={{ width: 64, height: 64, borderRadius: 14 }} letterSize={28} />
-          <View style={{ position: "absolute", bottom: -3, left: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: provider.available ? t.online : t.offline, borderWidth: 2, borderColor: t.card }} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>{provider.name}</Text>
-          <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 2 }}>{provider.title} · {govName}</Text>
-          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 4 }}>
-            <MaterialCommunityIcons name="star" size={14} color={t.gold} />
-            <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13 }}>{provider.rating.toFixed(1)}</Text>
-            {provider.reviewsCount > 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>({provider.reviewsCount})</Text> : null}
-            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>· {provider.yearsExperience} سنة خبرة</Text>
-          </View>
-        </View>
-        {from != null ? (
-          <View style={{ alignItems: "flex-start" }}>
-            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5 }}>ابتداء من</Text>
-            <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 19 }}>{from} ج.م</Text>
-          </View>
-        ) : null}
+      <View>
+        <ProviderAvatar provider={provider} style={{ width: 64, height: 64, borderRadius: 14 }} letterSize={28} />
+        <View style={{ position: "absolute", bottom: -3, left: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: provider.available ? t.online : t.offline, borderWidth: 2, borderColor: t.card }} />
       </View>
-      {chips.length ? (
-        <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-          {chips.map((c) => (
-            <View key={c.label} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: t.ic }}>
-              <MaterialCommunityIcons name={c.icon} size={16} color={t.goldText} />
-              <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>{c.label}</Text>
-            </View>
-          ))}
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{provider.name}</Text>
+        <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "right", marginTop: 2 }}>
+          {provider.title} · {govName}
+        </Text>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 }}>
+          <MaterialCommunityIcons name="star" size={13} color={t.gold} />
+          <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
+          {provider.reviewsCount > 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text> : null}
         </View>
-      ) : null}
+        <ServiceLines provider={provider} online={online} />
+      </View>
     </Pressable>
   );
 });
