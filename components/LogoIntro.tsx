@@ -14,6 +14,21 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { LOGO_H, LOGO_PATHS, LOGO_W } from "./logoPaths";
+import { PROVIDER_LOGO_H, PROVIDER_LOGO_MASK, PROVIDER_LOGO_PATHS, PROVIDER_LOGO_W } from "./providerLogoPaths";
+
+type LogoSpec = {
+  rest: number; dot: number; w: number; h: number;
+  paths: { d: string; color: string; len: number }[];
+  maskD: string;
+};
+const CLIENT_LOGO: LogoSpec = {
+  rest: require("../assets/images/intro/logo-rest.png"), dot: require("../assets/images/intro/logo-dot.png"),
+  w: LOGO_W, h: LOGO_H, paths: LOGO_PATHS, maskD: LOGO_PATHS.map((p) => p.d).join(" "),
+};
+const PROVIDER_LOGO: LogoSpec = {
+  rest: require("../assets/images/intro/provider-rest.png"), dot: require("../assets/images/intro/provider-dot.png"),
+  w: PROVIDER_LOGO_W, h: PROVIDER_LOGO_H, paths: PROVIDER_LOGO_PATHS, maskD: PROVIDER_LOGO_MASK,
+};
 
 // افتتاحية العميل: النقطة الدهبية، رسم اللوجو بخط، تعبئة اللون، لمعة، وتوهج دهبي هادي خلفه،
 // وتحته "اختار • قارن • احجز". بعدها اللوجو بيرتفع شوية والشاشة تتلاشى.
@@ -41,10 +56,11 @@ function TracePath({ d, color, len, progress }: { d: string; color: string; len:
   );
 }
 
-export function LogoIntro({ onDone }: { onDone: () => void }) {
+export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?: boolean }) {
+  const L = provider ? PROVIDER_LOGO : CLIENT_LOGO;
   const { width: sw } = useWindowDimensions();
-  const w = Math.min(sw * 0.74, 360);
-  const h = (w * LOGO_H) / LOGO_W;
+  const w = Math.min(sw * (provider ? 0.66 : 0.74), 360);
+  const h = (w * L.h) / L.w;
 
   const dot = useSharedValue(0);
   const trace = useSharedValue(0);
@@ -93,10 +109,10 @@ export function LogoIntro({ onDone }: { onDone: () => void }) {
     opacity: tag.value * (1 - exit.value),
     transform: [{ translateY: 6 * (1 - tag.value) }],
   }));
-  const shineProps = useAnimatedProps(() => ({ x: -LOGO_W * 0.5 + shine.value * LOGO_W * 1.6 }));
+  const shineProps = useAnimatedProps(() => ({ x: -L.w * 0.5 + shine.value * L.w * 1.6 }));
   const shineStyle = useAnimatedStyle(() => ({ opacity: shine.value > 0 && shine.value < 1 ? 1 : 0 }));
 
-  const allD = LOGO_PATHS.map((p) => p.d).join(" ");
+  const allD = L.maskD;
 
   return (
     <Animated.View style={[StyleSheet.absoluteFillObject, styles.overlay]} pointerEvents="none">
@@ -117,22 +133,22 @@ export function LogoIntro({ onDone }: { onDone: () => void }) {
 
       <Animated.View style={[{ width: w, height: h }, logoStyle]}>
         <Animated.View style={[StyleSheet.absoluteFillObject, restStyle]}>
-          <Image source={require("../assets/images/intro/logo-rest.png")} style={{ width: w, height: h }} resizeMode="contain" />
+          <Image source={L.rest} style={{ width: w, height: h }} resizeMode="contain" />
         </Animated.View>
         <Animated.View style={[StyleSheet.absoluteFillObject, dotStyle]}>
-          <Image source={require("../assets/images/intro/logo-dot.png")} style={{ width: w, height: h }} resizeMode="contain" />
+          <Image source={L.dot} style={{ width: w, height: h }} resizeMode="contain" />
         </Animated.View>
         <Animated.View style={[StyleSheet.absoluteFillObject, outlineStyle]}>
-          <Svg width={w} height={h} viewBox={`0 0 ${LOGO_W} ${LOGO_H}`}>
-            {LOGO_PATHS.map((p, i) => (
+          <Svg width={w} height={h} viewBox={`0 0 ${L.w} ${L.h}`}>
+            {L.paths.map((p, i) => (
               <TracePath key={i} d={p.d} color={p.color} len={p.len} progress={trace} />
             ))}
           </Svg>
         </Animated.View>
         <Animated.View style={[StyleSheet.absoluteFillObject, shineStyle]}>
-          <Svg width={w} height={h} viewBox={`0 0 ${LOGO_W} ${LOGO_H}`}>
+          <Svg width={w} height={h} viewBox={`0 0 ${L.w} ${L.h}`}>
             <Defs>
-              <Mask id="m" x="0" y="0" width={LOGO_W} height={LOGO_H} maskUnits="userSpaceOnUse">
+              <Mask id="m" x="0" y="0" width={L.w} height={L.h} maskUnits="userSpaceOnUse">
                 <Path d={allD} fill="#fff" fillRule="evenodd" />
               </Mask>
               <LinearGradient id="s" x1="0" y1="0" x2="1" y2="0">
@@ -141,7 +157,7 @@ export function LogoIntro({ onDone }: { onDone: () => void }) {
                 <Stop offset="1" stopColor="#fff" stopOpacity={0} />
               </LinearGradient>
             </Defs>
-            <AnimatedRect y={0} width={LOGO_W * 0.5} height={LOGO_H} fill="url(#s)" mask="url(#m)" animatedProps={shineProps} />
+            <AnimatedRect y={0} width={L.w * 0.5} height={L.h} fill="url(#s)" mask="url(#m)" animatedProps={shineProps} />
           </Svg>
         </Animated.View>
       </Animated.View>
