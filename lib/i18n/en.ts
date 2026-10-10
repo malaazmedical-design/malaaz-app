@@ -1107,6 +1107,8 @@ export const EN: Record<string, string> = {
   "لا توجد أسئلة متاحة الآن.\nتأكد إن الاستشارة الأونلاين مفعّلة في تعديل الحساب عشان تستلم أسئلة تخصصك.": "No questions available right now.\nMake sure online consultation is enabled in Edit account so you receive questions for your specialty.",
   "زيارة منزلية": "Home visit",
   "عرض الكل": "View all",
+  "رعاية أطفال": "Child care",
+  "رعاية منزلية": "Home care",
   // provider (doctor) side
   "استشارات": "Consultations",
   "خدماتي": "My services",

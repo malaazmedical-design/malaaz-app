@@ -31,7 +31,8 @@ export function useLang(): Lang {
   return useSyncExternalStore(subscribe, getLang, getLang);
 }
 
-import { translate } from "./translate";
+import { supabase } from "../supabase";
+import { setDynamicNames, translate } from "./translate";
 
 // Translate one Arabic UI string when the app language is English (names, notes and other server data stay as they are).
 export function tr(s: string): string {
@@ -51,4 +52,19 @@ export function patchAlert() {
       Array.isArray(buttons) ? buttons.map((b: any) => (b && typeof b.text === "string" ? { ...b, text: tr(b.text) } : b)) : buttons,
       options,
     );
+}
+
+// English names of specialties, governorates, cities and services (admin fills them in; Arabic stays the fallback)
+export async function loadEnglishNames(): Promise<void> {
+  try {
+    const map: Record<string, string> = {};
+    const [a, b, c] = await Promise.all([
+      supabase.from("sub_services").select("name,name_en").not("name_en", "is", null),
+      supabase.from("coverage_areas").select("name,name_en").not("name_en", "is", null),
+      supabase.from("governorates").select("name,name_en").not("name_en", "is", null),
+    ]);
+    for (const r of [...(a.data ?? []), ...(b.data ?? []), ...(c.data ?? [])] as { name: string; name_en: string }[]) map[r.name] = r.name_en;
+    setDynamicNames(map);
+    subs.forEach((f) => f());
+  } catch {}
 }

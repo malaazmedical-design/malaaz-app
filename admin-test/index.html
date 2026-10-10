@@ -290,6 +290,12 @@ async function renderManage(root) {
   const ask = (m) => { const v = prompt(m); return v == null ? null : v.trim(); };
   const num = (v) => (v === "" || v == null ? null : Number(v));
   const toggleBtn = (on, fn) => h("button", { class: "btn " + (on ? "ok" : "ghost"), style: "padding:5px 12px", onclick: fn }, on ? "مفعّل" : "موقوف");
+  // English name (shown when the app language is English)
+  const enBtn = (table, row) => h("button", { class: "btn ghost", style: "padding:5px 12px;direction:ltr", title: "الاسم بالإنجليزي", onclick: async () => {
+    const v = ask("الاسم بالإنجليزي لـ «" + row.name + "»"); if (v == null) return;
+    const { error } = await sb.from(table).update({ name_en: v || null }).eq("id", row.id);
+    if (error) alert("تعذّر: " + error.message); renderShell();
+  } }, row.name_en ? "EN: " + row.name_en : "EN +");
   const run = async (p) => { const { error } = await p; if (error) alert("تعذّر: " + error.message); renderShell(); };
 
   // 1) التخصصات
@@ -300,6 +306,7 @@ async function renderManage(root) {
     specBox.children[1].remove();
     for (const s of specs) specBox.append(h("div", { class: "row", style: "padding:6px 0;border-top:1px solid var(--bd)" },
       h("b", {}, s.name), h("span", { class: "mu" }, `أخصائي ${s.price_min_specialist ?? "—"}–${s.price_max_specialist ?? "—"} · استشاري ${s.price_min_consultant ?? "—"}–${s.price_max_consultant ?? "—"}`), h("span", { class: "sp" }),
+      enBtn("sub_services", s),
       toggleBtn(s.is_active, () => run(sb.from("sub_services").update({ is_active: !s.is_active }).eq("id", s.id))),
       h("button", { class: "btn ghost", style: "padding:5px 12px", onclick: async () => {
         const n = ask("الاسم الجديد للتخصص"); if (!n || n === s.name) return;
@@ -313,11 +320,11 @@ async function renderManage(root) {
         if (count) return alert(`لا يمكن الحذف: ${count} من مقدمي الخدمة على هذا التخصص. أوقفه بدل الحذف.`);
         confirm("حذف التخصص؟") && run(sb.from("sub_services").delete().eq("id", s.id));
       } }, "حذف")));
-    const nm = h("input", { placeholder: "اسم التخصص الجديد" });
+    const nm = h("input", { placeholder: "اسم التخصص الجديد" }); const nmEn = h("input", { placeholder: "English name", dir: "ltr" });
     const f = ["أخصائي أدنى", "أخصائي أقصى", "استشاري أدنى", "استشاري أقصى"].map((p) => h("input", { type: "number", placeholder: p, style: "width:110px", dir: "ltr" }));
-    specBox.append(h("div", { class: "row", style: "margin-top:12px" }, nm, f, h("button", { class: "btn", onclick: () => {
+    specBox.append(h("div", { class: "row", style: "margin-top:12px" }, nm, nmEn, f, h("button", { class: "btn", onclick: () => {
       if (!nm.value.trim()) return alert("اكتب اسم التخصص");
-      run(sb.from("sub_services").insert({ service_name: "كشف منزلي", group_name: "specialty", name: nm.value.trim(), duration: "30 دقيقة", price_min_specialist: num(f[0].value), price_max_specialist: num(f[1].value), price_min_consultant: num(f[2].value), price_max_consultant: num(f[3].value), is_active: true }));
+      run(sb.from("sub_services").insert({ service_name: "كشف منزلي", group_name: "specialty", name: nm.value.trim(), name_en: nmEn.value.trim() || null, duration: "30 دقيقة", price_min_specialist: num(f[0].value), price_max_specialist: num(f[1].value), price_min_consultant: num(f[2].value), price_max_consultant: num(f[3].value), is_active: true }));
     } }, "إضافة")));
   }
 
@@ -334,9 +341,10 @@ async function renderManage(root) {
     const extra = [...new Set(areas.map((a) => a.city))].filter((c) => c && !names.has(c)).map((c) => ({ id: null, name: c, is_active: true }));
     for (const g of [...govs, ...extra]) {
       const mine = areas.filter((a) => a.city === g.name);
-      const nc = h("input", { placeholder: "مدينة جديدة", style: "width:150px" });
+      const nc = h("input", { placeholder: "مدينة جديدة", style: "width:150px" }); const ncEn = h("input", { placeholder: "English", style: "width:120px", dir: "ltr" });
       geoBox.append(h("div", { style: "padding:10px 0;border-top:1px solid var(--bd)" },
         h("div", { class: "row" }, h("b", {}, g.name), h("span", { class: "mu" }, `${mine.length} مدينة`), h("span", { class: "sp" }),
+          g.id ? enBtn("governorates", g) : null,
           g.id ? toggleBtn(g.is_active, () => run(sb.from("governorates").update({ is_active: !g.is_active }).eq("id", g.id))) : h("span", { class: "mu" }, "غير مسجلة في جدول المحافظات"),
           g.id ? h("button", { class: "btn ghost", style: "padding:5px 12px", onclick: async () => {
             const n = ask("الاسم الجديد للمحافظة"); if (!n || n === g.name) return;
@@ -348,12 +356,13 @@ async function renderManage(root) {
           g.id ? h("button", { class: "btn bad", style: "padding:5px 12px", onclick: () => mine.length ? alert("احذف مدن المحافظة أولًا أو أوقفها") : confirm("حذف المحافظة؟") && run(sb.from("governorates").delete().eq("id", g.id)) }, "حذف") : null),
         h("div", { class: "thumbs", style: "margin-top:8px" }, mine.map((a) => h("span", { class: "badge", style: `background:var(--ic);${a.is_active ? "" : "opacity:.5;text-decoration:line-through"}` },
           a.name, " ",
+          h("a", { href: "#", title: "الاسم بالإنجليزي", style: "color:var(--mu);text-decoration:none;font-size:11px", onclick: async (ev) => { ev.preventDefault(); const v = ask("الاسم بالإنجليزي لـ «" + a.name + "»"); if (v == null) return; const { error } = await sb.from("coverage_areas").update({ name_en: v || null }).eq("id", a.id); if (error) alert("تعذّر: " + error.message); renderShell(); } }, a.name_en ? "(" + a.name_en + ")" : "EN"), " ",
           h("a", { href: "#", title: a.is_active ? "إيقاف" : "تفعيل", style: "color:var(--gold);text-decoration:none", onclick: (ev) => { ev.preventDefault(); run(sb.from("coverage_areas").update({ is_active: !a.is_active }).eq("id", a.id)); } }, a.is_active ? "⏸" : "▶"), " ",
           h("a", { href: "#", title: "حذف", style: "color:var(--bad);text-decoration:none", onclick: (ev) => { ev.preventDefault(); confirm("حذف المدينة؟") && run(sb.from("coverage_areas").delete().eq("id", a.id)); } }, "✕")))),
-        h("div", { class: "row", style: "margin-top:8px" }, nc, h("button", { class: "btn ghost", onclick: () => nc.value.trim() ? run(sb.from("coverage_areas").insert({ name: nc.value.trim(), city: g.name, is_active: true })) : alert("اكتب اسم المدينة") }, "إضافة مدينة"))));
+        h("div", { class: "row", style: "margin-top:8px" }, nc, ncEn, h("button", { class: "btn ghost", onclick: () => nc.value.trim() ? run(sb.from("coverage_areas").insert({ name: nc.value.trim(), name_en: ncEn.value.trim() || null, city: g.name, is_active: true })) : alert("اكتب اسم المدينة") }, "إضافة مدينة"))));
     }
-    const ng = h("input", { placeholder: "محافظة جديدة" });
-    geoBox.append(h("div", { class: "row", style: "margin-top:12px" }, ng, h("button", { class: "btn", onclick: () => ng.value.trim() ? run(sb.from("governorates").insert({ name: ng.value.trim(), is_active: true })) : alert("اكتب اسم المحافظة") }, "إضافة محافظة")));
+    const ng = h("input", { placeholder: "محافظة جديدة" }); const ngEn = h("input", { placeholder: "English", dir: "ltr" });
+    geoBox.append(h("div", { class: "row", style: "margin-top:12px" }, ng, ngEn, h("button", { class: "btn", onclick: () => ng.value.trim() ? run(sb.from("governorates").insert({ name: ng.value.trim(), name_en: ngEn.value.trim() || null, is_active: true })) : alert("اكتب اسم المحافظة") }, "إضافة محافظة")));
   }
 
   // 3) الخدمات الفرعية (تمريض / أشعة)
@@ -364,6 +373,7 @@ async function renderManage(root) {
     subBox.children[1].remove();
     for (const s of subs.filter((x) => x.group_name !== "grade")) subBox.append(h("div", { class: "row", style: "padding:6px 0;border-top:1px solid var(--bd)" },
       h("b", {}, s.name), h("span", { class: "mu" }, `${s.service_name} · ${s.duration || "—"} · ${s.price_min ?? "—"}–${s.price_max ?? "—"} ج.م`), h("span", { class: "sp" }),
+      enBtn("sub_services", s),
       toggleBtn(s.is_active, () => run(sb.from("sub_services").update({ is_active: !s.is_active }).eq("id", s.id))),
       h("button", { class: "btn bad", style: "padding:5px 12px", onclick: async () => {
         const { count } = await sb.from("provider_services").select("id", { count: "exact", head: true }).eq("sub_service_id", s.id);
@@ -371,11 +381,11 @@ async function renderManage(root) {
         confirm("حذف الخدمة؟") && run(sb.from("sub_services").delete().eq("id", s.id));
       } }, "حذف")));
     const sv = h("select", {}, ["تمريض منزلي", "أشعة منزلية"].map((n) => h("option", { value: n }, n)));
-    const nm = h("input", { placeholder: "اسم الخدمة" }), du = h("input", { placeholder: "المدة (مثال: 30 دقيقة)" });
+    const nm = h("input", { placeholder: "اسم الخدمة" }), nmEn = h("input", { placeholder: "English name", dir: "ltr" }), du = h("input", { placeholder: "المدة (مثال: 30 دقيقة)" });
     const mn = h("input", { type: "number", placeholder: "أدنى", style: "width:90px", dir: "ltr" }), mx = h("input", { type: "number", placeholder: "أقصى", style: "width:90px", dir: "ltr" });
-    subBox.append(h("div", { class: "row", style: "margin-top:12px" }, sv, nm, du, mn, mx, h("button", { class: "btn", onclick: () => {
+    subBox.append(h("div", { class: "row", style: "margin-top:12px" }, sv, nm, nmEn, du, mn, mx, h("button", { class: "btn", onclick: () => {
       if (!nm.value.trim()) return alert("اكتب اسم الخدمة");
-      run(sb.from("sub_services").insert({ service_name: sv.value, name: nm.value.trim(), duration: du.value.trim() || null, price_min: num(mn.value), price_max: num(mx.value), is_active: true }));
+      run(sb.from("sub_services").insert({ service_name: sv.value, name: nm.value.trim(), name_en: nmEn.value.trim() || null, duration: du.value.trim() || null, price_min: num(mn.value), price_max: num(mx.value), is_active: true }));
     } }, "إضافة")));
   }
 }
