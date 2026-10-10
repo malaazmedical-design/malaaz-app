@@ -60,7 +60,7 @@ export function CallPanel({ c, role }: { c: DbConsultation; role: "c" | "d" }) {
       setFallbackMsg(
         code === "rtc_unavailable"
           ? "الصوت والفيديو متوقفان مؤقتًا. كمّل الاستشارة بالشات."
-          : "تعذّر بدء المكالمة. تأكد من الإنترنت أو كمّل بالشات.",
+          : `تعذّر بدء المكالمة. تأكد من الإنترنت أو كمّل بالشات.${code || error?.message ? `\n(${String(code || error?.message).slice(0, 120)})` : ""}`,
       );
       setPhase("fallback");
       return;
@@ -108,7 +108,8 @@ export function CallPanel({ c, role }: { c: DbConsultation; role: "c" | "d" }) {
   if (phase === "fallback" || !conn) {
     return (
       <View style={{ margin: 12, padding: 14, borderRadius: 16, backgroundColor: t.card, borderWidth: 1, borderColor: t.border }}>
-        <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 14, textAlign: "right", lineHeight: 22 }}>{fallbackMsg}</Text>
+        <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 14, textAlign: "right", lineHeight: 22 }}>{fallbackMsg.split("\n")[0]}</Text>
+        {fallbackMsg.includes("\n") ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5, textAlign: "left", writingDirection: "ltr", marginTop: 4 }}>{fallbackMsg.split("\n").slice(1).join(" ")}</Text> : null}
         <Pressable onPress={() => setPhase("check")} style={{ marginTop: 10, alignSelf: "flex-end", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: t.btn }}>
           <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>إعادة المحاولة</Text>
         </Pressable>
@@ -146,7 +147,8 @@ function CallRoom({ lk, conn, isVideo, otherName, onFail, LiveKitRoom, AudioSess
       audio
       video={isVideo}
       options={{ adaptiveStream: { pixelDensity: "screen" }, dynacast: true }}
-      onError={() => onFail("انقطعت المكالمة. كمّل بالشات أو أعد المحاولة.")}
+      onError={(e: any) => onFail(`انقطعت المكالمة. كمّل بالشات أو أعد المحاولة.${e?.message ? `\n(${String(e.message).slice(0, 140)})` : ""}`)}
+      onDisconnected={(reason: any) => { if (reason !== undefined && reason !== null && reason !== 1) onFail(`انقطعت المكالمة. كمّل بالشات أو أعد المحاولة.\n(code ${String(reason)})`); }}
     >
       <RoomBody lk={lk} isVideo={isVideo} otherName={otherName} />
     </LiveKitRoom>
