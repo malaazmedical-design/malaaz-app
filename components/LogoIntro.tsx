@@ -13,7 +13,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Mask, Path, RadialGradient, Rect, Stop } from "react-native-svg";
-import { getIntroTarget } from "@/lib/introTarget";
+import { measureIntroTarget } from "@/lib/introTarget";
 import { LOGO_H, LOGO_PATHS, LOGO_W } from "./logoPaths";
 import { PROVIDER_LOGO_H, PROVIDER_LOGO_MASK, PROVIDER_LOGO_PATHS, PROVIDER_LOGO_W } from "./providerLogoPaths";
 
@@ -90,16 +90,27 @@ export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?:
     shine.value = withDelay(1750, withTiming(1, { duration: 800, easing: Easing.inOut(Easing.quad) }));
     tag.value = withDelay(1500, withTiming(1, { duration: 600, easing: ease }));
     // الخروج: اللوجو يطير لمكانه في هيدر الشاشة الرئيسية (لو معروف)، والتوهج والجملة يختفوا، وبعدها الخلفية
+    let t0 = 0;
+    let cancelled = false;
+    const go = () => {
+      exit.value = withTiming(1, { duration: 750, easing: easeIO });
+      bg.value = withDelay(100, withTiming(0, { duration: 600, easing: Easing.inOut(Easing.quad) }, (finished) => {
+        if (finished) runOnJS(onDone)();
+      }));
+    };
+    // بنقيس مكان لوجو الهيدر وقت الخروج؛ لو الشاشة الرئيسية لسه بتفتح نستنى شوية (لحد 1.5 ثانية) قبل ما نكتفي بالتلاشي
     const startExit = () => {
-      const tg = getIntroTarget();
-      const go = () => {
-        exit.value = withTiming(1, { duration: 750, easing: easeIO });
-        bg.value = withDelay(100, withTiming(0, { duration: 600, easing: Easing.inOut(Easing.quad) }, (finished) => {
-          if (finished) runOnJS(onDone)();
-        }));
-      };
-      if (tg && logoRef.current) {
+      if (cancelled) return;
+      measureIntroTarget((tg) => {
+        if (cancelled) return;
+        if (!tg) {
+          if (Date.now() - t0 < 1500) setTimeout(startExit, 120);
+          else go();
+          return;
+        }
+        if (!logoRef.current) return go();
         logoRef.current.measureInWindow((x, y, mw, mh) => {
+          if (cancelled) return;
           if (mw > 0 && mh > 0) {
             flyDx.value = tg.x + tg.w / 2 - (x + mw / 2);
             flyDy.value = tg.y + tg.h / 2 - (y + mh / 2);
@@ -108,10 +119,10 @@ export function LogoIntro({ onDone, provider }: { onDone: () => void; provider?:
           }
           go();
         });
-      } else go();
+      });
     };
-    const timer = setTimeout(startExit, 2600);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => { t0 = Date.now(); startExit(); }, 2600);
+    return () => { cancelled = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -1,8 +1,11 @@
-// مكان لوجو الهيدر في الشاشة الرئيسية — الافتتاحية بتقراه عشان اللوجو يطلع لمكانه بدل ما يختفي بس.
+// مكان لوجو الهيدر في الشاشة الرئيسية — الافتتاحية بتقيسه وقت الخروج عشان اللوجو يطير لمكانه بدل ما يختفي بس.
 export type IntroTarget = { x: number; y: number; w: number; h: number };
-let target: IntroTarget | null = null;
-export const setIntroTarget = (t: IntroTarget | null) => { target = t; };
-export const getIntroTarget = () => target;
+type Measurer = (cb: (t: IntroTarget | null) => void) => void;
+
+let measurer: Measurer | null = null;
+export const setIntroMeasurer = (m: Measurer | null) => { measurer = m; };
+export const unsetIntroMeasurer = (m: Measurer) => { if (measurer === m) measurer = null; };
+export const measureIntroTarget = (cb: (t: IntroTarget | null) => void) => { if (measurer) measurer(cb); else cb(null); };
 
 // الصورة بتتعرض بـ contain جوه الصندوق، فمكانها الفعلي أصغر من الصندوق لو النسبة مختلفة
 export function containRect(box: IntroTarget, aspect: number): IntroTarget {
