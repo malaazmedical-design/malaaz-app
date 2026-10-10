@@ -97,12 +97,12 @@ export default function AskDoctorScreen() {
       </View>
 
       {/* tabs */}
-      <View style={{ flexDirection: "row-reverse", marginHorizontal: 16, marginBottom: 8, backgroundColor: t.card, borderRadius: 16, padding: 4, borderWidth: 1, borderColor: t.border }}>
+      <View style={{ flexDirection: "row-reverse", gap: 8, marginHorizontal: 16, marginBottom: 10 }}>
         {([["free", "سؤال مجاني"], ["online", "استشارة أونلاين"], ["mine", "أسئلتي"]] as const).map(([k, name]) => {
           const on = tab === k;
           return (
-            <Pressable key={k} onPress={() => setTab(k)} style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 12, backgroundColor: on ? t.gold : "transparent" }}>
-              <Text style={{ color: on ? t.onGold : t.text2, fontFamily: TJ.heavy, fontSize: 13.5 }}>{name}</Text>
+            <Pressable key={k} onPress={() => setTab(k)} style={{ flex: 1, alignItems: "center", justifyContent: "center", height: 50, borderRadius: 25, backgroundColor: on ? t.goldTint : t.card, borderWidth: 1.5, borderColor: on ? t.gold : t.border }}>
+              <Text style={{ color: on ? t.goldText : t.text, fontFamily: TJ.heavy, fontSize: 14.5 }}>{name}</Text>
             </Pressable>
           );
         })}
@@ -132,13 +132,13 @@ export default function AskDoctorScreen() {
             <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
               <Pressable onPress={() => { setPend({ spec, chan, avail: onlyAvail, sort }); setSpecOpen(false); setSheet(true); }}
                 style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, height: 48, borderRadius: 16, backgroundColor: t.goldTint, borderWidth: 1, borderColor: t.goldRing }}>
-                <MaterialCommunityIcons name="tune-variant" size={19} color={t.goldText} />
-                <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15 }}>التصفية</Text>
+                <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 16 }}>التصفية</Text>
                 {(spec ? 1 : 0) + (chan !== "all" ? 1 : 0) + (onlyAvail ? 1 : 0) + (sort ? 1 : 0) > 0 ? (
                   <View style={{ minWidth: 20, height: 20, borderRadius: 10, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 }}>
                     <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 12 }}>{(spec ? 1 : 0) + (chan !== "all" ? 1 : 0) + (onlyAvail ? 1 : 0) + (sort ? 1 : 0)}</Text>
                   </View>
                 ) : null}
+                <MaterialCommunityIcons name="chevron-down" size={22} color={t.goldText} />
               </Pressable>
               <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>{shownDocs.length} نتيجة</Text>
             </View>
@@ -249,13 +249,13 @@ export default function AskDoctorScreen() {
                   </View>
 
                   <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 20 }}>
-                    <Pressable onPress={() => { setSpec(pend.spec); setChan(pend.chan); setOnlyAvail(pend.avail); setSort(pend.sort); setSheet(false); }}
-                      style={{ flex: 1.6, height: 54, borderRadius: 18, backgroundColor: t.gold, alignItems: "center", justifyContent: "center" }}>
-                      <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>عرض {previewCount(pend)} طبيب</Text>
-                    </Pressable>
                     <Pressable onPress={() => setPend({ spec: null, chan: "all", avail: false, sort: null })}
                       style={{ flex: 1, height: 54, borderRadius: 18, borderWidth: 1.5, borderColor: t.border, alignItems: "center", justifyContent: "center" }}>
                       <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15 }}>إعادة ضبط</Text>
+                    </Pressable>
+                    <Pressable onPress={() => { setSpec(pend.spec); setChan(pend.chan); setOnlyAvail(pend.avail); setSort(pend.sort); setSheet(false); }}
+                      style={{ flex: 1.6, height: 54, borderRadius: 18, backgroundColor: t.gold, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>عرض {previewCount(pend)} طبيب</Text>
                     </Pressable>
                   </View>
                 </ScrollView>
