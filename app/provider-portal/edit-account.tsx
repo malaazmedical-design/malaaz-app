@@ -33,6 +33,7 @@ export default function ProviderProfileScreen() {
   const { provider, areas, subServices, myServices, saveProfile, saveMyServices, logout } = useProvider();
 
   const [name, setName] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [exp, setExp] = useState("");
@@ -74,6 +75,7 @@ export default function ProviderProfileScreen() {
   useEffect(() => {
     if (!provider) return;
     setName(provider.name ?? "");
+    setNameEn(provider.name_en ?? "");
     setPhone(provider.phone ?? "");
     setWhatsapp(provider.whatsapp ?? "");
     setExp(provider.experience ? String(provider.experience) : "");
@@ -262,6 +264,7 @@ export default function ProviderProfileScreen() {
     try {
       await saveProfile({
         name: name.trim(),
+        nameEn,
         phone: phone.trim(),
         whatsapp: whatsapp.trim(),
         experience: exp ? parseFloat(exp) : null,
@@ -360,6 +363,8 @@ export default function ProviderProfileScreen() {
         {title("المعلومات الأساسية")}
         <View style={{ gap: 10 }}>
           <View>{label("الاسم الكامل")}<TextInput value={name} onChangeText={setName} style={input} placeholderTextColor={t.muted} /></View>
+          <View>{label("الاسم بالإنجليزي (اختياري)")}<TextInput value={nameEn} onChangeText={setNameEn} style={[input, { textAlign: "left", writingDirection: "ltr" }]} placeholder="مثال: Ahmed Samir" placeholderTextColor={t.muted} autoCapitalize="words" autoCorrect={false} />
+            <PText style={{ color: t.muted, fontSize: 11.5, marginTop: 4, textAlign: "right" }}>بيظهر للعملاء لما يستخدموا التطبيق بالإنجليزي. لو سبته فاضي هيتحوّل اسمك تلقائيًا.</PText></View>
           <View style={{ flexDirection: "row-reverse", gap: 10 }}>
             <View style={{ flex: 1.6 }}>{label("رقم الموبايل")}<TextInput value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, "").slice(0, 11))} keyboardType="phone-pad" placeholder="01xxxxxxxxx" placeholderTextColor={t.muted} style={[input, { writingDirection: "ltr" }]} /></View>
             <View style={{ flex: 1 }}>{label("سنوات الخبرة")}<TextInput value={exp} onChangeText={(v) => setExp(v.replace(/[^\d.]/g, ""))} keyboardType="numeric" style={input} /></View>

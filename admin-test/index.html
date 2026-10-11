@@ -183,6 +183,11 @@ async function renderProviders(root) {
     h("div", { class: "mu" }, [p.areas || p.area, p.experience ? p.experience + " سنة خبرة" : null, "سجّل " + fmt(p.created_at)].filter(Boolean).join(" · ")),
     p.bio ? h("div", { class: "msg" }, p.bio) : null,
     h("div", { class: "row", style: "margin-top:8px" },
+      h("button", { class: "btn ghost", style: "direction:ltr", title: "الاسم بالإنجليزي (لو فاضي التطبيق بيحوّل الاسم تلقائيًا)", onclick: async () => {
+        const v = prompt("الاسم بالإنجليزي لـ «" + p.name + "» (سيبه فاضي لو عايز التحويل التلقائي)", p.name_en || ""); if (v == null) return;
+        const { data: r, error: e } = await sb.rpc("admin_set_provider_name_en", { p_id: p.id, p_name_en: v.trim() });
+        if (e || r !== "ok") alert("تعذّر: " + (e?.message || r)); renderShell();
+      } }, p.name_en ? "EN: " + p.name_en : "EN +"),
       p.status !== "active" ? h("button", { class: "btn ok", onclick: () => setStatus(p.id, "active") }, "تفعيل") : null,
       p.status !== "suspended" ? h("button", { class: "btn bad", onclick: () => confirm("إيقاف الحساب؟") && setStatus(p.id, "suspended") }, "إيقاف") : null))));
 }

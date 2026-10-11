@@ -52,6 +52,7 @@ export type DbProvider = {
   id: string;
   user_id: string | null;
   name: string;
+  name_en?: string | null;
   email: string | null;
   phone: string | null;
   whatsapp?: string | null;

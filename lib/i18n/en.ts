@@ -108,6 +108,9 @@ export const EN: Record<string, string> = {
   "الرسالة": "Message",
   "إرسال": "Send",
   "الاسم الكامل": "Full name",
+  "الاسم بالإنجليزي (اختياري)": "Name in English (optional)",
+  "مثال: Ahmed Samir": "Example: Ahmed Samir",
+  "بيظهر للعملاء لما يستخدموا التطبيق بالإنجليزي. لو سبته فاضي هيتحوّل اسمك تلقائيًا.": "Shown to clients who use the app in English. If you leave it empty, your name is converted automatically.",
   "رقم الموبايل": "Mobile number",
   "للقراءة فقط": "Read only",
   "العناوين المحفوظة": "Saved addresses",
@@ -1334,5 +1337,5 @@ export const EN_PATTERNS: [RegExp, Fn][] = [
   [/^للاستفسار: (.+)$/, (m) => `Inquiries: ${m[1]}`],
   [/^واتساب: (.+)$/, (m) => `WhatsApp: ${m[1]}`],
   [/^· مواليد (\d+)$/, (m) => `· Born ${m[1]}`],
-  [/^د\. (.+)$/, (m) => `Dr. ${m[1]}`],
+  [/^د\. (.+)$/, (m, tr) => `Dr. ${tr(m[1])}`],
 ];

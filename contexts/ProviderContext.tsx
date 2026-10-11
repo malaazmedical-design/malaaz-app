@@ -44,6 +44,7 @@ export type ProviderRegisterInput = {
 
 export type ProviderProfileInput = {
   name: string;
+  nameEn?: string;
   phone: string;
   whatsapp?: string;
   experience: number | null;
@@ -678,7 +679,15 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       .update(payload)
       .eq("id", provider.id);
     if (error) throw new Error(error.message);
-    setProvider({ ...provider, ...(payload as Partial<DbProvider>) });
+    // الاسم الإنجليزي بطلب منفصل: لو العمود لسه مش موجود (قبل SQL 31) الحفظ الأساسي يفضل شغال
+    let nameEn: string | null | undefined;
+    if (input.nameEn !== undefined) {
+      const v = input.nameEn.trim() || null;
+      const { error: enErr } = await supabase.from("providers").update({ name_en: v }).eq("id", provider.id);
+      if (!enErr) nameEn = v;
+      else if (!/name_en/.test(enErr.message)) throw new Error(enErr.message);
+    }
+    setProvider({ ...provider, ...(payload as Partial<DbProvider>), ...(nameEn !== undefined ? { name_en: nameEn } : {}) });
   };
 
   // ─── حفظ الخدمات والأسعار (حذف ثم إدراج زي الموقع) ──────────────────────
