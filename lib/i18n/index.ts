@@ -79,6 +79,14 @@ export async function loadEnglishNames(): Promise<void> {
       const ar = (r.name ?? "").trim();
       if (ar) map[ar] = (r.name_en ?? "").trim() || transliterateName(ar);
     }
+    // أسماء أفراد عائلة المستخدم الحالي (الـ RLS بيرجّع بتوعه بس) — بتتحوّل تلقائي
+    try {
+      const fam = await supabase.from("family_members").select("name").limit(200);
+      for (const r of (fam.data ?? []) as { name: string }[]) {
+        const ar = (r.name ?? "").trim();
+        if (ar && /[\u0600-\u06FF]/.test(ar) && !map[ar]) map[ar] = transliterateName(ar);
+      }
+    } catch {}
     // أسماء الإدارة (تخصصات / مدن / خدمات) ليها أولوية لو اتطابقت مع اسم شخص
     for (const r of [...(a.data ?? []), ...(b.data ?? []), ...(c.data ?? [])] as { name: string; name_en: string }[]) map[r.name] = r.name_en;
     setDynamicNames(map);

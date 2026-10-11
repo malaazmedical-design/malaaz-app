@@ -5,7 +5,15 @@ import { tr, useLang } from "@/lib/i18n";
 
 const mapChildren = (c: React.ReactNode): React.ReactNode => {
   if (typeof c === "string") return tr(c);
-  if (Array.isArray(c)) return c.map((x, i) => (typeof x === "string" ? tr(x) : x));
+  if (Array.isArray(c)) {
+    // JSX like {n} دقيقة or المتابعة: {label} reaches us as several pieces: translate the whole sentence first, then piece by piece
+    if (c.every((x) => typeof x === "string" || typeof x === "number")) {
+      const whole = c.join("");
+      const t = tr(whole);
+      if (t !== whole) return t;
+    }
+    return c.map((x) => (typeof x === "string" ? tr(x) : x));
+  }
   return c;
 };
 

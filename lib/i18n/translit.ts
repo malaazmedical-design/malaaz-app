@@ -31,6 +31,7 @@ const NAMES_RAW: Record<string, string> = {
   بسام: "Bassam", وحيد: "Waheed", حسام: "Hossam", أشرف: "Ashraf", نورهان: "Nourhan", ربيع: "Rabie", بدر: "Badr", سليم: "Selim", توفيق: "Tawfik", فهيم: "Fahim",
   أمير: "Amir", ناجي: "Nagy", حجازي: "Hegazy", سماح: "Samah", منال: "Manal", بدوي: "Badawy", رضوى: "Radwa", شاهين: "Shaheen", عوف: "Awf", جاد: "Gad", صفوت: "Safwat",
   الرحمن: "Rahman", العزيز: "Aziz", الفتاح: "Fattah", الحميد: "Hamid", السلام: "Salam", المنعم: "Moneim", الرحيم: "Rahim", الكريم: "Karim", الستار: "Sattar", القادر: "Kader",
+  عبادة: "Ebada", الوالد: "Father", الوالدة: "Mother", الاخ: "Brother", الاخت: "Sister", الجد: "Grandfather", الجدة: "Grandmother", الزوج: "Husband", الزوجة: "Wife", الابن: "Son", الابنة: "Daughter", العم: "Uncle", الخال: "Uncle", العمة: "Aunt", الخالة: "Aunt",
   // ألقاب وعائلات شائعة
   الدين: "El Din", الله: "Allah", الشريف: "El Sherif", الشافعي: "El Shafei", النجار: "El Naggar", عبد: "Abdel", ابو: "Abou", أبو: "Abou", بن: "Ben",
   عادل_: "Adel", عصمت: "Esmat", عرفة: "Arafa", عطية: "Attia", عفيفي: "Afifi", عيسى: "Eissa", غنيم: "Ghoneim", فرج: "Farag", قنديل: "Kandil", مبارك: "Mubarak",
