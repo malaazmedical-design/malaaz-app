@@ -172,7 +172,9 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   // فتح الشاشة المناسبة لما المستخدم يضغط على إشعار (والتطبيق شغّال، أو كان مقفول وفتحه الإشعار)
-  const lastResponse = Notifications.useLastNotificationResponse();
+  // على الويب الإشعارات المحلية مش مدعومة (الدالة بترمي خطأ) — Platform.OS ثابت طول عمر التطبيق فمفيش مشكلة في ترتيب الـ hooks
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const lastResponse = Platform.OS === "web" ? null : Notifications.useLastNotificationResponse();
   const handledResponseId = useRef<string | null>(null);
   useEffect(() => {
     if (Platform.OS === "web" || !lastResponse) return;
