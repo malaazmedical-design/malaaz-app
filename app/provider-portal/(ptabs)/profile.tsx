@@ -8,6 +8,7 @@ import { PText } from "@/components/provider/PUI";
 import { Group, GoldButton, Row } from "@/components/account/AccountUI";
 import { TJ, setThemeOverride, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
+import { confirmDeleteAccount } from "@/lib/deleteAccount";
 import { callCompany, whatsappCompany } from "@/lib/contact";
 import { initialOf } from "@/lib/providerFmt";
 import { FontSize, Lang, setProviderPref, useProviderPrefs } from "@/lib/providerPrefs";
@@ -109,6 +110,12 @@ export default function ProviderProfileScreen() {
           style={({ pressed }) => ({ marginTop: 14, borderWidth: 1.5, borderColor: "rgba(229,72,77,.5)", borderRadius: 18, paddingVertical: 14, alignItems: "center", transform: [{ scale: pressed ? 0.98 : 1 }] })}
         >
           <PText style={{ color: t.destructive, fontFamily: TJ.heavy, fontSize: 15 }}>تسجيل الخروج</PText>
+        </Pressable>
+        <Pressable
+          onPress={() => confirmDeleteAccount("provider", async () => { await logout(); router.replace("/provider-portal/login"); })}
+          style={({ pressed }) => ({ marginTop: 10, paddingVertical: 12, alignItems: "center", opacity: pressed ? 0.6 : 1 })}
+        >
+          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textDecorationLine: "underline" }}>حذف الحساب</PText>
         </Pressable>
       </ScrollView>
 

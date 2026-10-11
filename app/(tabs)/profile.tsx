@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BenefitRow, GoldButton, Group, Row } from "@/components/account/AccountUI";
 import { FamilySection } from "@/components/client/AccountSections";
 import { TJ, setThemeOverride, useMalaz } from "@/constants/malazTheme";
+import { confirmDeleteAccount } from "@/lib/deleteAccount";
 import { useApp } from "@/contexts/AppContext";
 import { whatsappCompany } from "@/lib/contact";
 import { setLang, useLang } from "@/lib/i18n";
@@ -132,7 +133,8 @@ export default function AccountScreen() {
               {preferences}
               {help}
               <Group label="الحساب">
-                <Row icon="logout" title="تسجيل الخروج" danger onPress={confirmLogout} last />
+                <Row icon="logout" title="تسجيل الخروج" danger onPress={confirmLogout} />
+                <Row icon="account-remove-outline" title="حذف الحساب" danger onPress={() => confirmDeleteAccount("client", () => clientLogout())} last />
               </Group>
             </Animated.View>
           </>
