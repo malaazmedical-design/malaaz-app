@@ -1,3 +1,4 @@
+import { trackRegistration, trackSchedule } from "@/lib/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
 import * as Linking from "expo-linking";
@@ -375,6 +376,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!userId || !authData?.session) throw new Error("✅ تم إنشاء الحساب — تحقق من بريدك الإلكتروني لتأكيده ثم سجّل دخول");
     // one client per mobile number, enforced on the server
     await clientCompleteProfile(input.phone, input.name);
+    trackRegistration();
   };
 
   const clientLogout = async () => {
@@ -779,6 +781,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from("bookings").insert(bookingData);
 
     if (error) throw error;
+    trackSchedule(bookingData.provider_id ? "home_visit" : "quick_request");
 
     // لو الحجز من غير مقدم محدد: ابعت عروض لكل مقدمي الخدمة النشطين
     // (fire-and-forget — الحجز نفسه ينجح بغض النظر عن نتيجة ده)

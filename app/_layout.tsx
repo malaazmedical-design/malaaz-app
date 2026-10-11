@@ -30,6 +30,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import { applyStoredTheme } from "@/constants/malazTheme";
 import { loadEnglishNames, loadLang, patchAlert } from "@/lib/i18n";
+import { captureInstallAttribution, syncAttribution } from "@/lib/attribution";
 import { useOnReconnect } from "@/lib/reconnect";
 import { routeForNotification } from "@/lib/notificationRoute";
 import * as Notifications from "expo-notifications";
@@ -145,6 +146,12 @@ export default function RootLayout() {
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
   useEffect(() => { applyStoredTheme(); patchAlert(); loadLang(); loadEnglishNames(); }, []);
   useOnReconnect(loadEnglishNames);
+  // مصدر التثبيت: نقراه أول فتح، ونبعته أول ما يبقى فيه مستخدم مسجّل دخول
+  useEffect(() => {
+    captureInstallAttribution().then(() => supabase.auth.getSession()).then(({ data }) => { if (data.session) syncAttribution(); }).catch(() => {});
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { if (session) syncAttribution(); });
+    return () => sub.subscription.unsubscribe();
+  }, []);
   const [updateReady, setUpdateReady] = useState(false);
   const updateReadyRef = useRef(false);
 

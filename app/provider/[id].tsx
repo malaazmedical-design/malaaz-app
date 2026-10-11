@@ -17,6 +17,7 @@ import { callCompany, whatsappCompany } from "@/lib/contact";
 import { useApp } from "@/contexts/AppContext";
 import { useRtcStatus } from "@/lib/useRtcStatus";
 import { supabase } from "@/lib/supabase";
+import { trackSchedule } from "@/lib/analytics";
 
 import { locale } from "@/lib/i18n";
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -117,6 +118,7 @@ export default function ProviderScreen() {
         p_pay_method: paymentMethod === "instapay" ? "instapay" : "wallet",
       });
       if (error) throw new Error(error.message);
+      trackSchedule("consultation");
       setConsent(false);
       router.replace(`/consult/${data}`);
     } catch (e: any) {
