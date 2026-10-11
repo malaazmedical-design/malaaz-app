@@ -4,6 +4,7 @@ const isMizoTest = process.env.APP_VARIANT === "mizotest";
 const isProviderApp = process.env.APP_VARIANT === "mizoprovider";
 
 const PROVIDER_PACKAGE = "com.malaaz.homecare.malaazprovider";
+const MIZO_TEST_PACKAGE = "com.malaaz.homecare.mizotest";
 
 // google-services.json only works for packages registered in Firebase. When the package of a variant is not in
 // the file yet (e.g. the provider app before it is added in Firebase) we build without it: the app works,
@@ -25,8 +26,11 @@ module.exports = ({ config }) => {
   const androidPackage = isProviderApp
     ? PROVIDER_PACKAGE
     : isMizoTest
-      ? "com.malaaz.homecare.mizotest"
+      ? MIZO_TEST_PACKAGE
       : config.android.package;
+  // The iOS variants get their own bundle identifiers too (same ids as Android), so they never collide with the original app
+  // (com.malaaz.app) in App Store Connect / TestFlight. The original app keeps the id from app.json.
+  const iosBundleId = isProviderApp ? PROVIDER_PACKAGE : isMizoTest ? MIZO_TEST_PACKAGE : config.ios?.bundleIdentifier;
 
   return {
     ...config,
@@ -40,6 +44,7 @@ module.exports = ({ config }) => {
     web: isProviderApp ? { ...config.web, favicon: "./assets/images/provider/favicon.png" } : config.web,
     ios: {
       ...config.ios,
+      bundleIdentifier: iosBundleId,
       infoPlist: {
         ...config.ios?.infoPlist,
         ...(withCalls
