@@ -9,13 +9,7 @@
 | `components/provider/OfferCard.tsx` | 3.9KB | ما حدش بيستورده. |
 
 ## صور
-| الملف | الحجم | الملاحظة |
-|---|---|---|
-| `assets/images/provider2.png` | 1.3MB | مفيش أي إشارة ليه في الكود. |
-| `assets/images/provider3.png` | 1.2MB | مفيش أي إشارة ليه في الكود. |
-| `assets/images/mizo.webp` | 36KB | مفيش أي إشارة ليه في الكود. |
-
-حذف الصورتين الكبار بينزّل حجم التطبيق حوالي 2.5MB.
+تم حذف `provider2.png` و`provider3.png` و`mizo.webp` (بموافقتك) لأنهم غير مستخدمين.
 
 ## اللي اتأكدت إنه مستخدم (ما يتحذفش)
 - `lib/i18n/index.ts` و`components/i18n/index.tsx`: بيتستوردوا كمجلد (`@/lib/i18n`).
