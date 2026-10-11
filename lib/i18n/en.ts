@@ -122,6 +122,8 @@ export const EN: Record<string, string> = {
   "تم حذف حسابك وبياناتك الشخصية.": "Your account and personal data have been deleted.",
   "تعذر حذف الحساب": "Couldn't delete the account",
   "حاول مرة أخرى، ولو استمرت المشكلة تواصل مع الدعم.": "Try again, and contact support if the problem continues.",
+  "أونلاين": "Online",
+  "اونلاين": "Online",
   "الاسم الكامل": "Full name",
   "الاسم بالإنجليزي (اختياري)": "Name in English (optional)",
   "مثال: Ahmed Samir": "Example: Ahmed Samir",

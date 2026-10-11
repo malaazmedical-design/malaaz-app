@@ -2,6 +2,7 @@ import { Image } from "expo-image";
 import React from "react";
 import { StyleProp, View, ViewStyle } from "react-native";
 import { Text } from "@/components/i18n";
+import { tr, useLang } from "@/lib/i18n";
 
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import type { Provider } from "@/constants/data";
@@ -13,12 +14,13 @@ export function hasProviderPhoto(p: Pick<Provider, "avatar">): boolean {
 // Real photo when the provider uploaded one, otherwise the first letter of their name.
 export function ProviderAvatar({ provider, style, letterSize }: { provider: Pick<Provider, "avatar" | "name">; style?: StyleProp<ViewStyle>; letterSize: number }) {
   const t = useMalaz();
+  useLang();
   if (hasProviderPhoto(provider)) {
     return <Image source={provider.avatar} style={style as any} contentFit="cover" />;
   }
   return (
     <View style={[{ backgroundColor: t.ic, alignItems: "center", justifyContent: "center", overflow: "hidden" }, style]}>
-      <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: letterSize }}>{(provider.name || "؟").trim().charAt(0)}</Text>
+      <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: letterSize }}>{tr((provider.name || "؟").trim()).replace(/^(Dr\.?\s*)/i, "").trim().charAt(0).toUpperCase()}</Text>
     </View>
   );
 }
