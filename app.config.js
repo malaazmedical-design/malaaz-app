@@ -19,8 +19,8 @@ function googleServicesFor(pkg, file) {
   }
 }
 
-// Voice/video consultations (LiveKit) only ship in the ReVoice / Provider variants, the original app is untouched.
-const withCalls = isMizoTest || isProviderApp;
+// Voice/video consultations (LiveKit) ship in every variant, including the store build of the original app after the merge.
+const withCalls = true;
 
 module.exports = ({ config }) => {
   const androidPackage = isProviderApp
