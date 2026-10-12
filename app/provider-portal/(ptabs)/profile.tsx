@@ -29,14 +29,13 @@ function titleLine(p: { service_type: string; grade: string | null; specialty: s
 export default function ProviderProfileScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { provider, myServices, toggleAvailability, logout } = useProvider();
+  const { provider, toggleAvailability, logout } = useProvider();
   const prefs = useProviderPrefs();
   const lang = useLang();
   const [sheet, setSheet] = useState<null | "lang" | "support" | "logout">(null);
 
   if (!provider) return null;
   const available = provider.is_available ?? false;
-  const onCount = myServices.filter((s) => s.is_active).length;
 
   const flip = async (v: boolean) => {
     try { await toggleAvailability(v); } catch (e: any) { Alert.alert("خطأ", e.message ?? "تعذر التحديث"); }
@@ -95,9 +94,7 @@ export default function ProviderProfileScreen() {
               })}
             </View>
           </View>
-          {(provider.service_type ?? "").includes("كشف") ? null : (
-  <Row icon="view-grid-outline" title="خدماتي وأسعاري" value={`${onCount} خدمات مفعّلة`} onPress={() => router.push("/provider-portal/(ptabs)/services")} last />
-          )}
+          {/* "خدماتي وأسعاري" for every provider type now lives in تعديل الحساب (same cards as the doctor's) */}
         </Group>
 
         <Group label="المساعدة">
