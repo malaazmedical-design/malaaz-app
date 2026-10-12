@@ -916,6 +916,7 @@ export const EN: Record<string, string> = {
   "التفصيل": "Detail",
   "مقدم الخدمة في الطريق إليك — استعد!": "The provider is on the way — get ready!",
   "تاريخ الطلب": "Request date",
+  "وقت تسجيل الحجز": "Booked at",
   "لا يوجد حجوزات حتى الآن": "No bookings yet",
   "قيّم الخدمة": "Rate the service",
   "الحالة": "Status",

@@ -15,6 +15,7 @@ import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
 import { BState, PERIOD_LABEL, STATE_META, dateLabelOf, maskPhone, periodOf, shortName, stateOf } from "@/lib/providerFmt";
 import { DbBooking, supabase } from "@/lib/supabase";
+import { locale } from "@/lib/i18n";
 
 const FILTERS: { k: BState | "all"; name: string }[] = [
   { k: "all", name: "الكل" },
@@ -209,6 +210,7 @@ export default function ProviderBookingsScreen() {
                     ) : <Line t={t} k="الموقع" v="خدمة عن بُعد" />}
                     <Line t={t} k="رقم الحجز" v={`MLZ-${b.id.slice(-4).toUpperCase()}`} ltr />
                     <Line t={t} k="الموعد" v={`${dateLabelOf(b.appointment_time)} · ${PERIOD_LABEL[periodOf(b.appointment_time)]}`} />
+                    <Line t={t} k="وقت تسجيل الحجز" v={new Date(b.created_at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} />
                     <Line t={t} k="الدفع" v={pay} />
                     {b.notes ? <Line t={t} k="ملاحظات المريض" v={b.notes} /> : null}
                     {s === "cancelled" && b.cancel_reason ? (

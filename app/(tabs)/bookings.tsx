@@ -253,7 +253,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
                 {booking.providerName ? <DetailField label="مقدم الخدمة" value={booking.providerName} /> : null}
                 {booking.notes ? <DetailField label="ملاحظات" value={booking.notes} wide /> : null}
                 <DetailField label="رقم الحجز" value={`#${booking.id.slice(-6).toUpperCase()}`} />
-                <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" })} />
+                <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleString(locale(), { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" })} />
               </View>
 
               {/* استفسار واتساب برسالة جاهزة عن الحجز ده تحديداً */}
