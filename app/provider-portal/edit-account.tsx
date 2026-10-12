@@ -87,11 +87,7 @@ export default function ProviderProfileScreen() {
     setPhotoUrl(provider.photo_url ?? null);
     const saved = (provider.areas ?? provider.area ?? "").split(",").map((a) => a.trim()).filter(Boolean);
     setSelectedAreas(saved);
-    // افتح المحافظات اللي فيها مناطق محددة تلقائياً
-    if (saved.length > 0 && areas.length > 0) {
-      const cities = new Set(areas.filter((a) => saved.includes(a.name)).map((a) => a.city));
-      setExpandedCities(cities);
-    }
+    // المحافظات بتفضل مقفولة؛ عدّاد "المحدد/الكل" على كل محافظة بيوضح اللي اخترته من غير ما نفتحها
   }, [provider, areas]);
 
   // تخصصات الكشف المنزلي من sub_services (نفس مصدر الموقع)
