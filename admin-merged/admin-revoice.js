@@ -70,7 +70,7 @@
       if (!(await ensureAdmin())) return root.replaceChildren(h("div", { class: "rv-empty rv-bad" }, "هذا الحساب ليس أدمن (جدول admin_users)."));
       const body = h("div");
       root.replaceChildren(body);
-      await { consults: renderConsults, asks: renderAsks, sources: renderSources, names: renderNames }[name](body);
+      await { consults: renderConsults, asks: renderAsks, sources: renderSources, names: renderNames, late: renderLate }[name](body);
     } catch (e) {
       root.replaceChildren(h("div", { class: "rv-empty rv-bad" }, "حدث خطأ: " + (e?.message || e)));
     }
@@ -257,6 +257,42 @@
       if (c.rating && c.rating_ok) bar.append(h("button", { class: "rv-btn bad", onclick: () => confirm("إلغاء نشر التقييم من صفحة الدكتور؟") && act("admin_unpublish_rating", { p_id: c.id }) }, "إلغاء النشر"));
       if (bar.children.length) card.append(bar);
       return card;
+    }));
+  }
+
+  // ───────── حجوزات متأخرة (مؤكدة، موعدها عدّى، ولم تُغلق) ─────────
+  async function renderLate(root) {
+    root.append(h("div", { class: "rv-mu", style: "margin-bottom:10px" }, "حجوزات المقدم وافق عليها لكن لم يتم إغلاقها (مكتمل أو ملغي) بعد مرور 3 ساعات على نهاية فترة الموعد. المقدم بيوصله تنبيه بعد 3 ساعات وتنبيه تاني مع إنذار هنا بعد 24 ساعة. الإغلاق بيتم بقرار منك فقط."));
+    const list = h("div");
+    root.append(list);
+    const { data, error } = await sb.from("bookings").select("*, providers(name, phone)").eq("status", "confirmed").order("created_at", { ascending: false }).limit(500);
+    if (error) return list.replaceChildren(h("div", { class: "rv-empty" }, "خطأ: " + error.message));
+    const now = Date.now(), HR = 3600 * 1000;
+    // الحجوزات القديمة قبل إضافة appointment_at: الاستحقاق بعد يومين من وقت التسجيل
+    const rows = data.map((b) => ({ b, due: b.appointment_at ? new Date(b.appointment_at).getTime() : new Date(b.created_at).getTime() + 48 * HR, legacy: !b.appointment_at }))
+      .filter((r) => now - r.due > 3 * HR).sort((x, y) => x.due - y.due);
+    if (!rows.length) return list.replaceChildren(h("div", { class: "rv-empty" }, "لا توجد حجوزات متأخرة 👌"));
+    const close = async (id, status) => {
+      const patch = status === "cancelled" ? { status, cancel_reason: "أُغلق بواسطة الإدارة" } : { status };
+      const { error: e } = await sb.from("bookings").update(patch).eq("id", id);
+      if (e) alert("تعذّر: " + e.message);
+      refresh();
+    };
+    list.replaceChildren(...rows.map(({ b, due, legacy }) => {
+      const hours = Math.floor((now - due) / HR);
+      const late = hours >= 72 ? BAD : hours >= 24 ? AMBER : GOLD;
+      const prov = b.providers;
+      const wa = prov?.phone ? "https://wa.me/20" + String(prov.phone).replace(/\D/g, "").replace(/^0/, "") : null;
+      return h("div", { class: "rv-card" },
+        h("div", { class: "rv-row" }, h("b", {}, b.patient_name || "—"), badge("متأخر " + (hours >= 48 ? Math.floor(hours / 24) + " يوم" : hours + " ساعة"), late), legacy ? badge("حجز قديم", "#6b7c80") : null,
+          h("span", { class: "rv-sp" }), h("span", { class: "rv-mu" }, "سُجّل " + fmt(b.created_at))),
+        h("div", { class: "rv-mu" }, [b.service_type, b.sub_option, b.area].filter(Boolean).join(" · ")),
+        h("div", { class: "rv-mu" }, "الموعد: " + (b.appointment_time || "—") + (b.appointment_at ? " · " + fmt(b.appointment_at) : "")),
+        h("div", { class: "rv-row", style: "margin-top:6px" }, h("span", {}, "المقدم: " + (prov?.name || "—")), wa ? h("a", { href: wa, target: "_blank", rel: "noopener", style: "color:#8a6a14;font-weight:800" }, prov.phone) : null,
+          b.price != null ? h("span", { class: "rv-mu" }, b.price + " ج.م") : null),
+        h("div", { class: "rv-row", style: "margin-top:10px" },
+          h("button", { class: "rv-btn ok", onclick: () => confirm("تأكيد إن الخدمة تمت (مكتمل)؟ العميل هيوصله طلب تقييم.") && close(b.id, "completed") }, "تمت الخدمة (مكتمل)"),
+          h("button", { class: "rv-btn bad", onclick: () => confirm("إلغاء الحجز؟") && close(b.id, "cancelled") }, "إلغاء الحجز")));
     }));
   }
 

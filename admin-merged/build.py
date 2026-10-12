@@ -15,18 +15,19 @@ def once(s, a, b):
 
 NAV = """    <div class="nav-section">الاستشارات الأونلاين</div>
     <div class="nav-item" onclick="showPage('rv-consults')"><i class="fas fa-video"></i><span>الاستشارات</span></div>
+    <div class="nav-item" onclick="showPage('rv-late')"><i class="fas fa-clock"></i><span>حجوزات متأخرة</span></div>
     <div class="nav-item" onclick="showPage('rv-asks')"><i class="fas fa-comment-medical"></i><span>أسئلة المرضى</span></div>
     <div class="nav-item" onclick="showPage('rv-sources')"><i class="fas fa-chart-line"></i><span>مصدر التثبيت</span></div>
     <div class="nav-item" onclick="showPage('rv-names')"><i class="fas fa-language"></i><span>الأسماء بالإنجليزي</span></div>
 
 """
-PAGES = "".join(f'<div class="page" id="page-rv-{n}"><div id="rv-body-{n}"></div></div>\n\n' for n in ("consults", "asks", "sources", "names"))
+PAGES = "".join(f'<div class="page" id="page-rv-{n}"><div id="rv-body-{n}"></div></div>\n\n' for n in ("consults", "late", "asks", "sources", "names"))
 
 def patch(s):
     s = once(s, '    <div class="nav-section">إدارة الخدمات</div>', NAV + '    <div class="nav-section">إدارة الخدمات</div>')
     s = once(s, '<!-- ======= NOTIFICATIONS PAGE ======= -->', "<!-- ======= REVOICE PAGES (admin-revoice.js) ======= -->\n" + PAGES + '<!-- ======= NOTIFICATIONS PAGE ======= -->')
-    s = once(s, "  clients:'العملاء'\n};", "  clients:'العملاء',\n  'rv-consults':'الاستشارات الأونلاين', 'rv-asks':'أسئلة المرضى', 'rv-sources':'مصدر التثبيت', 'rv-names':'الأسماء بالإنجليزي'\n};")
-    s = once(s, "    clients: loadClients\n  };", "    clients: loadClients,\n    'rv-consults': () => window.RV && RV.load('consults'), 'rv-asks': () => window.RV && RV.load('asks'),\n    'rv-sources': () => window.RV && RV.load('sources'), 'rv-names': () => window.RV && RV.load('names')\n  };")
+    s = once(s, "  clients:'العملاء'\n};", "  clients:'العملاء',\n  'rv-consults':'الاستشارات الأونلاين', 'rv-late':'حجوزات متأخرة', 'rv-asks':'أسئلة المرضى', 'rv-sources':'مصدر التثبيت', 'rv-names':'الأسماء بالإنجليزي'\n};")
+    s = once(s, "    clients: loadClients\n  };", "    clients: loadClients,\n    'rv-consults': () => window.RV && RV.load('consults'), 'rv-late': () => window.RV && RV.load('late'), 'rv-asks': () => window.RV && RV.load('asks'),\n    'rv-sources': () => window.RV && RV.load('sources'), 'rv-names': () => window.RV && RV.load('names')\n  };")
     s = once(s, "</body>", '<script src="admin-revoice.js"></script>\n</body>')
     return s
 
