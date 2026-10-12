@@ -39,6 +39,12 @@ export function routeForNotification(data: Record<string, unknown> | undefined |
     return;
   }
 
-  // client side: status updates of their booking
+  // client side: the visit is done -> straight to the rating screen of that booking
+  if (d.kind === "booking_completed" && bookingId) {
+    router.push(`/rate/${bookingId}` as any);
+    return;
+  }
+
+  // client side: other status updates of their booking
   router.push("/(tabs)/bookings");
 }
