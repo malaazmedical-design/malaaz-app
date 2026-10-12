@@ -44,7 +44,7 @@ export default function ProviderProfileScreen() {
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [visitPrice, setVisitPrice] = useState<number | null>(null);
   const [visitOn, setVisitOn] = useState(true);
-  const [expanded, setExpanded] = useState<null | "visit" | "online">(null);
+  const [expanded, setExpanded] = useState<null | string>(null); // "visit" | "online" | a nursing/radiology sub-service id
   const [svcSaving, setSvcSaving] = useState(false);
   const [onlineOn, setOnlineOn] = useState(false);
   const [onlinePrice, setOnlinePrice] = useState<number | null>(null);
@@ -247,9 +247,17 @@ export default function ProviderProfileScreen() {
     }
   };
 
+  // Nursing / radiology services: the ones switched on, each with its price inside the admin range
+  const saveOtherServices = async () => {
+    const rows = otherRows
+      .filter((r) => otherSvc[r.id]?.on)
+      .map((r) => ({ sub_service_id: r.id, custom_price: clampTo(otherSvc[r.id].price, priceRangeFor(r, grade)) }));
+    await saveMyServices(rows);
+  };
+
   const saveCard = async () => {
     setSvcSaving(true);
-    try { await saveDoctorServices(); setExpanded(null); burst.show("تم حفظ الخدمة"); }
+    try { await (isDoctor ? saveDoctorServices() : saveOtherServices()); setExpanded(null); burst.show("تم حفظ الخدمة"); }
     catch (e: any) { Alert.alert("خطأ", e.message ?? "تعذر الحفظ"); }
     finally { setSvcSaving(false); }
   };
@@ -276,12 +284,7 @@ export default function ProviderProfileScreen() {
         photoUrl,
       });
       if (isDoctor) await saveDoctorServices();
-      if (!isDoctor && otherRows.length) {
-        const rows = otherRows
-          .filter((r) => otherSvc[r.id]?.on)
-          .map((r) => ({ sub_service_id: r.id, custom_price: clampTo(otherSvc[r.id].price, priceRangeFor(r, grade)) }));
-        await saveMyServices(rows);
-      }
+      if (!isDoctor && otherRows.length) await saveOtherServices();
       burst.show("تم حفظ الحساب");
     } catch (e: any) {
       Alert.alert("خطأ", e.message ?? "تعذر الحفظ");
@@ -561,19 +564,24 @@ export default function ProviderProfileScreen() {
                 const st = otherSvc[r.id] ?? { on: false, price: null };
                 const range = priceRangeFor(r, grade);
                 const v = clampTo(st.price, range);
+                const open = expanded === r.id;
+                // same card as the doctor's: name + "duration · price" on top, pencil opens the slider and its own "حفظ", toggle on the side
                 return (
                   <View key={r.id} style={{ backgroundColor: t.card, borderWidth: 1, borderColor: st.on ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: st.on ? 1 : 0.85 }}>
                     <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
                       <View style={{ flex: 1 }}>
-                        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{r.name}</PText>
-                        {r.duration ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{r.duration}</PText> : null}
+                        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>{r.name}</PText>
+                        <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>{r.duration ? `${r.duration} · ` : ""}{v} ج.م</PText>
                       </View>
+                      <Pressable onPress={() => setExpanded(open ? null : r.id)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                        <MaterialCommunityIcons name={open ? "close" : "pencil-outline"} size={18} color={t.gold} />
+                      </Pressable>
                       <Toggle on={st.on} onChange={(on) => setOtherSvc((cur) => ({ ...cur, [r.id]: { on, price: cur[r.id]?.price ?? range.min } }))} />
                     </View>
-                    {st.on ? (
-                      <>
-                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
-                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>سعرك</PText>
+                    {open ? (
+                      <View style={{ marginTop: 12 }}>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>السعر</PText>
                           <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>{v} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText></PText>
                         </View>
                         <PriceSlider value={v} min={range.min} max={range.max} disabled={range.max === range.min}
@@ -583,7 +591,10 @@ export default function ProviderProfileScreen() {
                           <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن</PText>
                           <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{range.max}</PText>
                         </View>
-                      </>
+                        <Pressable onPress={saveCard} disabled={svcSaving} style={({ pressed }) => ({ marginTop: 12, height: 46, borderRadius: 14, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: pressed || svcSaving ? 0.85 : 1 })}>
+                          <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>{svcSaving ? "جاري الحفظ..." : "حفظ"}</PText>
+                        </Pressable>
+                      </View>
                     ) : null}
                   </View>
                 );
