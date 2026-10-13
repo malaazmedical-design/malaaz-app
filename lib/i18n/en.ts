@@ -1328,6 +1328,19 @@ export const EN: Record<string, string> = {
   "وافقت على الموعد · أكمل الدفع": "You accepted the time · complete the payment",
   "الإدارة هتتواصل معاك على الموبايل أو واتساب لتحويل المبلغ. الاستشارة بتتأكد بعد تأكيد الدفع، وبتبدأ في موعدها.": "The admin will contact you by phone or WhatsApp to transfer the amount. The consultation is confirmed once payment is confirmed, and starts at its time.",
   "الطبيب وافق واقترح موعدًا": "The doctor accepted and suggested a time",
+  "تم إرسال الطلب": "Request sent",
+  "في انتظار رد الطبيب": "Waiting for the doctor's reply",
+  "الطبيب اعتذر": "The doctor declined",
+  "الطبيب لم يرد": "The doctor didn't reply",
+  "اختر طبيبًا آخر": "Choose another doctor",
+  "لا يوجد أطباء متاحون — الإدارة هتتواصل معاك": "No doctors available — the admin will contact you",
+  "الإدارة هتتواصل معاك لتأكيد الدفع": "The admin will contact you to confirm payment",
+  "في انتظار تحديد الموعد": "Waiting for the time to be set",
+  "الطبيب اقترح موعدًا": "The doctor suggested a time",
+  "انتهت مهلة الرد": "Reply time ran out",
+  "اختر الموعد أو اعتذر": "Choose a time or decline",
+  "اختر الموعد": "Choose a time",
+  "متأكد إنك عايز تعتذر؟": "Are you sure you want to decline?",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;

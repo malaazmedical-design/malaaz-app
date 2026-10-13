@@ -138,15 +138,15 @@ export default function ClientConsultation() {
 
         {stage === "awaiting_doctor" ? (
           <View style={[card, { borderColor: t.gold, borderWidth: 1.5 }]}>
-            {head("تم إرسال طلبك للطبيب")}
-            {body(`${docName} وصله إشعار بطلبك. لو وافق هيحدد لك موعدًا وهيوصلك إشعار للموافقة عليه ثم الدفع. لو ما ردش خلال ساعتين هنساعدك تختار طبيبًا آخر.`)}
+            {head("تم إرسال الطلب")}
+            {body("في انتظار رد الطبيب")}
           </View>
         ) : null}
 
         {stage === "doctor_declined" ? (
           <View style={[card, { borderColor: "rgba(229,72,77,.5)" }]}>
-            {head(c.doctor_status === "expired" ? "الطبيب لم يرد على طلبك" : "الطبيب اعتذر عن استشارتك", t.destructive)}
-            {body("تقدر تختار طبيبًا آخر من القائمة، أو انتظر وهتختار لك الإدارة طبيبًا فورًا. لم يتم خصم أي مبلغ.")}
+            {head(c.doctor_status === "expired" ? "الطبيب لم يرد" : "الطبيب اعتذر", t.destructive)}
+            {body("اختر طبيبًا آخر")}
             <View style={{ gap: 8, marginTop: 12 }}>
               {others.map((o) => (
                 <Pressable key={o.id} disabled={busy}
@@ -162,15 +162,15 @@ export default function ClientConsultation() {
                   <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14 }}>{o.price} ج.م</Text>
                 </Pressable>
               ))}
-              {others.length === 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right" }}>لا يوجد أطباء آخرون متاحون لهذه القناة الآن — الإدارة هتتواصل معاك.</Text> : null}
+              {others.length === 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right" }}>لا يوجد أطباء متاحون — الإدارة هتتواصل معاك</Text> : null}
             </View>
           </View>
         ) : null}
 
         {stage === "pay_pending" ? (
           <View style={card}>
-            {head("وافقت على الموعد · أكمل الدفع")}
-            {body("الإدارة هتتواصل معاك على الموبايل أو واتساب لتحويل المبلغ. الاستشارة بتتأكد بعد تأكيد الدفع، وبتبدأ في موعدها.")}
+            {head("في انتظار الدفع")}
+            {body("الإدارة هتتواصل معاك لتأكيد الدفع")}
             {c.appt_at ? <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 18, textAlign: "right", marginTop: 8 }}>{dateTimeLabel(c.appt_at)}</Text> : null}
             {c.pay_deadline ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 8 }}>مهلة الدفع: {dateTimeLabel(c.pay_deadline)}</Text> : null}
             <View style={{ flexDirection: "row-reverse", marginTop: 14 }}>
@@ -188,12 +188,12 @@ export default function ClientConsultation() {
         ) : null}
 
         {stage === "need_time" ? (
-          <View style={card}>{head("بانتظار تحديد الموعد")}{body(`${docName} هيحدد موعدًا داخل الفترة اللي اخترتها، وهيوصلك إشعار للموافقة.`)}</View>
+          <View style={card}>{head("في انتظار تحديد الموعد")}</View>
         ) : null}
 
         {stage === "time_pending" && c.prop_at ? (
           <View style={[card, { borderColor: t.gold, borderWidth: 1.5 }]}>
-            {head("الطبيب وافق واقترح موعدًا")}
+            {head("الطبيب اقترح موعدًا")}
             <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 20, textAlign: "right" }}>{dateTimeLabel(c.prop_at)}</Text>
             <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 14 }}>
               {btn("موافق", () => call("respond_consultation_time", { p_id: c.id, p_accept: true }), "gold", "check")}

@@ -133,14 +133,14 @@ export default function ProviderConsultation() {
           </View>
         </View>
 
-        {stage === "pay_pending" ? <View style={card}>{head("المريض وافق على الموعد")}{body("في انتظار تأكيد الدفع من الإدارة. هيوصلك إشعار لما يتأكد الدفع، وتبدأ الجلسة في موعدها.")}{c.appt_at ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 19, textAlign: "right", marginTop: 8 }}>{dateTimeLabel(c.appt_at)}</PText> : null}</View> : null}
-        {stage === "doctor_declined" ? <View style={[card, { borderColor: "rgba(229,72,77,.5)" }]}>{head("تم الاعتذار عن هذه الاستشارة", t.destructive)}{body(c.doctor_status === "expired" ? "انتهت مهلة الرد (ساعتان). الإدارة هتحوّل المريض لطبيب آخر." : "هيتم تحويل المريض لطبيب آخر.")}</View> : null}
+        {stage === "pay_pending" ? <View style={card}>{head("في انتظار الدفع")}{c.appt_at ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 19, textAlign: "right", marginTop: 8 }}>{dateTimeLabel(c.appt_at)}</PText> : null}</View> : null}
+        {stage === "doctor_declined" ? <View style={[card, { borderColor: "rgba(229,72,77,.5)" }]}>{head(c.doctor_status === "expired" ? "انتهت مهلة الرد" : "تم الاعتذار", t.destructive)}</View> : null}
         {stage === "cancelled" ? <View style={[card, { borderColor: "rgba(229,72,77,.5)" }]}>{head("تم الإلغاء", t.destructive)}{body(`السبب: ${c.cancel_reason ?? "—"}`)}</View> : null}
 
         {stage === "awaiting_doctor" || stage === "need_time" || stage === "time_rejected" || ((stage === "scheduled" || stage === "doctor_late") && editing) ? (
           <View style={[card, { borderColor: t.gold, borderWidth: 1.5 }]}>
             {head(stage === "time_rejected" ? "المريض لا يناسبه الموعد" : editing ? "تعديل موعد الاستشارة" : stage === "awaiting_doctor" ? "طلب استشارة جديد" : "حدد الموعد", stage === "time_rejected" ? t.destructive : t.text)}
-            {stage === "time_rejected" ? body("الإدارة هتتواصل مع المريض، وبعدها تقدر تقترح موعدًا جديدًا.") : body(stage === "awaiting_doctor" ? "لو هتقبل: اختر وقتًا داخل فترة المريض، وهيوصله للموافقة ثم الدفع. لو مش مناسب: اعتذر وهيتحوّل لطبيب آخر." : "اختر وقتًا داخل فترة المريض، وهيوصله للموافقة.")}
+            {stage === "time_rejected" ? body("الإدارة هتتواصل مع المريض، وبعدها تقدر تقترح موعدًا جديدًا.") : body(stage === "awaiting_doctor" ? "اختر الموعد أو اعتذر" : "اختر الموعد")}
             {stage === "awaiting_doctor" || stage === "need_time" || editing ? (
               <>
                 <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
@@ -162,7 +162,7 @@ export default function ProviderConsultation() {
                       : call("propose_consultation_time", { p_id: c.id, p_at: slot.toISOString() });
                     run.then((ok) => { if (ok) { setEditing(false); setSlot(null); } });
                   }, { disabled: !slot })}
-                  {stage === "awaiting_doctor" ? btn("اعتذار", () => Alert.alert("اعتذار عن الاستشارة", "هيتم إبلاغ المريض والإدارة وتحويله لطبيب آخر. متأكد؟", [
+                  {stage === "awaiting_doctor" ? btn("اعتذار", () => Alert.alert("اعتذار عن الاستشارة", "متأكد إنك عايز تعتذر؟", [
                     { text: "رجوع", style: "cancel" },
                     { text: "اعتذار", style: "destructive", onPress: () => { call("respond_consultation_request", { p_id: c.id, p_accept: false }); } },
                   ]), { kind: "ghost" }) : null}
