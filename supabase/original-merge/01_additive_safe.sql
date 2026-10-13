@@ -1978,7 +1978,9 @@ begin
     delete from public.care_reports where patient_user_id = uid;
     delete from public.push_tokens where owner_type = 'client' and phone = cphone;
     -- business records stay, but anonymous
-    update public.bookings set patient_name = 'حساب محذوف', phone = null, address = null, notes = null, patient_email = null, lat = null, lng = null where client_id = cid;
+    -- (also guest bookings made with this number before the account was linked: the app finds bookings by phone too)
+    update public.bookings set patient_name = 'حساب محذوف', phone = null, address = null, notes = null, patient_email = null, lat = null, lng = null
+     where client_id = cid or (client_id is null and cphone is not null and phone = cphone);
     update public.consultations set client_name = 'حساب محذوف' where client_id = cid;
     -- the client row is kept only as an anonymous anchor for those records (foreign keys), detached from the login
     update public.clients set auth_id = null, name = 'حساب محذوف', email = null, phone = 'deleted-' || id::text, phone2 = null,
