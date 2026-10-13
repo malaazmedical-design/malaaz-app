@@ -220,6 +220,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email: input.email,
       password: input.password,
+      // the registration screen requires the consent checkbox, so the time / version of the accepted terms is kept with the account
+      options: { data: { consent_at: new Date().toISOString(), consent_version: "2026-10" } },
     });
     if (authErr) {
       throw new Error(

@@ -40,6 +40,8 @@ export default function ProviderLoginScreen() {
   const [rType, setRType] = useState("");
   const [rGrade, setRGrade] = useState("");
   const [rSpec, setRSpec] = useState("");
+  // explicit consent to the terms and privacy policy (personal data of the provider and the patients he serves)
+  const [agreed, setAgreed] = useState(false);
   const [specialties, setSpecialties] = useState<string[]>(FALLBACK_SPECIALTIES);
 
   useEffect(() => { if (provider) router.replace("/provider-portal/(ptabs)/overview"); }, [provider]);
@@ -93,10 +95,14 @@ export default function ProviderLoginScreen() {
 
   const doRegister = async () => {
     if (!regOk) return;
+    if (!agreed) { setError("لازم توافق على الشروط وسياسة الخصوصية الأول"); return; }
     setError(""); setBusy(true);
     try {
       const base = { name: rName.trim(), phone: rPhone, serviceType: rType, grade: rGrade, specialty: rSpec };
-      if (googleProfile) await completeGoogleRegistration(base);
+      if (googleProfile) {
+        await completeGoogleRegistration(base);
+        supabase.auth.updateUser({ data: { consent_at: new Date().toISOString(), consent_version: "2026-10" } }).catch(() => {});
+      }
       else {
         const msg = await register({ ...base, email: rEmail.trim(), password: rPass });
         // لو التأكيد بالإيميل مطلوب مبيتعملش صف providers لسه — نعرض الرسالة بس
@@ -140,6 +146,19 @@ export default function ProviderLoginScreen() {
       <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>أو</PText>
       <View style={{ flex: 1, height: 1, backgroundColor: t.border }} />
     </View>
+  );
+  const consent = (
+    <Pressable onPress={() => { setAgreed((v) => !v); setError(""); }} accessibilityRole="checkbox" accessibilityState={{ checked: agreed }}
+      style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 10 }}>
+      <MaterialCommunityIcons name={agreed ? "checkbox-marked" : "checkbox-blank-outline"} size={24} color={agreed ? t.gold : t.muted} />
+      <PText style={{ flex: 1, color: t.text2, fontFamily: TJ.medium, fontSize: 13, lineHeight: 21, textAlign: "right" }}>
+        أوافق على{" "}
+        <PText onPress={() => router.push("/legal?role=provider&open=terms")} style={{ color: t.goldText, textDecorationLine: "underline" }}>شروط مقدم الخدمة</PText>
+        {" و"}
+        <PText onPress={() => router.push("/legal?role=provider&open=privacy")} style={{ color: t.goldText, textDecorationLine: "underline" }}>سرية بيانات المرضى</PText>
+        {"، وأوافق على معالجة بياناتي الشخصية لتشغيل حسابي وتقديم الخدمة."}
+      </PText>
+    </Pressable>
   );
   const err = error ? <PText style={{ color: t.destructive, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right" }}>{error}</PText> : null;
 
@@ -228,8 +247,9 @@ export default function ProviderLoginScreen() {
             <Select label="نوع الخدمة" value={rType} options={SERVICE_TYPES} onChange={(v) => { setRType(v); setRGrade(""); setRSpec(""); }} />
             {grades.length ? <Select label={gradeLabelFor(rType)} value={rGrade} options={grades} onChange={setRGrade} /> : null}
             {isDoctor ? <SearchableSelect label="التخصص" sheetTitle="اختر التخصص" value={rSpec} options={specialties} onChange={setRSpec} /> : null}
+            {consent}
             {err}
-            {gold(busy ? "جاري الإنشاء..." : "إنشاء الحساب", doRegister, busy || !regOk)}
+            {gold(busy ? "جاري الإنشاء..." : "إنشاء الحساب", doRegister, busy || !regOk || !agreed)}
             {!googleProfile ? (<>{divider}{googleBtn("التسجيل بحساب جوجل")}</>) : null}
             {link("لديك حساب؟ تسجيل الدخول", () => { clearGoogle().catch(() => {}); go("login"); })}
           </View>

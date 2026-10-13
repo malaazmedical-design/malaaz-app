@@ -1363,6 +1363,7 @@ export const EN: Record<string, string> = {
   "أوافق على": "I agree to",
   "، وأوافق على معالجة بياناتي الشخصية والصحية لتقديم الخدمة.": ", and I agree to the processing of my personal and health data to provide the service.",
   "لازم توافق على الشروط وسياسة الخصوصية الأول": "You must agree to the terms and privacy policy first",
+  "، وأوافق على معالجة بياناتي الشخصية لتشغيل حسابي وتقديم الخدمة.": ", and I agree to the processing of my personal data to run my account and provide the service.",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
