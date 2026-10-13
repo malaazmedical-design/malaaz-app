@@ -317,6 +317,7 @@ export type DbConsultation = {
   period: "morning" | "noon" | "evening" | "asap";
   pay_method: "wallet" | "instapay" | null;
   pay_status: "pending" | "paid" | "cancelled";
+  doctor_status: "pending" | "accepted" | "declined" | "expired";
   cancel_reason: string | null;
   pay_deadline: string | null;
   paid_at: string | null;

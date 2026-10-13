@@ -30,26 +30,30 @@ export function endAt(c: DbConsultation): number | null {
 
 // ما يراه العميل والطبيب: مرحلة واحدة واضحة لكل استشارة
 export type Stage =
-  | "pay_pending" | "cancelled" | "need_time" | "time_pending" | "time_rejected" | "scheduled"
+  | "awaiting_doctor" | "doctor_declined" | "pay_pending" | "cancelled" | "need_time" | "time_pending" | "time_rejected" | "scheduled"
   | "doctor_late" | "live" | "need_summary" | "no_show" | "done";
 
 export function stageOf(c: DbConsultation, now = Date.now()): Stage {
   if (c.pay_status === "cancelled") return "cancelled";
-  if (c.pay_status === "pending") return "pay_pending";
+  if (c.doctor_status === "pending") return "awaiting_doctor";
+  if (c.doctor_status === "declined" || c.doctor_status === "expired") return "doctor_declined";
   if (c.state === "live") return "live";
   if (c.state === "ended") return c.no_show ? "no_show" : c.sum_at ? "done" : "need_summary";
   if (c.prop_status === "pending") return "time_pending";
   if (c.prop_status === "no") return "time_rejected";
   if (c.prop_status === "ok" && c.appt_at) {
+    if (c.pay_status === "pending") return "pay_pending";
     return now >= new Date(c.appt_at).getTime() + 15 * 60000 ? "doctor_late" : "scheduled";
   }
   return "need_time";
 }
 
 export const STAGE_META: Record<Stage, { client: string; doctor: string; color: string }> = {
+  awaiting_doctor: { client: "بانتظار رد الطبيب", doctor: "طلب جديد · بانتظار ردك", color: "#c9a84c" },
+  doctor_declined: { client: "الطبيب اعتذر · اختر طبيبًا آخر", doctor: "تم الاعتذار", color: "#e5484d" },
   pay_pending:   { client: "في انتظار الدفع",       doctor: "في انتظار الدفع",        color: "#c9a84c" },
   cancelled:     { client: "تم الإلغاء",             doctor: "تم الإلغاء",             color: "#e5484d" },
-  need_time:     { client: "تم الدفع · بانتظار الموعد", doctor: "حدد الموعد",           color: "#2f80ed" },
+  need_time:     { client: "بانتظار تحديد الموعد", doctor: "حدد الموعد",           color: "#2f80ed" },
   time_pending:  { client: "موعد بانتظار موافقتك",   doctor: "بانتظار رد المريض",      color: "#c9a84c" },
   time_rejected: { client: "بانتظار موعد جديد",      doctor: "المريض لا يناسبه الموعد", color: "#e5484d" },
   scheduled:     { client: "الموعد مؤكد",            doctor: "الموعد مؤكد",            color: "#1fa65a" },

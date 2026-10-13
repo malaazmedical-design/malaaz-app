@@ -168,6 +168,7 @@
   // ───────── الاستشارات الأونلاين ─────────
   const PERIODS = { morning: "صباحًا (8-12)", noon: "ظهرًا (12-4)", evening: "مساءً (4-9)", asap: "أسرع وقت ممكن" };
   const ALERTS = {
+    doctor_declined: "🔴 الدكتور اعتذر · اختر بديلًا", doctor_expired: "🔴 الدكتور لم يرد · اختر بديلًا", doctor_silent: "⚠ الدكتور لم يرد منذ 30 دقيقة",
     deadline: "⏰ انتهت مهلة الدفع", no_proposal: "⚠ الطبيب لم يحدد موعدًا", client_silent: "⚠ العميل لم يرد على الموعد",
     client_rejected: "⚠ العميل رفض الموعد", doctor_late: "🔴 الطبيب متأخر عن الموعد", rating: "★ تقييم بانتظار الاعتماد", no_show: "العميل لم يحضر",
   };
@@ -199,7 +200,7 @@
   }
 
   async function renderConsults(root) {
-    const filters = [["pay", "في انتظار الدفع"], ["paid", "تم الدفع"], ["alerts", "تنبيهات"], ["live", "جارية"], ["ended", "منتهية"], ["cancelled", "ملغية"], ["all", "الكل"]];
+    const filters = [["doctor", "بانتظار الدكتور"], ["pay", "في انتظار الدفع"], ["paid", "تم الدفع"], ["alerts", "تنبيهات"], ["live", "جارية"], ["ended", "منتهية"], ["cancelled", "ملغية"], ["all", "الكل"]];
     const gauge = await rtcGauge();
     if (gauge) root.append(gauge);
     root.append(h("div", { class: "rv-chips" }, filters.map(([k, n]) => h("button", { class: "rv-chip" + (state.conFilter === k ? " on" : ""), onclick: () => { state.conFilter = k; refresh(); } }, n))));
@@ -209,7 +210,7 @@
     if (error) return list.replaceChildren(h("div", { class: "rv-empty" }, "خطأ: " + error.message));
     const f = state.conFilter;
     const rows = data.filter((c) =>
-      f === "all" ? true : f === "pay" ? c.pay_status === "pending" : f === "paid" ? c.pay_status === "paid" && c.state === "wait" :
+      f === "all" ? true : f === "doctor" ? c.pay_status === "pending" && c.doctor_status !== "accepted" : f === "pay" ? c.pay_status === "pending" && c.doctor_status === "accepted" : f === "paid" ? c.pay_status === "paid" && c.state === "wait" :
       f === "alerts" ? c.alerts.length > 0 : f === "live" ? c.state === "live" : f === "ended" ? c.state === "ended" : c.pay_status === "cancelled");
     if (!rows.length) return list.replaceChildren(h("div", { class: "rv-empty" }, "لا توجد استشارات"));
     const act = async (fn, args) => {
@@ -218,13 +219,14 @@
       refresh();
     };
     list.replaceChildren(...rows.map((c) => {
-      const st = c.pay_status === "cancelled" ? (c.refunded ? "ملغي · تم الاسترداد" : "ملغي") : c.pay_status === "pending" ? "في انتظار الدفع" : c.state === "live" ? "جارية" : c.state === "ended" ? (c.no_show ? (c.refunded ? "لم يحضر المريض · تم الاسترداد" : "لم يحضر المريض") : "منتهية") : "تم الدفع";
+      const st = c.pay_status === "cancelled" ? (c.refunded ? "ملغي · تم الاسترداد" : "ملغي") : c.pay_status === "pending" ? (c.doctor_status === "pending" ? "بانتظار رد الدكتور" : c.doctor_status === "declined" ? "الدكتور اعتذر" : c.doctor_status === "expired" ? "الدكتور لم يرد" : c.prop_status === "ok" ? "في انتظار الدفع" : "بانتظار الموعد") : c.state === "live" ? "جارية" : c.state === "ended" ? (c.no_show ? (c.refunded ? "لم يحضر المريض · تم الاسترداد" : "لم يحضر المريض") : "منتهية") : "تم الدفع";
       const wa = "https://wa.me/20" + (c.client_phone || "").replace(/\D/g, "").replace(/^0/, "");
       const reason = h("select", { class: "rv-in" }, CANCEL_REASONS.map((r) => h("option", { value: r }, r)));
       const card = h("div", { class: "rv-card" },
         h("div", { class: "rv-row" }, h("b", {}, c.case_number), badge(st), h("span", { class: "rv-sp" }), h("span", { class: "rv-mu" }, fmt(c.created_at))),
         h("div", { class: "rv-row", style: "margin-top:6px" }, h("span", {}, "العميل: " + c.client_name), h("a", { href: wa, target: "_blank", rel: "noopener", style: "color:#8a6a14;font-weight:800" }, c.client_phone || ""), h("span", { class: "rv-sp" }), h("span", {}, "الطبيب: " + c.provider_name)),
         h("div", { class: "rv-mu" }, `${{ chat: "شات", voice: "صوت", video: "فيديو" }[c.channel]} · ${c.duration_min} د · ${c.price} ج.م · ${c.pay_method === "wallet" ? "محفظة" : "إنستاباي"} · ${c.period === "asap" ? PERIODS.asap : c.period_date + " " + PERIODS[c.period]}`),
+        c.prev_provider_name ? h("div", { class: "rv-mu" }, "الطبيب السابق (اعتذر / لم يرد): " + c.prev_provider_name) : null,
         c.appt_at ? h("div", { class: "rv-mu" }, "الموعد المعتمد: " + fmt(c.appt_at)) : c.prop_at ? h("div", { class: "rv-mu" }, "موعد مقترح: " + fmt(c.prop_at)) : null,
         c.pay_status === "pending" && c.pay_deadline ? h("div", { class: "rv-mu" }, "مهلة الدفع: " + fmt(c.pay_deadline)) : null,
         c.cancel_reason ? h("div", { class: "rv-mu rv-bad" }, "سبب الإلغاء: " + c.cancel_reason) : null,
@@ -238,11 +240,20 @@
         c.rating ? h("div", { class: "rv-msg" }, "★".repeat(c.rating) + (c.rating_text ? " — " + c.rating_text : ""), " ", c.rating_ok ? badge("تم الاعتماد · منشور في صفحة الدكتور", OK) : c.rating_hidden ? badge("تم إلغاء النشر", BAD) : badge("بانتظار الاعتماد")) : null);
       const bar = h("div", { class: "rv-row", style: "margin-top:10px" });
       if (c.state === "wait" && c.pay_status !== "cancelled") {
-        if (c.pay_status === "pending") bar.append(h("button", { class: "rv-btn ok", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "paid" }) }, "تم الدفع"));
+        if (c.pay_status === "pending" && c.doctor_status === "accepted" && c.prop_status === "ok") bar.append(h("button", { class: "rv-btn ok", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "paid" }) }, "تم الدفع"));
+        else if (c.pay_status === "pending") bar.append(h("span", { class: "rv-mu" }, c.doctor_status === "accepted" ? "الدفع بعد موافقة العميل على الموعد" : "الدفع بعد قبول الدكتور وموافقة العميل على الموعد"));
         else if (c.prop_status === "none") bar.append(h("button", { class: "rv-btn ghost", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "pending" }) }, "في انتظار الدفع"));
         bar.append(reason, h("button", { class: "rv-btn bad", onclick: () => confirm("إلغاء الاستشارة؟") && act("admin_set_payment", { p_id: c.id, p_status: "cancelled", p_reason: reason.value }) }, "إلغاء"));
       }
-      if (c.state === "wait" && c.pay_status === "paid") {
+      if (c.state === "wait" && c.pay_status === "pending" && (c.doctor_status === "declined" || c.doctor_status === "expired")) {
+        const pick = h("select", { class: "rv-in" }, h("option", { value: "" }, "اختر طبيبًا بديلًا..."));
+        sb.rpc("admin_reassign_candidates", { p_id: c.id }).then(({ data: cand }) => (cand || []).forEach((d) => pick.append(h("option", { value: d.id }, d.name + (d.specialty ? " · " + d.specialty : "") + " · " + d.price + " ج.م"))));
+        bar.append(pick, h("button", { class: "rv-btn", onclick: () => {
+          if (!pick.value) return alert("اختر الطبيب");
+          if (confirm("تحويل الطلب لهذا الطبيب وإبلاغه والعميل؟")) act("admin_reassign_consultation", { p_id: c.id, p_provider: pick.value });
+        } }, "تحويل لطبيب آخر"));
+      }
+      if (c.state === "wait" && c.pay_status !== "cancelled" && c.doctor_status === "accepted") {
         const when = h("input", { class: "rv-in", type: "datetime-local", dir: "ltr" });
         bar.append(when, h("button", { class: "rv-btn ghost", onclick: () => {
           if (!when.value) return alert("اختر التاريخ والوقت");

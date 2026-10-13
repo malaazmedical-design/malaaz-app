@@ -28,7 +28,7 @@ export default function ProviderOverviewScreen() {
   const cons = useProviderConsultations();
   const consStages = useMemo(() => cons.rows.map((c) => ({ c, s: stageOf(c) })), [cons.rows]);
   const liveCons = consStages.find((x) => x.s === "live");
-  const needTime = consStages.find((x) => x.s === "need_time");
+  const needTime = consStages.find((x) => x.s === "awaiting_doctor") ?? consStages.find((x) => x.s === "need_time");
   const nextCons = consStages.filter((x) => x.s === "scheduled" && x.c.appt_at).sort((a, b) => new Date(a.c.appt_at!).getTime() - new Date(b.c.appt_at!).getTime())[0];
 
   const states = useMemo(() => bookings.map((b) => ({ b, s: stateOf(b) })), [bookings]);
@@ -70,7 +70,7 @@ export default function ProviderOverviewScreen() {
     if (offers.length > 0)
       return { t: offers.length === 1 ? "عرض جديد ينتظر ردك" : `${offers.length} عروض جديدة تنتظر ردك`, s: "أول من يقبل يحجز", a: "عرض العروض", go: goOffers };
     if (needTime)
-      return { t: "استشارة بانتظار تحديد موعد", s: `${shortName(needTime.c.client_name)} · ${CHANNEL_LABEL[needTime.c.channel]}`, a: "حدد الموعد", go: () => router.push(`/provider-portal/consult/${needTime.c.id}`) };
+      return { t: needTime.s === "awaiting_doctor" ? "طلب استشارة جديد بانتظار ردك" : "استشارة بانتظار تحديد موعد", s: `${shortName(needTime.c.client_name)} · ${CHANNEL_LABEL[needTime.c.channel]}`, a: needTime.s === "awaiting_doctor" ? "اقبل أو اعتذر" : "حدد الموعد", go: () => router.push(`/provider-portal/consult/${needTime.c.id}`) };
     if (nextCons && (!confirmed || new Date(nextCons.c.appt_at!).getTime() - Date.now() < 3 * 3600000))
       return { t: "الاستشارة القادمة", s: `${shortName(nextCons.c.client_name)} · ${dateTimeLabel(nextCons.c.appt_at!)}`, a: "عرض الاستشارة", go: () => router.push(`/provider-portal/consult/${nextCons.c.id}`) };
     if (confirmed)

@@ -12,11 +12,11 @@ import { supabase, DbConsultation } from "@/lib/supabase";
 
 type Filter = "upcoming" | "live" | "ended" | "cancelled";
 const FILTER_OF: Record<Stage, Filter> = {
-  pay_pending: "upcoming", need_time: "upcoming", time_pending: "upcoming", time_rejected: "upcoming", scheduled: "upcoming", doctor_late: "upcoming",
+  awaiting_doctor: "upcoming", doctor_declined: "cancelled", pay_pending: "upcoming", need_time: "upcoming", time_pending: "upcoming", time_rejected: "upcoming", scheduled: "upcoming", doctor_late: "upcoming",
   live: "live", need_summary: "ended", done: "ended", no_show: "ended", cancelled: "cancelled",
 };
 // مراحل محتاجة إجراء من الطبيب
-const ACTION: Stage[] = ["need_time", "scheduled", "doctor_late", "live", "need_summary"];
+const ACTION: Stage[] = ["awaiting_doctor", "need_time", "scheduled", "doctor_late", "live", "need_summary"];
 
 export function useProviderConsultations() {
   const { provider } = useProvider();

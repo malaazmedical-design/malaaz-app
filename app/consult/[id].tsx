@@ -10,6 +10,7 @@ import { TJ, useMalaz } from "@/constants/malazTheme";
 import { whatsappCompany } from "@/lib/contact";
 import { CHANNEL_LABEL, dateTimeLabel, dayLabel, FOLLOW_LABEL, PAY_LABEL, PERIOD_LABEL, STAGE_META, stageOf, timeLabel } from "@/lib/consult";
 import { supabase, DbConsultation } from "@/lib/supabase";
+import { useOnlineOffers } from "@/lib/useOnlineOffers";
 
 export default function ClientConsultation() {
   const t = useMalaz();
@@ -57,6 +58,21 @@ export default function ClientConsultation() {
     if (okMsg) Alert.alert("", okMsg);
     load();
   };
+
+  // other doctors who offer the same channel (shown when the doctor declined / did not reply)
+  const offers = useOnlineOffers();
+  const offersKey = JSON.stringify(offers);
+  const [others, setOthers] = useState<{ id: string; name: string; specialty: string | null; price: number }[]>([]);
+  const declined = !!c && c.pay_status !== "cancelled" && (c.doctor_status === "declined" || c.doctor_status === "expired");
+  useEffect(() => {
+    if (!declined || !c) { setOthers([]); return; }
+    const ids = Object.keys(offers).filter((k) => k !== c.provider_id && offers[k]?.[c.channel] != null);
+    if (!ids.length) { setOthers([]); return; }
+    supabase.from("providers").select("id,name,specialty").in("id", ids).eq("status", "active").then(({ data }) => {
+      setOthers(((data ?? []) as any[]).map((d) => ({ id: d.id, name: d.name, specialty: d.specialty, price: offers[d.id][c.channel] as number })));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [declined, c?.provider_id, c?.channel, offersKey]);
 
   if (loading) return <View style={{ flex: 1, backgroundColor: t.bg, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.gold} /></View>;
   if (!c) return <View style={{ flex: 1, backgroundColor: t.bg, alignItems: "center", justifyContent: "center" }}><Text style={{ color: t.muted, fontFamily: TJ.medium }}>الاستشارة غير موجودة</Text></View>;
@@ -120,10 +136,42 @@ export default function ClientConsultation() {
           </View>
         </View>
 
+        {stage === "awaiting_doctor" ? (
+          <View style={[card, { borderColor: t.gold, borderWidth: 1.5 }]}>
+            {head("تم إرسال طلبك للطبيب")}
+            {body(`${docName} وصله إشعار بطلبك. لو وافق هيحدد لك موعدًا وهيوصلك إشعار للموافقة عليه ثم الدفع. لو ما ردش خلال ساعتين هنساعدك تختار طبيبًا آخر.`)}
+          </View>
+        ) : null}
+
+        {stage === "doctor_declined" ? (
+          <View style={[card, { borderColor: "rgba(229,72,77,.5)" }]}>
+            {head(c.doctor_status === "expired" ? "الطبيب لم يرد على طلبك" : "الطبيب اعتذر عن استشارتك", t.destructive)}
+            {body("تقدر تختار طبيبًا آخر من القائمة، أو انتظر وهتختار لك الإدارة طبيبًا فورًا. لم يتم خصم أي مبلغ.")}
+            <View style={{ gap: 8, marginTop: 12 }}>
+              {others.map((o) => (
+                <Pressable key={o.id} disabled={busy}
+                  onPress={() => Alert.alert("تحويل الطلب", `تحويل الطلب إلى ${o.name.startsWith("د") ? o.name : `د. ${o.name}`}؟`, [
+                    { text: "رجوع", style: "cancel" },
+                    { text: "تحويل", onPress: () => { call("client_change_doctor", { p_id: c.id, p_provider: o.id }); } },
+                  ])}
+                  style={({ pressed }) => ({ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", gap: 10, padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.ic, opacity: pressed || busy ? 0.8 : 1 })}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14.5, textAlign: "right" }}>{o.name.startsWith("د") ? o.name : `د. ${o.name}`}</Text>
+                    {o.specialty ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right" }}>{o.specialty}</Text> : null}
+                  </View>
+                  <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14 }}>{o.price} ج.م</Text>
+                </Pressable>
+              ))}
+              {others.length === 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right" }}>لا يوجد أطباء آخرون متاحون لهذه القناة الآن — الإدارة هتتواصل معاك.</Text> : null}
+            </View>
+          </View>
+        ) : null}
+
         {stage === "pay_pending" ? (
           <View style={card}>
-            {head("في انتظار الدفع")}
-            {body("الإدارة هتتواصل معاك على الموبايل أو واتساب لتحويل المبلغ. الحجز مش هيبدأ قبل تأكيد الدفع.")}
+            {head("وافقت على الموعد · أكمل الدفع")}
+            {body("الإدارة هتتواصل معاك على الموبايل أو واتساب لتحويل المبلغ. الاستشارة بتتأكد بعد تأكيد الدفع، وبتبدأ في موعدها.")}
+            {c.appt_at ? <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 18, textAlign: "right", marginTop: 8 }}>{dateTimeLabel(c.appt_at)}</Text> : null}
             {c.pay_deadline ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 8 }}>مهلة الدفع: {dateTimeLabel(c.pay_deadline)}</Text> : null}
             <View style={{ flexDirection: "row-reverse", marginTop: 14 }}>
               {btn("تواصل مع الإدارة", () => whatsappCompany(`مرحباً، أريد إتمام دفع الاستشارة ${c.case_number} (${c.price} ج.م)`), "gold", "whatsapp")}
@@ -140,12 +188,12 @@ export default function ClientConsultation() {
         ) : null}
 
         {stage === "need_time" ? (
-          <View style={card}>{head("تم الدفع ✓")}{body(`${docName} هيحدد موعدًا داخل الفترة اللي اخترتها، وهيوصلك إشعار للموافقة.`)}</View>
+          <View style={card}>{head("بانتظار تحديد الموعد")}{body(`${docName} هيحدد موعدًا داخل الفترة اللي اخترتها، وهيوصلك إشعار للموافقة.`)}</View>
         ) : null}
 
         {stage === "time_pending" && c.prop_at ? (
           <View style={[card, { borderColor: t.gold, borderWidth: 1.5 }]}>
-            {head("اقترح الطبيب موعدًا")}
+            {head("الطبيب وافق واقترح موعدًا")}
             <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 20, textAlign: "right" }}>{dateTimeLabel(c.prop_at)}</Text>
             <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 14 }}>
               {btn("موافق", () => call("respond_consultation_time", { p_id: c.id, p_accept: true }), "gold", "check")}

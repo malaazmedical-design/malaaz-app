@@ -63,7 +63,7 @@ export function ClientConsultList() {
         const s = stageOf(c);
         const m = STAGE_META[s];
         const n = names[c.provider_id] ?? "الطبيب";
-        const action = s === "time_pending" || s === "live";
+        const action = s === "time_pending" || s === "live" || s === "doctor_declined" || s === "pay_pending";
         return (
           <Pressable key={c.id} onPress={() => router.push(`/consult/${c.id}`)}
             style={({ pressed }) => ({ backgroundColor: t.card, borderRadius: 20, padding: 14, borderWidth: action ? 1.5 : 1, borderColor: action ? t.gold : t.border, transform: [{ scale: pressed ? 0.985 : 1 }] })}>
