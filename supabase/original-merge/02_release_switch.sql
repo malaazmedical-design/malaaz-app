@@ -254,6 +254,8 @@ do $$ begin
   perform cron.schedule('ask-expire-tick', '*/15 * * * *', 'select public.ask_expire_tick()');
   begin perform cron.unschedule('stale-bookings-tick'); exception when others then null; end;
   perform cron.schedule('stale-bookings-tick', '*/10 * * * *', 'select public.stale_bookings_tick()');
+  begin perform cron.unschedule('consultation-requests-tick'); exception when others then null; end;
+  perform cron.schedule('consultation-requests-tick', '* * * * *', 'select public.consultation_requests_tick()');
 end $$;
 
 commit;
