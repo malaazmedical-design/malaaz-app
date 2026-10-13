@@ -364,5 +364,107 @@
     applyFilter();
   }
 
-  window.RV = { load };
+  // ───────── العملاء (كل العملاء + نشاط كل عميل) ─────────
+  // جدول clients محمي (العميل يقرأ صفه بس)، فالقراءة من دالتين للأدمن بس: admin_clients / admin_client_detail
+  const BK_STATUS = { pending: "قيد الانتظار", confirmed: "مؤكد", on_way: "في الطريق", completed: "مكتمل", cancelled: "ملغي", rejected: "مرفوض" };
+  const BK_COLOR = { pending: AMBER, confirmed: BLUE, on_way: BLUE, completed: OK, cancelled: BAD, rejected: BAD };
+  const SRV = { chat: "شات", voice: "صوت", video: "فيديو" };
+  const conStatus = (k) => k.pay_status === "cancelled" ? ["ملغية", BAD]
+    : k.doctor_status === "pending" ? ["بانتظار رد الدكتور", AMBER]
+    : k.doctor_status === "declined" || k.doctor_status === "expired" ? ["الدكتور لم يقبل", BAD]
+    : k.state === "live" ? ["جارية", BLUE]
+    : k.state === "ended" ? [k.no_show ? "لم يحضر" : "منتهية", k.no_show ? BAD : OK]
+    : k.pay_status === "pending" ? [k.prop_status === "ok" ? "في انتظار الدفع" : "بانتظار الموعد", AMBER]
+    : ["مؤكدة", OK];
+  const ASK_STATUS = { new: "جديد", routed: "موجّه", answered: "تم الرد", expired: "انتهت المهلة", closed: "مغلق" };
+
+  async function loadClients() {
+    const page = document.getElementById("page-clients");
+    if (!page) return;
+    let root = document.getElementById("rv-clients-root");
+    if (!root) { root = h("div", { id: "rv-clients-root" }); page.replaceChildren(root); }
+    root.replaceChildren(h("div", { class: "rv-empty" }, "جاري التحميل…"));
+    if (!(await ensureAdmin())) return root.replaceChildren(h("div", { class: "rv-empty rv-bad" }, "هذا الحساب ليس أدمن (جدول admin_users)."));
+    const { data, error } = await sb.rpc("admin_clients");
+    if (error) return root.replaceChildren(h("div", { class: "rv-empty" }, "خطأ: " + error.message + " (شغّل ملف 40 على قاعدة البيانات)"));
+    const rows = data || [];
+    const st = { q: "", f: "all" };
+    const list = h("div");
+    const search = h("input", { class: "rv-in", placeholder: "بحث باسم أو إيميل أو هاتف…", style: "width:280px" });
+    const chips = h("div", { class: "rv-chips", style: "margin:0" });
+    const FILT = [["all", "الكل"], ["booking", "عندهم حجوزات"], ["consult", "عندهم استشارات"], ["none", "بدون نشاط"]];
+    const count = h("span", { class: "rv-mu" });
+
+    function draw() {
+      const q = st.q.toLowerCase();
+      const shown = rows.filter((c) =>
+        (!q || (c.name || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q) || (c.phone || "").includes(q)) &&
+        (st.f === "all" || (st.f === "booking" && c.bookings_count > 0) || (st.f === "consult" && c.consults_count > 0) ||
+         (st.f === "none" && !c.bookings_count && !c.consults_count && !c.asks_count)));
+      count.textContent = `${shown.length} من ${rows.length} عميل`;
+      chips.replaceChildren(...FILT.map(([k, n]) => h("button", { class: "rv-chip" + (st.f === k ? " on" : ""), onclick: () => { st.f = k; draw(); } }, n)));
+      if (!shown.length) return list.replaceChildren(h("div", { class: "rv-empty" }, "لا يوجد عملاء"));
+      list.replaceChildren(...shown.map(clientCard));
+    }
+
+    function clientCard(c) {
+      const body = h("div");
+      let loaded = false;
+      const card = h("div", { class: "rv-card" });
+      const head = h("div", { class: "rv-row", style: "cursor:pointer" },
+        h("b", {}, c.name || "—"), badge(c.auth_id ? "مسجّل بحساب" : "ضيف (حجز بدون حساب)", c.auth_id ? OK : AMBER),
+        h("span", { class: "rv-sp" }),
+        h("span", { class: "rv-mu" }, `حجوزات ${c.bookings_count} · استشارات ${c.consults_count} · أسئلة ${c.asks_count}`));
+      card.append(head,
+        h("div", { class: "rv-mu" }, [c.phone, c.email].filter(Boolean).join(" · ")),
+        h("div", { class: "rv-mu" }, "سجّل: " + (c.created_at ? fmt(c.created_at) : "—") + (c.last_activity ? " · آخر نشاط: " + fmt(c.last_activity) : "")),
+        body);
+      head.addEventListener("click", async () => {
+        if (loaded) { body.hidden = !body.hidden; return; }
+        loaded = true;
+        body.replaceChildren(h("div", { class: "rv-mu" }, "جاري التحميل…"));
+        const { data: d, error: e } = await sb.rpc("admin_client_detail", { p_id: c.id });
+        if (e || !d) return body.replaceChildren(h("div", { class: "rv-bad" }, "خطأ: " + (e?.message || "تعذّر التحميل")));
+        renderDetail(body, c, d);
+      });
+      return card;
+    }
+
+    function renderDetail(body, c, d) {
+      const bkSel = h("select", { class: "rv-in" }, [["all", "كل حالات الحجوزات"], ...Object.entries(BK_STATUS)].map(([k, n]) => h("option", { value: k }, n)));
+      const bkList = h("div");
+      const drawBk = () => {
+        const items = d.bookings.filter((b) => bkSel.value === "all" || b.status === bkSel.value);
+        bkList.replaceChildren(...(items.length ? items.map((b) => h("div", { class: "rv-row", style: "padding:6px 0;border-top:1px solid var(--border)" },
+          h("b", {}, [b.service_type, b.sub_option].filter(Boolean).join(" · ")),
+          badge(BK_STATUS[b.status] || b.status, BK_COLOR[b.status]),
+          h("span", { class: "rv-sp" }),
+          h("span", { class: "rv-mu" }, [b.provider_name ? "الطبيب/المقدم: " + b.provider_name : "بدون مقدم", b.price != null ? b.price + " ج.م" : null,
+            b.appointment_at ? fmt(b.appointment_at) : b.appointment_time, "سُجّل " + fmt(b.created_at)].filter(Boolean).join(" · ")))) : [h("div", { class: "rv-mu" }, "لا توجد حجوزات")]));
+      };
+      bkSel.addEventListener("change", drawBk); drawBk();
+      const cons = d.consultations.length ? d.consultations.map((k) => { const [t, col] = conStatus(k); return h("div", { class: "rv-row", style: "padding:6px 0;border-top:1px solid var(--border)" },
+        h("b", {}, k.case_number), badge(t, col), h("span", { class: "rv-sp" }),
+        h("span", { class: "rv-mu" }, [SRV[k.channel], k.provider_name, k.price + " ج.م", k.appt_at ? fmt(k.appt_at) : null, "سُجّل " + fmt(k.created_at)].filter(Boolean).join(" · "))); })
+        : [h("div", { class: "rv-mu" }, "لا توجد استشارات")];
+      const asks = d.asks.length ? d.asks.map((a) => h("div", { class: "rv-row", style: "padding:6px 0;border-top:1px solid var(--border)" },
+        h("b", {}, a.case_number), badge(ASK_STATUS[a.status] || a.status), h("span", { class: "rv-sp" }), h("span", { class: "rv-mu" }, (a.message || "") + " · " + fmt(a.created_at))))
+        : [h("div", { class: "rv-mu" }, "لا توجد أسئلة")];
+      const del = typeof window.deleteClient === "function" ? h("button", { class: "rv-btn bad", onclick: () => window.deleteClient(c.id, c.email || "").then?.(() => loadClients()) }, "حذف العميل نهائيًا") : null;
+      body.replaceChildren(h("div", { class: "rv-sub" },
+        h("div", { class: "rv-row" }, h("b", {}, "الحجوزات المنزلية (" + d.bookings.length + ")"), h("span", { class: "rv-sp" }), bkSel), bkList,
+        h("b", { style: "display:block;margin-top:12px" }, "الاستشارات الأونلاين (" + d.consultations.length + ")"), ...cons,
+        h("b", { style: "display:block;margin-top:12px" }, "اسأل طبيب (" + d.asks.length + ")"), ...asks,
+        del ? h("div", { style: "margin-top:12px" }, del) : null));
+    }
+
+    search.addEventListener("input", () => { st.q = search.value; draw(); });
+    root.replaceChildren(
+      h("div", { class: "rv-row", style: "margin-bottom:12px" }, h("b", { style: "font-size:17px" }, "العملاء"), count, h("span", { class: "rv-sp" }), search),
+      chips, list);
+    draw();
+  }
+
+  window.RV = { load, loadClients };
+
 })();
