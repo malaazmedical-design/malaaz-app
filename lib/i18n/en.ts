@@ -1364,6 +1364,22 @@ export const EN: Record<string, string> = {
   "، وأوافق على معالجة بياناتي الشخصية والصحية لتقديم الخدمة.": ", and I agree to the processing of my personal and health data to provide the service.",
   "لازم توافق على الشروط وسياسة الخصوصية الأول": "You must agree to the terms and privacy policy first",
   "، وأوافق على معالجة بياناتي الشخصية لتشغيل حسابي وتقديم الخدمة.": ", and I agree to the processing of my personal data to run my account and provide the service.",
+  "حسابك": "Your account",
+  "لازم تكون 18 سنة أو أكتر. اكتب بياناتك صح، وحافظ على سرية كلمة المرور، ومتسلّمش حسابك لحد. لو حسيت إن حد دخل على حسابك بلّغنا فورًا.": "You must be 18 or older. Enter your details correctly, keep your password secret and don't hand your account to anyone. If you think someone got into your account, tell us right away.",
+  "اللي مينفعش": "Not allowed",
+  "انتحال شخصية، بيانات غلط، إساءة أو تهديد لمقدم الخدمة أو الفريق، استخدام بيانات الناس لغير الحجز، أو محاولة اختراق التطبيق. ومن حقنا نوقف الحساب المخالف.": "Pretending to be someone else, false details, abusing or threatening a provider or our team, using people's data for anything but booking, or trying to hack the app. We can suspend an account that breaks these rules.",
+  "التقييمات": "Reviews",
+  "التقييم رأي شخصي ومش رأي ملاذ. الإدارة بتراجعه وممكن تخفي اللي فيه إساءة أو كلام مش حقيقي.": "A review is a personal opinion, not Malaz's. The admin checks it and may hide anything abusive or untrue.",
+  "حدود مسؤوليتنا": "Our limits",
+  "ظهور مقدم الخدمة مش معناه إننا بنوصي بيه، ومش بنضمن إن مواعيده ما تتغيرش. اللي في التطبيق معلومات للحجز مش نصيحة طبية، وملاذ مش مسؤولة عن قرار أو علاج بيقدمه مقدم الخدمة، في حدود ما يسمح به القانون.": "A provider appearing in the app doesn't mean we recommend them, and we can't promise their times won't change. What's in the app is booking information, not medical advice, and Malaz is not responsible for any decision or treatment a provider gives, to the extent the law allows.",
+  "أخطاء الأسعار": "Price mistakes",
+  "لو لقينا خطأ في سعر أو معلومة هنصلّحه ونبلغك قبل تأكيد الحجز، ولو مش موافق على السعر الصحيح تلغي من غير رسوم.": "If we find a wrong price or detail, we'll fix it and tell you before confirming the booking. If you don't accept the correct price you can cancel with no fee.",
+  "أمان الدفع": "Payment safety",
+  "مبنخزّنش بيانات كروت بنكية. الدفع بتحويل على محفظة أو انستا باي، وفريق ملاذ بيأكد وصوله.": "We don't store bank card details. Payment is a transfer to a wallet or InstaPay, and the Malaz team confirms it arrived.",
+  "اقتراحاتك": "Your suggestions",
+  "لو بعتلنا اقتراح لتحسين التطبيق، من حقنا نستخدمه من غير مقابل.": "If you send us a suggestion to improve the app, we may use it without payment.",
+  "بياناتك الطبية ملكك": "Your medical data is yours",
+  "الملفات والرسائل اللي بترفعها بتفضل بياناتك، وبنوصّل للطبيب اللي بتتعامل معاه اللي يلزمه بس. لو مش عايزها عندنا، احذف حسابك وهتتمسح.": "The files and messages you upload stay your data, and we pass the doctor you deal with only what they need. If you don't want them with us, delete your account and they are erased.",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
