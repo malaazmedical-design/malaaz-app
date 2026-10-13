@@ -75,7 +75,9 @@ function viaPatterns(orig: string, again: (s: string) => string): string | null 
 
 // Pure translation (no React): exact dictionary hit, then patterns. Leading / trailing spaces are kept; unknown texts are returned unchanged.
 export function translate(s: string, again: (s: string) => string = (x) => translate(x)): string {
-  if (!s || !AR.test(s)) return s;
+  if (!s) return s;
+  // a name written in Latin letters (e.g. a doctor registered as "Mrl") has no Arabic to translate, but the admin / doctor may have given it an English name
+  if (!AR.test(s)) { const hit = DYN[norm(s).trim()]; return hit ? s.match(/^\s*/)![0] + hit + s.match(/\s*$/)![0] : s; }
   // a single letter is an avatar initial, never a word to translate (e.g. "و" would become "and")
   if (s.trim().length === 1) return s;
   const lead = s.match(/^\s*/)![0];

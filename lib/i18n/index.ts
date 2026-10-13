@@ -77,7 +77,9 @@ export async function loadEnglishNames(): Promise<void> {
     }
     for (const r of providers) {
       const ar = (r.name ?? "").trim();
-      if (ar) map[ar] = (r.name_en ?? "").trim() || transliterateName(ar);
+      const en = (r.name_en ?? "").trim();
+      // a Latin-letter name needs no transliteration; it is translated only when an English name was written for it
+      if (ar && (en || /[\u0600-\u06FF]/.test(ar))) map[ar] = en || transliterateName(ar);
     }
     // أسماء أفراد عائلة المستخدم الحالي (الـ RLS بيرجّع بتوعه بس) — بتتحوّل تلقائي
     try {
