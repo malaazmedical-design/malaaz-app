@@ -12,6 +12,8 @@ import { digitsOnly } from "@/lib/digits";
 import { supabase } from "@/lib/supabase";
 
 
+const CONSENT_ERROR = "لازم توافق على الشروط وسياسة الخصوصية الأول";
+
 export default function ClientAuthScreen() {
   const insets = useSafeAreaInsets();
   const t = useMalaz();
@@ -30,6 +32,9 @@ export default function ClientAuthScreen() {
   const [rPhone, setRPhone] = useState("");
   const [rEmail, setREmail] = useState("");
   const [rPass, setRPass] = useState("");
+
+  // explicit consent to the terms and privacy policy (health data is sensitive): required before an account is created
+  const [agreed, setAgreed] = useState(false);
 
   // phone step (shown after any sign-in that has no mobile number yet)
   const [phone, setPhone] = useState("");
@@ -65,10 +70,17 @@ export default function ClientAuthScreen() {
     if (!rName.trim() || !rPhone.trim() || !rEmail.trim() || !rPass) { setError("املأ كل الحقول"); return; }
     if (!/^01[0125]\d{8}$/.test(rPhone.trim())) { setError("رقم الموبايل غير صحيح"); return; }
     if (rPass.length < 6) { setError("كلمة المرور 6 أحرف على الأقل"); return; }
+    if (!agreed) { setError(CONSENT_ERROR); return; }
     run(async () => {
       await clientRegister({ name: rName.trim(), phone: rPhone.trim(), email: rEmail.trim(), password: rPass });
+      recordConsent();
       Alert.alert("أهلاً بيك في ملاذ 🎉", "تم إنشاء حسابك بنجاح");
     });
+  };
+
+  // keeps proof of when / which version of the terms the user accepted (best effort, never blocks the sign-up)
+  const recordConsent = () => {
+    supabase.auth.updateUser({ data: { consent_at: new Date().toISOString(), consent_version: "2026-10" } }).catch(() => {});
   };
 
   const handleForgot = async () => {
@@ -81,7 +93,8 @@ export default function ClientAuthScreen() {
 
   const savePhone = () => {
     if (phone.length < 10) { setError("اكتب رقم موبايل صحيح"); return; }
-    run(async () => { await clientCompleteProfile(phone, name.trim() || undefined); });
+    if (!agreed) { setError(CONSENT_ERROR); return; }
+    run(async () => { await clientCompleteProfile(phone, name.trim() || undefined); recordConsent(); });
   };
 
   const input = {
@@ -108,6 +121,20 @@ export default function ClientAuthScreen() {
       <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 24, textAlign: "center" }}>{title}</Text>
       <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "center", marginTop: 6, marginBottom: 22, lineHeight: 22 }}>{sub}</Text>
     </>
+  );
+
+  const Consent = () => (
+    <Pressable onPress={() => { setAgreed((v) => !v); setError(""); }} accessibilityRole="checkbox" accessibilityState={{ checked: agreed }}
+      style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
+      <MaterialCommunityIcons name={agreed ? "checkbox-marked" : "checkbox-blank-outline"} size={24} color={agreed ? t.gold : t.muted} />
+      <Text style={{ flex: 1, color: t.text2, fontFamily: TJ.medium, fontSize: 13, lineHeight: 21, textAlign: "right" }}>
+        أوافق على{" "}
+        <Text onPress={() => router.push("/legal?open=terms")} style={{ color: t.goldText, textDecorationLine: "underline" }}>الشروط والأحكام</Text>
+        {" و"}
+        <Text onPress={() => router.push("/legal?open=privacy")} style={{ color: t.goldText, textDecorationLine: "underline" }}>سياسة الخصوصية</Text>
+        {"، وأوافق على معالجة بياناتي الشخصية والصحية لتقديم الخدمة."}
+      </Text>
+    </Pressable>
   );
 
   const Err = () => (error ? <Text style={{ color: t.destructive, fontSize: 13, fontFamily: TJ.bold, textAlign: "center", lineHeight: 21, marginBottom: 10 }}>{error}</Text> : null);
@@ -150,8 +177,9 @@ export default function ClientAuthScreen() {
                 style={[input, { flex: 1, marginBottom: 0, textAlign: "left", writingDirection: "ltr", fontSize: 17, letterSpacing: 1 }]}
               />
             </View>
+            <Consent />
             <Err />
-            <GoldButton label="حفظ ومتابعة" onPress={savePhone} disabled={phone.length < 10} />
+            <GoldButton label="حفظ ومتابعة" onPress={savePhone} disabled={phone.length < 10 || !agreed} />
             <Pressable onPress={() => clientLogout()} style={{ marginTop: 22 }}>
               <Text style={[linkStyle, { textDecorationLine: "underline" }]}>تسجيل الخروج</Text>
             </Pressable>
@@ -161,7 +189,7 @@ export default function ClientAuthScreen() {
             <Heading title={tab === "login" ? "تسجيل الدخول" : "إنشاء حساب"} sub="حسابك بيحفظ بياناتك وعناوينك وكل حجوزاتك — على الموقع والتطبيق" />
 
             <Pressable
-              onPress={() => run(clientSignInWithGoogle)}
+              onPress={() => { if (tab === "register" && !agreed) { setError(CONSENT_ERROR); return; } run(clientSignInWithGoogle); }}
               disabled={busy}
               style={({ pressed }) => ({
                 height: 54, borderRadius: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
@@ -204,15 +232,16 @@ export default function ClientAuthScreen() {
                 <TextInput style={input} placeholder="رقم الموبايل (01xxxxxxxxx)" placeholderTextColor={t.muted} value={rPhone} onChangeText={(v) => setRPhone(digitsOnly(v, 11))} keyboardType="number-pad" />
                 <TextInput style={input} placeholder="البريد الإلكتروني" placeholderTextColor={t.muted} value={rEmail} onChangeText={setREmail} autoCapitalize="none" keyboardType="email-address" />
                 <TextInput style={input} placeholder="كلمة المرور (6 أحرف على الأقل)" placeholderTextColor={t.muted} value={rPass} onChangeText={setRPass} secureTextEntry />
-                <GoldButton label="إنشاء حساب" onPress={handleRegister} />
+                <Consent />
+                <GoldButton label="إنشاء حساب" onPress={handleRegister} disabled={!agreed} />
               </>
             )}
-            <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "center", marginTop: 18 }}>
+            {tab === "login" ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "center", marginTop: 18 }}>
               بالمتابعة أنت موافق على{" "}
               <Text onPress={() => router.push("/legal?open=terms")} style={{ color: t.goldText, textDecorationLine: "underline" }}>الشروط والأحكام</Text>
               {" و"}
               <Text onPress={() => router.push("/legal?open=privacy")} style={{ color: t.goldText, textDecorationLine: "underline" }}>سياسة الخصوصية</Text>
-            </Text>
+            </Text> : null}
           </>
         )}
       </ScrollView>

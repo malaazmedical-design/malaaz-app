@@ -1360,6 +1360,9 @@ export const EN: Record<string, string> = {
   "الوصول لبياناتك وتصحيحها وطلب نسخة منها، وتقييد المعالجة أو الاعتراض عليها، وسحب الموافقة، والشكوى لمركز حماية البيانات الشخصية. للتواصل: malaaz.medical@gmail.com": "Access and correct your data and request a copy, restrict or object to processing, withdraw consent, and complain to the Personal Data Protection Center. Contact: malaaz.medical@gmail.com",
   "دفع الاستشارة الأونلاين": "Paying for an online consultation",
   "يُطلب الدفع بعد أن يقبل الطبيب طلبك وتوافق أنت على الموعد. لو اعتذر الطبيب أو لم يرد، تختار طبيبًا آخر من نفس التخصص أو تختار لك الإدارة بديلًا، ولا يُطلب منك دفع قبل ذلك.": "Payment is requested after the doctor accepts your request and you approve the time. If the doctor declines or does not reply, you choose another doctor of the same specialty or the admin chooses one for you, and you are not asked to pay before that.",
+  "أوافق على": "I agree to",
+  "، وأوافق على معالجة بياناتي الشخصية والصحية لتقديم الخدمة.": ", and I agree to the processing of my personal and health data to provide the service.",
+  "لازم توافق على الشروط وسياسة الخصوصية الأول": "You must agree to the terms and privacy policy first",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
