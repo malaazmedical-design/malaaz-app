@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { Text } from "@/components/i18n";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BenefitRow, GoldButton, Group, Row } from "@/components/account/AccountUI";
 import { FamilySection } from "@/components/client/AccountSections";
 import { TJ, setThemeOverride, useMalaz } from "@/constants/malazTheme";
+import { adminPushWantedHere, isAdminAccount, registerAdminPush, unregisterAdminPush } from "@/lib/adminPush";
 import { confirmDeleteAccount } from "@/lib/deleteAccount";
 import { useApp } from "@/contexts/AppContext";
 import { whatsappCompany } from "@/lib/contact";
@@ -33,6 +34,29 @@ export default function AccountScreen() {
   const lang = useLang();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const [medCount, setMedCount] = useState(0);
+  // admin accounts get a push for every new booking / consultation / question (set up once, per phone)
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPush, setAdminPush] = useState(false);
+  useEffect(() => {
+    if (!client?.id) { setIsAdmin(false); setAdminPush(false); return; }
+    let live = true;
+    (async () => {
+      if (!(await isAdminAccount()) || !live) return;
+      setIsAdmin(true);
+      if (await adminPushWantedHere()) { const ok = await registerAdminPush(); if (live) setAdminPush(ok); }
+    })();
+    return () => { live = false; };
+  }, [client?.id]);
+  const flipAdminPush = async (on: boolean) => {
+    if (on) {
+      const ok = await registerAdminPush();
+      setAdminPush(ok);
+      if (!ok) Alert.alert("تعذر التفعيل", "اسمح بالإشعارات للتطبيق من إعدادات الجهاز وحاول تاني.");
+    } else {
+      await unregisterAdminPush(true);
+      setAdminPush(false);
+    }
+  };
 
   // number of saved medicine reminders, shown next to the row
   useFocusEffect(useCallback(() => {
@@ -47,7 +71,7 @@ export default function AccountScreen() {
   const confirmLogout = () =>
     Alert.alert("تسجيل الخروج؟", "هتقدر ترجع تسجل دخول في أي وقت.", [
       { text: "إلغاء", style: "cancel" },
-      { text: "تسجيل الخروج", style: "destructive", onPress: () => clientLogout() },
+      { text: "تسجيل الخروج", style: "destructive", onPress: async () => { if (isAdmin) await unregisterAdminPush(false); clientLogout(); } },
     ]);
 
   const preferences = (
@@ -132,6 +156,12 @@ export default function AccountScreen() {
               </Group>
               {preferences}
               {help}
+              {isAdmin ? (
+                <Group label="الأدمن">
+                  <Row icon="shield-crown-outline" title="إشعارات الأدمن" value="حجز جديد، استشارة، سؤال، تنبيه"
+                    toggle={{ on: adminPush, onChange: flipAdminPush }} last />
+                </Group>
+              ) : null}
               <Group label="الحساب">
                 <Row icon="logout" title="تسجيل الخروج" danger onPress={confirmLogout} />
                 <Row icon="account-remove-outline" title="حذف الحساب" danger onPress={() => confirmDeleteAccount("client", () => clientLogout())} last />
