@@ -1380,6 +1380,10 @@ export const EN: Record<string, string> = {
   "لو بعتلنا اقتراح لتحسين التطبيق، من حقنا نستخدمه من غير مقابل.": "If you send us a suggestion to improve the app, we may use it without payment.",
   "بياناتك الطبية ملكك": "Your medical data is yours",
   "الملفات والرسائل اللي بترفعها بتفضل بياناتك، وبنوصّل للطبيب اللي بتتعامل معاه اللي يلزمه بس. لو مش عايزها عندنا، احذف حسابك وهتتمسح.": "The files and messages you upload stay your data, and we pass the doctor you deal with only what they need. If you don't want them with us, delete your account and they are erased.",
+  "عدم الرضا عن النتيجة الطبية": "Dissatisfaction with the medical outcome",
+  "لو الخدمة اتقدمت فعلًا، مفيش استرداد بسبب عدم الرضا عن النتيجة أو رأي الطبيب، لأن القرار الطبي مسؤولية مقدم الخدمة. لو عندك شكوى من سلوك أو تأخير أو مشكلة في الخدمة نفسها، كلمنا وهنراجعها.": "If the service was actually delivered, there is no refund for being unhappy with the outcome or the doctor's opinion, because the medical decision is the provider's responsibility. If you have a complaint about behaviour, delays or a problem with the service itself, contact us and we'll review it.",
+  "الزيارات المنزلية": "Home visits",
+  "لازم يكون فيه شخص بالغ في البيت وقت الزيارة. من حق مقدم الخدمة يوقف الزيارة ويمشي لو حس بخطر أو اتعرض لإساءة، ومش بيتحاسب بغياب. لو حصل تصرف مش مقبول من أي طرف بلّغنا فورًا، وفي الخطر الحقيقي اتصل بالشرطة أو الإسعاف.": "An adult must be at home during the visit. The provider may stop the visit and leave if they feel in danger or are abused, and they are not counted absent. If anyone behaves unacceptably, tell us right away, and in real danger call the police or ambulance.",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
