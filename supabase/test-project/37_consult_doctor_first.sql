@@ -32,6 +32,24 @@ begin
 end; $$;
 revoke all on function public.consult_offer(uuid, text) from public, anon, authenticated;
 
+-- the channel a replacement doctor can serve: the same one when he offers it, otherwise chat, then voice, then video
+create or replace function public.consult_pick_offer(p_provider uuid, p_channel text)
+ returns table (channel text, price numeric, duration_min int)
+ language plpgsql stable security definer set search_path to 'public'
+as $$
+declare ch text; o record; v_on boolean;
+begin
+  select enabled into v_on from public.rtc_status();
+  foreach ch in array array[p_channel, 'chat', 'voice', 'video'] loop
+    if ch <> 'chat' and not coalesce(v_on, false) then continue; end if;
+    select * into o from public.consult_offer(p_provider, ch);
+    if o.price is not null then
+      channel := ch; price := o.price; duration_min := o.duration_min; return next; return;
+    end if;
+  end loop;
+end; $$;
+revoke all on function public.consult_pick_offer(uuid, text) from public, anon, authenticated;
+
 -- ───────── 1. client requests: the doctor is told at once, no payment yet ─────────
 create or replace function public.book_consultation(p_provider uuid, p_channel text, p_date date, p_period text, p_pay_method text)
  returns uuid language plpgsql security definer set search_path to 'public'
@@ -227,7 +245,7 @@ grant execute on function public.admin_set_appointment(uuid, timestamptz) to aut
 create or replace function public.consult_hand_over(p_id uuid, p_provider uuid)
  returns text language plpgsql security definer set search_path to 'public'
 as $$
-declare c public.consultations; v_price numeric; v_dur int; v_name text;
+declare c public.consultations; v_price numeric; v_dur int; v_name text; v_ch text;
 begin
   select * into c from public.consultations where id = p_id for update;
   if c.id is null then return 'missing'; end if;
@@ -235,19 +253,20 @@ begin
   if p_provider = c.provider_id then return 'same'; end if;
   if not exists (select 1 from public.providers where id = p_provider and status = 'active') then return 'unavailable'; end if;
   if not public.provider_offers_online(p_provider) then return 'unavailable'; end if;
-  select o.price, o.duration_min into v_price, v_dur from public.consult_offer(p_provider, c.channel) o;
+  select o.channel, o.price, o.duration_min into v_ch, v_price, v_dur from public.consult_pick_offer(p_provider, c.channel) o;
   if v_price is null then return 'unavailable'; end if;
   -- a period that has already passed cannot be kept
   if c.period <> 'asap' and public.consult_period_end(c.period_date, c.period) < now() + interval '30 minutes' then return 'period_over'; end if;
   update public.consultations
-     set prev_provider_id = provider_id, provider_id = p_provider, price = v_price, duration_min = v_dur,
+     set prev_provider_id = provider_id, provider_id = p_provider, channel = v_ch, price = v_price, duration_min = v_dur,
          doctor_status = 'pending', doctor_status_at = now(), req_reminded_at = null,
          prop_at = null, prop_status = 'none', appt_at = null, pay_deadline = null, flags = '{}'::jsonb
    where id = p_id;
   select name into v_name from public.providers where id = p_provider;
   perform public.consult_push(p_id, 'd', '🩺 طلب استشارة جديد',
-    concat_ws(' · ', c.client_name, case c.channel when 'voice' then 'صوت' when 'video' then 'فيديو' else 'شات' end));
-  perform public.consult_push(p_id, 'c', 'تم تحويل طلبك لطبيب آخر', concat('بانتظار رد ', v_name));
+    concat_ws(' · ', c.client_name, case v_ch when 'voice' then 'صوت' when 'video' then 'فيديو' else 'شات' end));
+  perform public.consult_push(p_id, 'c', 'تم تحويل طلبك لطبيب آخر',
+    concat('بانتظار رد ', v_name, case when v_ch <> c.channel then ' · القناة: ' || case v_ch when 'voice' then 'صوت' when 'video' then 'فيديو' else 'شات' end else '' end));
   return 'ok';
 end; $$;
 revoke all on function public.consult_hand_over(uuid, uuid) from public, anon, authenticated;
@@ -278,14 +297,15 @@ revoke all on function public.admin_reassign_consultation(uuid, uuid) from publi
 grant execute on function public.admin_reassign_consultation(uuid, uuid) to authenticated;
 
 -- doctors who offer the channel of this consultation (admin picker); the client picks from the normal doctors list
+drop function if exists public.admin_reassign_candidates(uuid);
 create or replace function public.admin_reassign_candidates(p_id uuid)
- returns table (id uuid, name text, specialty text, price numeric)
+ returns table (id uuid, name text, specialty text, price numeric, channel text)
  language sql stable security definer set search_path to 'public'
 as $$
-  select p.id, p.name, p.specialty, o.price
+  select p.id, p.name, p.specialty, o.price, o.channel
     from public.consultations c
     join public.providers p on p.status = 'active' and p.id <> c.provider_id
-    cross join lateral public.consult_offer(p.id, c.channel) o
+    cross join lateral public.consult_pick_offer(p.id, c.channel) o
    where public.is_admin() and c.id = p_id and o.price is not null and public.provider_offers_online(p.id)
    order by (p.specialty is not distinct from (select pp.specialty from public.providers pp where pp.id = c.provider_id)) desc, p.name;
 $$;

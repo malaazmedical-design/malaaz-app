@@ -62,16 +62,20 @@ export default function ClientConsultation() {
   // other doctors who offer the same channel (shown when the doctor declined / did not reply)
   const offers = useOnlineOffers();
   const offersKey = JSON.stringify(offers);
-  const [others, setOthers] = useState<{ id: string; name: string; specialty: string | null; price: number }[]>([]);
+  const [others, setOthers] = useState<{ id: string; name: string; specialty: string | null; price: number; channel: "chat" | "voice" | "video" }[]>([]);
   const declined = !!c && c.pay_status !== "cancelled" && (c.doctor_status === "declined" || c.doctor_status === "expired");
   useEffect(() => {
     if (!declined || !c) { setOthers([]); return; }
-    const ids = Object.keys(offers).filter((k) => k !== c.provider_id && offers[k]?.[c.channel] != null);
+    const ids = Object.keys(offers).filter((k) => k !== c.provider_id && Object.keys(offers[k] ?? {}).length > 0);
     if (!ids.length) { setOthers([]); return; }
     let q = supabase.from("providers").select("id,name,specialty").in("id", ids).eq("status", "active");
     if (doc?.specialty) q = q.eq("specialty", doc.specialty);   // same specialty as the doctor who declined
     q.then(({ data }) => {
-      setOthers(((data ?? []) as any[]).map((d) => ({ id: d.id, name: d.name, specialty: d.specialty, price: offers[d.id][c.channel] as number })));
+      setOthers(((data ?? []) as any[]).map((d) => {
+        // same channel when the doctor offers it, otherwise chat, then voice, then video
+        const ch = ([c.channel, "chat", "voice", "video"] as const).find((x) => offers[d.id]?.[x] != null)!;
+        return { id: d.id, name: d.name, specialty: d.specialty, price: offers[d.id][ch] as number, channel: ch };
+      }));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [declined, c?.provider_id, c?.channel, offersKey, doc?.specialty]);
@@ -161,7 +165,7 @@ export default function ClientConsultation() {
                     <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14.5, textAlign: "right" }}>{o.name.startsWith("د") ? o.name : `د. ${o.name}`}</Text>
                     {o.specialty ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right" }}>{o.specialty}</Text> : null}
                   </View>
-                  <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14 }}>{o.price} ج.م</Text>
+                  <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 14 }}>{o.channel !== c.channel ? `${CHANNEL_LABEL[o.channel]} · ` : ""}{o.price} ج.م</Text>
                 </Pressable>
               ))}
               {others.length === 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right" }}>لا يوجد أطباء متاحون — الإدارة هتتواصل معاك</Text> : null}

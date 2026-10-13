@@ -247,7 +247,7 @@
       }
       if (c.state === "wait" && c.pay_status === "pending" && (c.doctor_status === "declined" || c.doctor_status === "expired")) {
         const pick = h("select", { class: "rv-in" }, h("option", { value: "" }, "اختر طبيبًا بديلًا..."));
-        sb.rpc("admin_reassign_candidates", { p_id: c.id }).then(({ data: cand }) => (cand || []).forEach((d) => pick.append(h("option", { value: d.id }, d.name + (d.specialty ? " · " + d.specialty : "") + " · " + d.price + " ج.م"))));
+        sb.rpc("admin_reassign_candidates", { p_id: c.id }).then(({ data: cand }) => (cand || []).forEach((d) => pick.append(h("option", { value: d.id }, d.name + (d.specialty ? " · " + d.specialty : "") + " · " + ({ chat: "شات", voice: "صوت", video: "فيديو" }[d.channel] || "") + " · " + d.price + " ج.م"))));
         bar.append(pick, h("button", { class: "rv-btn", onclick: () => {
           if (!pick.value) return alert("اختر الطبيب");
           if (confirm("تحويل الطلب لهذا الطبيب وإبلاغه والعميل؟")) act("admin_reassign_consultation", { p_id: c.id, p_provider: pick.value });
