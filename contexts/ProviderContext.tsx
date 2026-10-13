@@ -15,7 +15,7 @@ import { AppState, Linking, Platform } from "react-native";
 
 import { sendMalaazEmail } from "@/lib/emailjs";
 import { GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
-import { clientHasPushToken, registerProviderPushToken } from "@/lib/push";
+import { clientHasPushToken, registerProviderPushToken, unregisterPushToken } from "@/lib/push";
 import {
   supabase,
   DbBooking,
@@ -342,6 +342,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    await unregisterPushToken();
     await supabase.auth.signOut();
     setProvider(null);
     setBookings([]);

@@ -15,7 +15,7 @@ import React, {
 } from "react";
 import { AppState, Platform } from "react-native";
 
-import { registerClientPushToken, notifyProviderCancellation } from "@/lib/push";
+import { registerClientPushToken, unregisterPushToken, notifyProviderCancellation } from "@/lib/push";
 import { sendMalaazEmail } from "@/lib/emailjs";
 import {
   supabase,
@@ -380,6 +380,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const clientLogout = async () => {
+    await unregisterPushToken();
     await supabase.auth.signOut();
     setClient(null);
     setNeedsPhone(false);
