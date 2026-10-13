@@ -68,11 +68,13 @@ export default function ClientConsultation() {
     if (!declined || !c) { setOthers([]); return; }
     const ids = Object.keys(offers).filter((k) => k !== c.provider_id && offers[k]?.[c.channel] != null);
     if (!ids.length) { setOthers([]); return; }
-    supabase.from("providers").select("id,name,specialty").in("id", ids).eq("status", "active").then(({ data }) => {
+    let q = supabase.from("providers").select("id,name,specialty").in("id", ids).eq("status", "active");
+    if (doc?.specialty) q = q.eq("specialty", doc.specialty);   // same specialty as the doctor who declined
+    q.then(({ data }) => {
       setOthers(((data ?? []) as any[]).map((d) => ({ id: d.id, name: d.name, specialty: d.specialty, price: offers[d.id][c.channel] as number })));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [declined, c?.provider_id, c?.channel, offersKey]);
+  }, [declined, c?.provider_id, c?.channel, offersKey, doc?.specialty]);
 
   if (loading) return <View style={{ flex: 1, backgroundColor: t.bg, alignItems: "center", justifyContent: "center" }}><ActivityIndicator color={t.gold} /></View>;
   if (!c) return <View style={{ flex: 1, backgroundColor: t.bg, alignItems: "center", justifyContent: "center" }}><Text style={{ color: t.muted, fontFamily: TJ.medium }}>الاستشارة غير موجودة</Text></View>;

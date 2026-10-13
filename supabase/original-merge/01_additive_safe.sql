@@ -2484,8 +2484,13 @@ revoke all on function public.consult_hand_over(uuid, uuid) from public, anon, a
 create or replace function public.client_change_doctor(p_id uuid, p_provider uuid)
  returns text language plpgsql security definer set search_path to 'public'
 as $$
+declare v_spec text; v_new text;
 begin
   if public.consult_role(p_id) is distinct from 'c' then return 'forbidden'; end if;
+  -- the client can only move to a doctor of the same specialty (the admin can pick anyone)
+  select p.specialty into v_spec from public.consultations c join public.providers p on p.id = c.provider_id where c.id = p_id;
+  select specialty into v_new from public.providers where id = p_provider;
+  if v_spec is not null and v_new is distinct from v_spec then return 'unavailable'; end if;
   return public.consult_hand_over(p_id, p_provider);
 end; $$;
 revoke all on function public.client_change_doctor(uuid, uuid) from public, anon;
@@ -2511,7 +2516,7 @@ as $$
     join public.providers p on p.status = 'active' and p.id <> c.provider_id
     cross join lateral public.consult_offer(p.id, c.channel) o
    where public.is_admin() and c.id = p_id and o.price is not null and public.provider_offers_online(p.id)
-   order by p.name;
+   order by (p.specialty is not distinct from (select pp.specialty from public.providers pp where pp.id = c.provider_id)) desc, p.name;
 $$;
 revoke all on function public.admin_reassign_candidates(uuid) from public, anon;
 grant execute on function public.admin_reassign_candidates(uuid) to authenticated;
