@@ -4,7 +4,7 @@
 --   * removes the personal data and the login, keeps only anonymous business records (prices, dates, payment status)
 --     so the other party's history and the accounting stay intact.
 -- Returns 'ok' | 'active_items' | 'admin' | 'unauthorized'.
--- Needs 31_provider_name_en.sql (providers.name_en) to be applied first.
+-- Needs 31_provider_name_en.sql and 39_delete_account_storage.sql (providers.name_en) to be applied first.
 
 create or replace function public.delete_my_account()
  returns text language plpgsql security definer set search_path to 'public'
@@ -33,13 +33,8 @@ begin
   end if;
 
   if cid is not null then
-    -- stored files (chat attachments, ask-a-doctor attachments, medical files)
-    delete from storage.objects where bucket_id = 'consultation-files'
-      and name in (select m.file_path from public.consultation_messages m join public.consultations c on c.id = m.consultation_id where c.client_id = cid and m.file_path is not null);
-    delete from storage.objects where bucket_id = 'ask-doctor-attachments'
-      and name in (select a.storage_path from public.ask_doctor_attachments a join public.ask_doctor_cases k on k.id = a.case_id where k.client_id = cid);
-    delete from storage.objects where bucket_id = 'medical-files'
-      and name in (select storage_path from public.medical_files where client_id = cid);
+    -- stored files are removed by the app through the Storage API BEFORE this runs (see 39_delete_account_storage.sql);
+    -- Supabase does not allow deleting from storage.objects in SQL.
     -- chat content and ask-a-doctor content
     delete from public.consultation_messages where consultation_id in (select id from public.consultations where client_id = cid);
     delete from public.ask_doctor_attachments where case_id in (select id from public.ask_doctor_cases where client_id = cid);

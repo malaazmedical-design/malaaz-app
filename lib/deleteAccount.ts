@@ -23,19 +23,37 @@ export function confirmDeleteAccount(kind: "client" | "provider", onDeleted: () 
   );
 }
 
+function report(code: unknown) {
+  if (code === "active_items") {
+    Alert.alert("مش هينفع نحذف الحساب دلوقتي", "عندك حجوزات أو استشارات لسه شغالة. خلّصها أو الغيها الأول وبعدين احذف الحساب.");
+  } else if (code === "admin") {
+    Alert.alert("تنبيه", "حسابات الإدارة بتتحذف من لوحة الإدارة.");
+  } else {
+    throw new Error(String(code ?? "تعذر الحذف"));
+  }
+}
+
 async function runDelete(onDeleted: () => void | Promise<void>) {
   try {
+    // 1) can it proceed? (nothing is deleted before we know)
+    const pre = await supabase.rpc("delete_account_precheck");
+    if (pre.error) throw new Error(pre.error.message);
+    if (pre.data !== "ok") return report(pre.data);
+    // 2) stored files go through the Storage API (SQL is not allowed to delete them)
+    const files = await supabase.rpc("my_storage_files");
+    if (files.error) throw new Error(files.error.message);
+    const byBucket: Record<string, string[]> = {};
+    for (const f of (files.data ?? []) as { bucket: string; path: string }[]) (byBucket[f.bucket] ??= []).push(f.path);
+    for (const [bucket, paths] of Object.entries(byBucket)) {
+      for (let i = 0; i < paths.length; i += 100) {
+        const { error: rmErr } = await supabase.storage.from(bucket).remove(paths.slice(i, i + 100));
+        if (rmErr) throw new Error(rmErr.message);
+      }
+    }
+    // 3) the account itself
     const { data, error } = await supabase.rpc("delete_my_account");
     if (error) throw new Error(error.message);
-    if (data === "active_items") {
-      Alert.alert("مش هينفع نحذف الحساب دلوقتي", "عندك حجوزات أو استشارات لسه شغالة. خلّصها أو الغيها الأول وبعدين احذف الحساب.");
-      return;
-    }
-    if (data === "admin") {
-      Alert.alert("تنبيه", "حسابات الإدارة بتتحذف من لوحة الإدارة.");
-      return;
-    }
-    if (data !== "ok") throw new Error(String(data ?? "تعذر الحذف"));
+    if (data !== "ok") return report(data);
     try { await supabase.auth.signOut({ scope: "local" }); } catch {}
     await onDeleted();
     Alert.alert("تم حذف الحساب", "تم حذف حسابك وبياناتك الشخصية.");
