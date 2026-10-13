@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 import { Alert } from "react-native";
 import { supabase } from "./supabase";
 
@@ -33,6 +35,12 @@ function report(code: unknown) {
   }
 }
 
+// ما بيتخزن على الموبايل نفسه (الحجوزات المحفوظة، الأدوية وتنبيهاتها) لازم يتمسح مع الحساب، وإلا حساب جديد على نفس الموبايل هيشوفها
+async function wipeLocalData() {
+  await AsyncStorage.multiRemove(["malaaz.profile.v1", "malaaz.bookings.v1", "malaaz.medicines.v1", "malaz.provider.notesSent.v1"]).catch(() => {});
+  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+}
+
 async function runDelete(onDeleted: () => void | Promise<void>) {
   try {
     // 1) can it proceed? (nothing is deleted before we know)
@@ -55,6 +63,7 @@ async function runDelete(onDeleted: () => void | Promise<void>) {
     if (error) throw new Error(error.message);
     if (data !== "ok") return report(data);
     try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+    await wipeLocalData();
     await onDeleted();
     Alert.alert("تم حذف الحساب", "تم حذف حسابك وبياناتك الشخصية.");
   } catch (e: any) {

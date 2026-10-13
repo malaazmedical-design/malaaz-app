@@ -383,6 +383,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await unregisterPushToken();
     await supabase.auth.signOut();
     setClient(null);
+    setBookings([]);
+    AsyncStorage.removeItem(BOOKINGS_KEY).catch(() => {});   // the saved bookings belong to the account that just left
     setNeedsPhone(false);
     setAddresses([]);
     setFamilyMembers([]);
