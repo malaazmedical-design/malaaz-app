@@ -73,7 +73,7 @@ begin
   returning id into v_id;
 
   perform public.consult_push(v_id, 'd', '🩺 طلب استشارة جديد',
-    concat_ws(' · ', v_client.name, case p_channel when 'voice' then 'صوت' when 'video' then 'فيديو' else 'شات' end, 'اقبل أو اعتذر وحدد الموعد'));
+    concat_ws(' · ', v_client.name, case p_channel when 'voice' then 'صوت' when 'video' then 'فيديو' else 'شات' end));
   return v_id;
 end; $$;
 revoke all on function public.book_consultation(uuid, text, date, text, text) from public, anon;
@@ -100,11 +100,11 @@ begin
          doctor_status = 'accepted', doctor_status_at = case when doctor_status = 'accepted' then doctor_status_at else now() end
    where id = p_id;
   if c.appt_at is not null then
-    perform public.consult_push(p_id, 'c', 'عدّل الطبيب موعد استشارتك', 'افتح الحجز للموافقة على الموعد الجديد');
+    perform public.consult_push(p_id, 'c', 'تعديل الموعد', 'الطبيب عدّل موعد استشارتك');
   elsif c.doctor_status = 'pending' then
-    perform public.consult_push(p_id, 'c', '✅ وافق الطبيب على استشارتك', 'حدد لك موعدًا — افتح الحجز للموافقة عليه ثم الدفع');
+    perform public.consult_push(p_id, 'c', '✅ وافق الطبيب', 'وافق على استشارتك وحدد موعدًا');
   else
-    perform public.consult_push(p_id, 'c', 'موعد استشارتك', 'اقترح الطبيب موعدًا — افتح الحجز للموافقة');
+    perform public.consult_push(p_id, 'c', 'موعد جديد', 'اقترح الطبيب موعدًا');
   end if;
   return 'ok';
 end; $$;
@@ -126,8 +126,7 @@ begin
   end if;
   update public.consultations set doctor_status = 'declined', doctor_status_at = now() where id = p_id;
   select name into v_doc from public.providers where id = c.provider_id;
-  perform public.consult_push(p_id, 'c', 'الطبيب اعتذر عن استشارتك',
-    'تقدر تختار طبيبًا آخر من الحجز، أو الإدارة هتختار لك طبيبًا فورًا');
+  perform public.consult_push(p_id, 'c', 'الطبيب اعتذر', 'اختر طبيبًا آخر');
   perform public.notify_admin('⚠️ طبيب اعتذر عن استشارة',
     concat_ws(' · ', v_doc, c.case_number, c.client_name, 'اختر طبيبًا بديلًا'),
     jsonb_build_object('kind', 'admin_consultation', 'consultation_id', p_id));
@@ -153,14 +152,14 @@ begin
            pay_deadline = case when pay_status = 'pending' then v_deadline else pay_deadline end
      where id = p_id;
     if c.pay_status = 'pending' then
-      perform public.consult_push(p_id, 'c', 'ادفع لتأكيد الاستشارة', 'تم اعتماد الموعد — أكمل الدفع من صفحة الحجز');
-      perform public.consult_push(p_id, 'd', 'وافق المريض على الموعد', 'بانتظار الدفع لتأكيد الاستشارة');
+      perform public.consult_push(p_id, 'c', 'في انتظار الدفع', 'تم اعتماد الموعد');
+      perform public.consult_push(p_id, 'd', 'وافق المريض على الموعد', 'في انتظار الدفع');
     else
-      perform public.consult_push(p_id, 'd', 'وافق المريض على الموعد', 'تم اعتماد موعد الاستشارة');
+      perform public.consult_push(p_id, 'd', 'وافق المريض على الموعد', 'تم اعتماد الموعد');
     end if;
   else
     update public.consultations set prop_status = 'no' where id = p_id;
-    perform public.consult_push(p_id, 'd', 'المريض لا يناسبه الموعد', 'الإدارة هتتواصل معه لتحديد موعد جديد');
+    perform public.consult_push(p_id, 'd', 'المريض لا يناسبه الموعد', 'الإدارة هتتواصل معه');
   end if;
   return 'ok';
 end; $$;
@@ -182,8 +181,8 @@ begin
     if c.pay_status = 'cancelled' then return 'locked'; end if;
     if c.doctor_status <> 'accepted' or c.prop_status <> 'ok' then return 'not_ready'; end if;
     update public.consultations set pay_status = 'paid', paid_at = now(), cancel_reason = null where id = p_id;
-    perform public.consult_push(p_id, 'd', 'تم تأكيد دفع الاستشارة', 'الاستشارة مؤكدة في موعدها');
-    perform public.consult_push(p_id, 'c', 'تم تأكيد الدفع', 'استشارتك مؤكدة في موعدها');
+    perform public.consult_push(p_id, 'd', 'تم تأكيد الدفع', 'الاستشارة مؤكدة');
+    perform public.consult_push(p_id, 'c', 'تم تأكيد الدفع', 'استشارتك مؤكدة');
   elsif p_status = 'pending' then
     if c.prop_status <> 'none' then return 'locked'; end if;
     update public.consultations set pay_status = 'pending', paid_at = null where id = p_id;
@@ -216,9 +215,9 @@ begin
                              then greatest(least(p_at - interval '30 minutes', now() + interval '2 hours'), now() + interval '20 minutes')
                              else pay_deadline end
    where id = p_id;
-  perform public.consult_push(p_id, 'c', 'تم تحديد موعد استشارتك',
-    case when c.pay_status = 'pending' then 'حددت الإدارة موعدًا — افتح الحجز لإتمام الدفع' else 'حددت الإدارة موعدًا جديدًا — افتح الحجز' end);
-  perform public.consult_push(p_id, 'd', 'موعد استشارة جديد', 'حددت الإدارة موعدًا لاستشارة — افتح الحجز');
+  perform public.consult_push(p_id, 'c', 'تم تحديد الموعد',
+    case when c.pay_status = 'pending' then 'في انتظار الدفع' else 'تم تعديل الموعد' end);
+  perform public.consult_push(p_id, 'd', 'تم تحديد الموعد', 'حددت الإدارة موعد استشارة');
   return 'ok';
 end; $$;
 revoke all on function public.admin_set_appointment(uuid, timestamptz) from public, anon;
@@ -247,8 +246,8 @@ begin
    where id = p_id;
   select name into v_name from public.providers where id = p_provider;
   perform public.consult_push(p_id, 'd', '🩺 طلب استشارة جديد',
-    concat_ws(' · ', c.client_name, case c.channel when 'voice' then 'صوت' when 'video' then 'فيديو' else 'شات' end, 'اقبل أو اعتذر وحدد الموعد'));
-  perform public.consult_push(p_id, 'c', 'تم تحويل طلبك لطبيب آخر', concat('الدكتور ', v_name, ' — بانتظار رده'));
+    concat_ws(' · ', c.client_name, case c.channel when 'voice' then 'صوت' when 'video' then 'فيديو' else 'شات' end));
+  perform public.consult_push(p_id, 'c', 'تم تحويل طلبك لطبيب آخر', concat('بانتظار رد ', v_name));
   return 'ok';
 end; $$;
 revoke all on function public.consult_hand_over(uuid, uuid) from public, anon, authenticated;
@@ -299,15 +298,14 @@ begin
     if now() >= coalesce(c.doctor_status_at, c.created_at) + interval '2 hours' then
       update public.consultations set doctor_status = 'expired', doctor_status_at = now() where id = c.id;
       select name into v_doc from public.providers where id = c.provider_id;
-      perform public.consult_push(c.id, 'c', 'لم يرد الطبيب على طلبك',
-        'تقدر تختار طبيبًا آخر من الحجز، أو الإدارة هتختار لك طبيبًا فورًا');
-      perform public.consult_push(c.id, 'd', 'انتهى وقت طلب استشارة', 'لم يتم الرد خلال ساعتين');
+      perform public.consult_push(c.id, 'c', 'الطبيب لم يرد', 'اختر طبيبًا آخر');
+      perform public.consult_push(c.id, 'd', 'انتهت مهلة الطلب', 'لم يتم الرد خلال ساعتين');
       perform public.notify_admin('⚠️ طبيب لم يرد على استشارة',
         concat_ws(' · ', v_doc, c.case_number, c.client_name, 'اختر طبيبًا بديلًا'),
         jsonb_build_object('kind', 'admin_consultation', 'consultation_id', c.id));
     elsif c.req_reminded_at is null and now() >= coalesce(c.doctor_status_at, c.created_at) + interval '30 minutes' then
       update public.consultations set req_reminded_at = now() where id = c.id;
-      perform public.consult_push(c.id, 'd', '⏰ طلب استشارة بانتظار ردك', 'المريض ينتظر — اقبل وحدد الموعد أو اعتذر');
+      perform public.consult_push(c.id, 'd', '⏰ طلب بانتظار ردك', 'المريض ينتظر ردك');
     end if;
   end loop;
 end; $$;
