@@ -17,6 +17,7 @@ import {
 import { serviceIcon } from "@/constants/icons";
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { matchCoverageArea } from "@/lib/areaMatch";
 import { DbSubService } from "@/lib/supabase";
 
 type Step = 1 | 2 | 3 | 4;
@@ -123,12 +124,16 @@ export default function QuickRequestScreen() {
       const label = [geo.street, geo.district, geo.city].filter(Boolean).join("، ");
       setLocationLabel(label);
       if (label) setAddress(label);
-      // مطابقة المنطقة مع مناطق التغطية من قاعدة البيانات
-      if (geo.district) {
-        const match = coverageAreas.find(
-          (a) => geo.district!.includes(a.name) || a.name.includes(geo.district!)
-        );
-        if (match) setArea(match.name);
+      // مطابقة المنطقة مع مناطق التغطية من قاعدة البيانات (نفس المطابقة الذكية المستخدمة في العناوين المحفوظة)
+      const match = matchCoverageArea(
+        [geo.district, geo.subregion, geo.name, geo.street, geo.city, geo.region],
+        coverageAreas,
+      );
+      if (match) {
+        setArea(match.name);
+      } else {
+        // مقدرناش نعرف المنطقة من الموقع — نفتح قايمة المناطق فوراً بدل ما نسيبها فاضية
+        setAreaPickerOpen(true);
       }
     } catch {
       Alert.alert("خطأ", "تعذّر تحديد الموقع، يرجى إدخاله يدوياً");
