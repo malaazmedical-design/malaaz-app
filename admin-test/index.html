@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة ملاذ — اختبار</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root { --bg:#0b1514; --card:#16231f; --bd:#2a3a36; --tx:#f2efe6; --mu:#8fa09d; --gold:#c9a84c; --ok:#1fa65a; --bad:#e5484d; --ic:#243433; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f4f1ea; --card:#fff; --bd:#e3ddcf; --tx:#1e2d31; --mu:#66767a; --gold:#8a6a14; --ic:#f0ebdd; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font-family:'Tajawal',system-ui,sans-serif; font-size:15px; }
+  header { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--bd); position:sticky; top:0; background:var(--bg); z-index:5; }
+  header h1 { margin:0; font-size:20px; color:var(--gold); flex:1; }
+  main { max-width:900px; margin:0 auto; padding:16px; }
+  .tabs, .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  button, select, input, textarea { font-family:inherit; font-size:14px; }
+  .chip, .tab { border:1.5px solid var(--bd); background:var(--card); color:var(--tx); padding:7px 14px; border-radius:12px; cursor:pointer; font-weight:700; }
+  .chip.on, .tab.on { border-color:var(--gold); color:var(--gold); }
+  .card { background:var(--card); border:1px solid var(--bd); border-radius:18px; padding:14px; margin-bottom:12px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .sp { flex:1; }
+  .mu { color:var(--mu); font-size:13px; }
+  .msg { white-space:pre-wrap; line-height:1.8; margin:8px 0; }
+  .badge { padding:3px 10px; border-radius:10px; font-size:12.5px; font-weight:800; }
+  .btn { border:0; border-radius:12px; padding:9px 16px; font-weight:800; cursor:pointer; background:var(--gold); color:#10201f; }
+  .btn.ghost { background:transparent; border:1.5px solid var(--bd); color:var(--tx); }
+  .btn.bad { background:transparent; border:1.5px solid var(--bad); color:var(--bad); }
+  .btn.ok { background:var(--ok); color:#fff; }
+  select, input { background:var(--ic); color:var(--tx); border:1px solid var(--bd); border-radius:12px; padding:9px 12px; }
+  .thumbs { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .thumbs img { width:72px; height:72px; object-fit:cover; border-radius:12px; cursor:pointer; }
+  #login { max-width:340px; margin:80px auto; display:flex; flex-direction:column; gap:10px; }
+  .err { color:var(--bad); min-height:20px; }
+  .empty { text-align:center; color:var(--mu); padding:50px 0; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// مشروع الاختبار فقط (malaaz-mizo-test) — مفتاح anon عام، والصلاحيات كلها عن طريق RLS + جدول admin_users
+const SUPABASE_URL = "https://dmyxxreescjwdpkdeqan.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRteXh4cmVlc2Nqd2Rwa2RlcWFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMDMyNjUsImV4cCI6MjEwNjY3OTI2NX0.h9tJO-Qlt7oTx6K2YhQ6WBxNFlhnQxZr8OK9DvyafOo";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const app = document.getElementById("app");
+
+// DOM helper — كل النصوص بتتحط textContent عشان مفيش حقن HTML من بيانات المستخدمين
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "style") el.style.cssText = v;
+    else el[k] = v;
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  return el;
+}
+const fmt = (d) => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const state = { tab: "consults", askFilter: "open", provFilter: "pending", conFilter: "pay" };
+
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return renderLogin();
+  const { data: isAdmin } = await sb.rpc("is_admin");
+  if (!isAdmin) return renderLogin("هذا الحساب ليس أدمن. أضفه في جدول admin_users.");
+  renderShell();
+}
+
+function renderLogin(msg = "") {
+  const email = h("input", { type: "email", placeholder: "البريد الإلكتروني", dir: "ltr" });
+  const pass = h("input", { type: "password", placeholder: "كلمة المرور", dir: "ltr" });
+  const err = h("div", { class: "err" }, msg);
+  const go = async () => {
+    err.textContent = "";
+    const { error } = await sb.auth.signInWithPassword({ email: email.value.trim(), password: pass.value });
+    if (error) err.textContent = "بيانات الدخول غير صحيحة";
+    else boot();
+  };
+  pass.addEventListener("keydown", (e) => e.key === "Enter" && go());
+  app.replaceChildren(h("div", { id: "login" }, h("h1", { style: "color:var(--gold);text-align:center" }, "لوحة ملاذ · اختبار"), email, pass, err, h("button", { class: "btn", onclick: go }, "دخول")));
+}
+
+function renderShell() {
+  const body = h("div");
+  const tabs = h("div", { class: "tabs" },
+    [["consults", "الاستشارات"], ["asks", "أسئلة المرضى"], ["providers", "مقدمو الخدمة"], ["prices", "الأسعار"], ["manage", "التخصصات والمناطق"], ["sources", "مصادر التثبيت"]].map(([k, n]) =>
+      h("button", { class: "tab" + (state.tab === k ? " on" : ""), onclick: () => { state.tab = k; renderShell(); } }, n)));
+  app.replaceChildren(
+    h("header", {}, h("h1", {}, "لوحة ملاذ · اختبار"), h("button", { class: "btn ghost", onclick: async () => { await sb.auth.signOut(); renderLogin(); } }, "خروج")),
+    h("main", {}, tabs, body));
+  ({ consults: renderConsults, asks: renderAsks, providers: renderProviders, prices: renderPrices, manage: renderManage, sources: renderSources }[state.tab])(body);
+}
+
+// ───────── أسئلة المرضى ─────────
+async function renderAsks(root) {
+  const filters = [["open", "تنتظر التوجيه"], ["routed", "موجّهة"], ["answered", "تم الرد"], ["all", "الكل"]];
+  const chips = h("div", { class: "chips" }, filters.map(([k, n]) => h("button", { class: "chip" + (state.askFilter === k ? " on" : ""), onclick: () => { state.askFilter = k; renderShell(); } }, n)));
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(chips, list);
+
+  let q = sb.from("ask_doctor_cases").select("*").order("created_at", { ascending: false }).limit(100);
+  if (state.askFilter === "open") q = q.eq("status", "new");
+  else if (state.askFilter === "routed") q = q.eq("status", "routed");
+  else if (state.askFilter === "answered") q = q.eq("status", "answered");
+  const [{ data: cases, error }, { data: specs }] = await Promise.all([q, sb.rpc("ask_specialty_counts")]);
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message));
+  if (!cases.length) return list.replaceChildren(h("div", { class: "empty" }, "لا توجد أسئلة"));
+
+  const docIds = [...new Set(cases.map((c) => c.assigned_doctor_id).filter(Boolean))];
+  const docs = {};
+  if (docIds.length) (await sb.from("providers").select("id,name,specialty").in("id", docIds)).data?.forEach((d) => (docs[d.id] = d));
+
+  const cards = [];
+  for (const c of cases) {
+    const stLabel = { new: "جديد", routed: "موجّه", answered: "تم الرد", cancelled: "ملغي" }[c.status] || c.status;
+    const stColor = { new: "var(--gold)", routed: "#2f80ed", answered: "var(--ok)", cancelled: "var(--bad)" }[c.status] || "var(--mu)";
+    const thumbs = h("div", { class: "thumbs" });
+    sb.from("ask_doctor_attachments").select("storage_path").eq("case_id", c.id).then(async ({ data }) => {
+      for (const a of data || []) {
+        const { data: s } = await sb.storage.from("ask-doctor-attachments").createSignedUrl(a.storage_path, 3600);
+        if (s?.signedUrl) thumbs.append(h("img", { src: s.signedUrl, onclick: () => window.open(s.signedUrl, "_blank") }));
+      }
+    });
+    const card = h("div", { class: "card" },
+      h("div", { class: "row" },
+        h("b", {}, c.case_number || "—"),
+        c.urgency_flag ? h("span", { class: "badge", style: "background:rgba(229,72,77,.15);color:var(--bad)" }, "⚠ أعراض عاجلة محتملة") : null,
+        h("span", { class: "sp" }),
+        h("span", { class: "badge", style: `background:${stColor}22;color:${stColor}` }, stLabel),
+        h("span", { class: "mu" }, fmt(c.created_at))),
+      h("div", { class: "mu" }, [c.patient_name, c.suggested_specialty ? "اقتراح النظام: " + c.suggested_specialty : null].filter(Boolean).join(" · ")),
+      h("div", { class: "msg" }, c.message),
+      thumbs);
+
+    if (c.status === "new" || c.status === "routed") {
+      const sel = h("select", {}, h("option", { value: "" }, "اختر التخصص…"),
+        (specs || []).map((s) => h("option", { value: s.specialty }, `${s.specialty} — ${s.doctors} أطباء · ${s.available} متاح`)));
+      sel.value = c.routed_specialty || ((specs || []).some((s) => s.specialty === c.suggested_specialty) ? c.suggested_specialty : "");
+      card.append(h("div", { class: "row" }, sel,
+        h("button", { class: "btn", onclick: async () => {
+          if (!sel.value) return alert("اختر التخصص أولاً");
+          const { data, error } = await sb.rpc("route_ask_case", { p_case: c.id, p_specialty: sel.value });
+          if (error || data !== "ok") return alert("تعذّر التوجيه: " + (error?.message || data));
+          renderShell();
+        } }, c.status === "routed" ? "إعادة توجيه" : "وجّه"),
+        h("button", { class: "btn bad", onclick: async () => {
+          if (!confirm("إلغاء هذا السؤال؟")) return;
+          await sb.from("ask_doctor_cases").update({ status: "cancelled" }).eq("id", c.id);
+          renderShell();
+        } }, "إلغاء")));
+      if (!(specs || []).length) card.append(h("div", { class: "mu" }, "لا يوجد أطباء مفعّلون يقدمون استشارة أونلاين حالياً."));
+    }
+    if (c.status === "answered") {
+      const d = docs[c.assigned_doctor_id];
+      card.append(h("div", { class: "card", style: "margin:8px 0 0;background:var(--ic)" },
+        h("div", { class: "mu" }, `رد ${d ? d.name + " · " + (d.specialty || "") : ""} — ${c.answered_at ? fmt(c.answered_at) : ""}`),
+        h("div", { class: "msg" }, c.answer || "")));
+    }
+    cards.push(card);
+  }
+  list.replaceChildren(...cards);
+}
+
+// ───────── مقدمو الخدمة ─────────
+async function renderProviders(root) {
+  const filters = [["pending", "بانتظار المراجعة"], ["active", "مفعّل"], ["suspended", "موقوف"], ["all", "الكل"]];
+  const chips = h("div", { class: "chips" }, filters.map(([k, n]) => h("button", { class: "chip" + (state.provFilter === k ? " on" : ""), onclick: () => { state.provFilter = k; renderShell(); } }, n)));
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(chips, list);
+  let q = sb.from("providers").select("*").order("created_at", { ascending: false }).limit(200);
+  if (state.provFilter !== "all") q = q.eq("status", state.provFilter);
+  const { data, error } = await q;
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message));
+  if (!data.length) return list.replaceChildren(h("div", { class: "empty" }, "لا يوجد مقدمو خدمة"));
+  const setStatus = async (id, status) => { await sb.from("providers").update({ status }).eq("id", id); renderShell(); };
+  list.replaceChildren(...data.map((p) => h("div", { class: "card" },
+    h("div", { class: "row" }, h("b", {}, p.name), h("span", { class: "mu" }, [p.service_type, p.grade, p.specialty].filter(Boolean).join(" · ")), h("span", { class: "sp" }),
+      h("span", { class: "badge", style: "background:var(--ic)" }, { pending: "بانتظار المراجعة", active: "مفعّل", suspended: "موقوف" }[p.status] || p.status)),
+    h("div", { class: "mu", dir: "ltr", style: "text-align:right" }, [p.email, p.phone].filter(Boolean).join(" · ")),
+    h("div", { class: "mu" }, [p.areas || p.area, p.experience ? p.experience + " سنة خبرة" : null, "سجّل " + fmt(p.created_at)].filter(Boolean).join(" · ")),
+    p.bio ? h("div", { class: "msg" }, p.bio) : null,
+    h("div", { class: "row", style: "margin-top:8px" },
+      h("button", { class: "btn ghost", style: "direction:ltr", title: "الاسم بالإنجليزي (لو فاضي التطبيق بيحوّل الاسم تلقائيًا)", onclick: async () => {
+        const v = prompt("الاسم بالإنجليزي لـ «" + p.name + "» (سيبه فاضي لو عايز التحويل التلقائي)", p.name_en || ""); if (v == null) return;
+        const { data: r, error: e } = await sb.rpc("admin_set_provider_name_en", { p_id: p.id, p_name_en: v.trim() });
+        if (e || r !== "ok") alert("تعذّر: " + (e?.message || r)); renderShell();
+      } }, p.name_en ? "EN: " + p.name_en : "EN +"),
+      p.status !== "active" ? h("button", { class: "btn ok", onclick: () => setStatus(p.id, "active") }, "تفعيل") : null,
+      p.status !== "suspended" ? h("button", { class: "btn bad", onclick: () => confirm("إيقاف الحساب؟") && setStatus(p.id, "suspended") }, "إيقاف") : null))));
+}
+
+// ───────── مصادر التثبيت (من أي منصة جه المستخدمين) ─────────
+async function renderSources(root) {
+  state.srcDays = state.srcDays || 30;
+  root.append(h("div", { class: "chips" }, [[7, "7 أيام"], [30, "30 يوم"], [90, "90 يوم"], [3650, "الكل"]].map(([d, n]) =>
+    h("button", { class: "chip" + (state.srcDays === d ? " on" : ""), onclick: () => { state.srcDays = d; renderShell(); } }, n))));
+  root.append(h("div", { class: "mu", style: "margin-bottom:10px" }, "المستخدم بيتحسب أول مرة يسجّل دخول بعد التثبيت. الأرقام على أندرويد بس (بلاي ستور). المصدر بيتحدد من علامات رابط التحميل: utm_source و utm_medium و utm_campaign."));
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(list);
+  const { data, error } = await sb.rpc("admin_install_stats", { p_days: state.srcDays });
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message + " (تأكد إن ملف SQL 32 اتشغّل)"));
+  if (!data.length) return list.replaceChildren(h("div", { class: "empty" }, "لا توجد بيانات بعد"));
+  const total = data.reduce((a, r) => a + Number(r.users), 0);
+  const pct = (a, b) => (b ? Math.round((Number(a) / Number(b)) * 100) + "%" : "—");
+  list.replaceChildren(h("div", { class: "card", style: "overflow-x:auto" },
+    h("table", { style: "width:100%;border-collapse:collapse;font-size:14px" },
+      h("tr", {}, ["المصدر", "الوسيط", "الحملة", "المستخدمون", "عملوا حجز", "دفعوا استشارة"].map((t) => h("th", { style: "text-align:right;padding:6px 8px;color:var(--mu);font-weight:700;white-space:nowrap" }, t))),
+      data.map((r) => h("tr", { style: "border-top:1px solid var(--bd)" },
+        h("td", { style: "padding:8px;font-weight:800" }, r.source), h("td", { style: "padding:8px" }, r.medium || "—"), h("td", { style: "padding:8px" }, r.campaign || "—"),
+        h("td", { style: "padding:8px" }, r.users + " (" + pct(r.users, total) + ")"),
+        h("td", { style: "padding:8px" }, r.with_booking + " (" + pct(r.with_booking, r.users) + ")"),
+        h("td", { style: "padding:8px" }, r.with_paid_consult + " (" + pct(r.with_paid_consult, r.users) + ")"))))));
+}
+
+// ───────── الاستشارات الأونلاين ─────────
+const PERIODS = { morning: "صباحًا (8-12)", noon: "ظهرًا (12-4)", evening: "مساءً (4-9)", asap: "أسرع وقت ممكن" };
+const ALERTS = {
+  deadline: "⏰ انتهت مهلة الدفع", no_proposal: "⚠ الطبيب لم يحدد موعدًا", client_silent: "⚠ العميل لم يرد على الموعد",
+  client_rejected: "⚠ العميل رفض الموعد", doctor_late: "🔴 الطبيب متأخر عن الموعد", rating: "★ تقييم بانتظار الاعتماد", no_show: "العميل لم يحضر",
+};
+const CANCEL_REASONS = ["العميل لم يحوّل", "انتهت مهلة الدفع", "الطبيب لم يحضر", "العميل لم يرد على الموعد", "بناءً على طلب العميل", "الطبيب غير متاح", "سبب آخر"];
+
+async function rtcGauge() {
+  const { data } = await sb.rpc("admin_rtc_usage");
+  const u = data && data[0];
+  if (!u) return null;
+  const pct = Number(u.pct), limit = Number(u.monthly_limit);
+  const color = pct >= u.stop_pct ? "var(--bad)" : pct >= u.alert_pct ? "#e0a100" : "var(--ok)";
+  const lim = h("input", { type: "number", value: limit, style: "width:100px", dir: "ltr" });
+  const save = async (k, v) => { const { data: r } = await sb.rpc("admin_set_setting", { p_key: k, p_value: String(v) }); if (r !== "ok") alert("تعذّر: " + r); renderShell(); };
+  return h("div", { class: "card" },
+    h("div", { class: "row" }, h("b", {}, "رصيد الصوت والفيديو (LiveKit) هذا الشهر"), h("span", { class: "sp" }),
+      h("span", { class: "badge", style: `background:${color}22;color:${color}` }, `${u.used} / ${limit} دقيقة (${pct}%)`)),
+    h("div", { style: "height:10px;border-radius:6px;background:var(--ic);margin:10px 0;overflow:hidden" }, h("div", { style: `height:100%;width:${Math.min(100, pct)}%;background:${color}` })),
+    pct >= u.stop_pct ? h("div", { style: "color:var(--bad);font-weight:800" }, "🔴 الصوت والفيديو مخفيان عن العملاء تلقائيًا. الشات شغال. رقّي الباقة أو استنى أول الشهر.")
+      : pct >= u.alert_pct ? h("div", { style: "color:#e0a100;font-weight:800" }, `⚠ وصلت ${pct}% من الرصيد. قريبًا هيتوقف الصوت والفيديو تلقائيًا عند ${u.stop_pct}%.`) : null,
+    h("div", { class: "row", style: "margin-top:8px" },
+      h("span", { class: "mu" }, "الحد الشهري (دقيقة مشارك):"), lim, h("button", { class: "btn ghost", onclick: () => save("rtc_monthly_limit_min", lim.value) }, "حفظ"),
+      h("span", { class: "sp" }),
+      h("button", { class: "btn " + (u.enabled ? "bad" : "ok"), onclick: () => save("rtc_enabled", !u.enabled) }, u.enabled ? "إيقاف الصوت والفيديو" : "تفعيل الصوت والفيديو")),
+    h("div", { class: "mu" }, "الدقيقة بتتحسب لكل مشارك (مكالمة 10 دقايق بين اتنين = 20 دقيقة)."));
+}
+
+async function renderConsults(root) {
+  const filters = [["pay", "في انتظار الدفع"], ["paid", "تم الدفع"], ["alerts", "تنبيهات"], ["live", "جارية"], ["ended", "منتهية"], ["cancelled", "ملغية"], ["all", "الكل"]];
+  const gauge = await rtcGauge();
+  if (gauge) root.append(gauge);
+  root.append(h("div", { class: "chips" }, filters.map(([k, n]) => h("button", { class: "chip" + (state.conFilter === k ? " on" : ""), onclick: () => { state.conFilter = k; renderShell(); } }, n))));
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(list);
+  const { data, error } = await sb.rpc("admin_consultations");
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message));
+  const f = state.conFilter;
+  const rows = data.filter((c) =>
+    f === "all" ? true : f === "pay" ? c.pay_status === "pending" : f === "paid" ? c.pay_status === "paid" && c.state === "wait" :
+    f === "alerts" ? c.alerts.length > 0 : f === "live" ? c.state === "live" : f === "ended" ? c.state === "ended" : c.pay_status === "cancelled");
+  if (!rows.length) return list.replaceChildren(h("div", { class: "empty" }, "لا توجد استشارات"));
+  const act = async (fn, args) => { const { data: r, error: e } = await sb.rpc(fn, args); if (e || (r && r !== "ok")) alert("تعذّر: " + (e?.message || r)); renderShell(); };
+  list.replaceChildren(...rows.map((c) => {
+    const st = c.pay_status === "cancelled" ? (c.refunded ? "ملغي · تم الاسترداد" : "ملغي") : c.pay_status === "pending" ? "في انتظار الدفع" : c.state === "live" ? "جارية" : c.state === "ended" ? (c.no_show ? (c.refunded ? "لم يحضر المريض · تم الاسترداد" : "لم يحضر المريض") : "منتهية") : "تم الدفع";
+    const wa = "https://wa.me/20" + (c.client_phone || "").replace(/\D/g, "").replace(/^0/, "");
+    const reason = h("select", {}, CANCEL_REASONS.map((r) => h("option", { value: r }, r)));
+    const card = h("div", { class: "card" },
+      h("div", { class: "row" }, h("b", {}, c.case_number), h("span", { class: "badge", style: "background:var(--ic)" }, st), h("span", { class: "sp" }), h("span", { class: "mu" }, fmt(c.created_at))),
+      h("div", { class: "row", style: "margin-top:6px" }, h("span", {}, "العميل: " + c.client_name), h("a", { href: wa, target: "_blank", style: "color:var(--gold);font-weight:800" }, c.client_phone || ""), h("span", { class: "sp" }), h("span", {}, "الطبيب: " + c.provider_name)),
+      h("div", { class: "mu" }, `${{ chat: "شات", voice: "صوت", video: "فيديو" }[c.channel]} · ${c.duration_min} د · ${c.price} ج.م · ${c.pay_method === "wallet" ? "محفظة" : "إنستاباي"} · ${c.period === "asap" ? PERIODS.asap : c.period_date + " " + PERIODS[c.period]}`),
+      c.appt_at ? h("div", { class: "mu" }, "الموعد المعتمد: " + fmt(c.appt_at)) : c.prop_at ? h("div", { class: "mu" }, "موعد مقترح: " + fmt(c.prop_at)) : null,
+      c.pay_status === "pending" && c.pay_deadline ? h("div", { class: "mu" }, "مهلة الدفع: " + fmt(c.pay_deadline)) : null,
+      c.cancel_reason ? h("div", { class: "mu", style: "color:var(--bad)" }, "سبب الإلغاء: " + c.cancel_reason) : null,
+      c.alerts.length ? h("div", { class: "row", style: "margin-top:6px" }, c.alerts.map((a) => h("span", { class: "badge", style: "background:rgba(229,72,77,.14);color:var(--bad)" }, ALERTS[a]))) : null,
+      c.sum_at ? h("div", { class: "msg", style: "background:var(--ic);border-radius:12px;padding:10px" },
+        h("b", {}, "ملخص الدكتور"), h("br"), c.sum_note,
+        c.sum_recs ? h("div", { class: "mu", style: "margin-top:6px" }, "التوصيات: " + c.sum_recs) : null,
+        h("div", { class: "mu" }, "المتابعة: " + ({ none: "لا يلزم متابعة", week: "بعد أسبوع", two: "بعد أسبوعين", month: "بعد شهر" }[c.sum_follow] || c.sum_follow) + " · " + fmt(c.sum_at))) : (c.state === "ended" && !c.no_show ? h("div", { class: "mu" }, "ملخص الدكتور: لم يُكتب بعد") : null),
+      c.admin_contacted_at ? h("div", { class: "mu", style: "color:var(--ok)" }, "✓ تم التواصل مع الطبيب " + fmt(c.admin_contacted_at)) : null,
+      c.refunded ? h("div", { class: "row", style: "margin-top:6px" }, h("span", { class: "badge", style: "background:rgba(31,166,90,.15);color:var(--ok)" }, "تم الاسترداد")) : null,
+      c.rating ? h("div", { class: "msg" }, "★".repeat(c.rating) + (c.rating_text ? " — " + c.rating_text : ""), " ", c.rating_ok ? h("span", { class: "badge", style: "background:rgba(31,166,90,.15);color:var(--ok)" }, "تم الاعتماد · منشور في صفحة الدكتور") : c.rating_hidden ? h("span", { class: "badge", style: "background:rgba(229,72,77,.14);color:var(--bad)" }, "تم إلغاء النشر") : h("span", { class: "badge", style: "background:var(--ic)" }, "بانتظار الاعتماد")) : null);
+    const bar = h("div", { class: "row", style: "margin-top:10px" });
+    if (c.state === "wait" && c.pay_status !== "cancelled") {
+      if (c.pay_status === "pending") bar.append(h("button", { class: "btn ok", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "paid" }) }, "تم الدفع"));
+      else if (c.prop_status === "none") bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_set_payment", { p_id: c.id, p_status: "pending" }) }, "في انتظار الدفع"));
+      bar.append(reason, h("button", { class: "btn bad", onclick: () => confirm("إلغاء الاستشارة؟") && act("admin_set_payment", { p_id: c.id, p_status: "cancelled", p_reason: reason.value }) }, "إلغاء"));
+    }
+    if (c.state === "wait" && c.pay_status === "paid") {
+      const when = h("input", { type: "datetime-local", dir: "ltr" });
+      bar.append(when, h("button", { class: "btn ghost", onclick: () => {
+        if (!when.value) return alert("اختر التاريخ والوقت");
+        if (confirm("تحديد الموعد وإبلاغ الطبيب والعميل؟")) act("admin_set_appointment", { p_id: c.id, p_at: new Date(when.value).toISOString() });
+      } }, c.appt_at ? "تعديل الموعد" : "تحديد الموعد"));
+    }
+    if (c.prop_status === "no" || c.prop_status === "pending") bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_consultation_handled", { p_id: c.id }) }, "تم التواصل (السماح بموعد جديد)"));
+    if (c.alerts.includes("doctor_late")) bar.append(h("button", { class: "btn ghost", onclick: () => act("admin_doctor_contacted", { p_id: c.id }) }, "تم التواصل مع الطبيب"));
+    if (c.alerts.includes("doctor_late") || (c.state === "wait" && c.admin_contacted_at && c.pay_status === "paid" && !c.refunded)) bar.append(h("button", { class: "btn bad", onclick: () => confirm("إلغاء مع الاسترداد؟") && act("admin_refund_consultation", { p_id: c.id, p_cancel: true, p_reason: "الطبيب لم يحضر" }) }, "إلغاء مع الاسترداد"));
+    if (c.no_show && !c.refunded) bar.append(h("button", { class: "btn ghost", onclick: () => confirm("استرداد استثنائي؟") && act("admin_refund_consultation", { p_id: c.id }) }, "استرداد استثنائي"));
+    if (c.rating && !c.rating_ok) bar.append(h("button", { class: "btn", onclick: () => act("admin_approve_rating", { p_id: c.id }) }, c.rating_hidden ? "إعادة النشر" : "اعتماد التقييم"));
+    if (c.rating && c.rating_ok) bar.append(h("button", { class: "btn bad", onclick: () => confirm("إلغاء نشر التقييم من صفحة الدكتور؟") && act("admin_unpublish_rating", { p_id: c.id }) }, "إلغاء النشر"));
+    if (bar.children.length) card.append(bar);
+    return card;
+  }));
+}
+
+// ───────── نطاقات الأسعار ─────────
+async function renderPrices(root) {
+  const list = h("div", {}, h("div", { class: "empty" }, "جاري التحميل…"));
+  root.append(h("div", { class: "mu", style: "margin-bottom:10px" }, "نطاق السعر الذي يستطيع مقدم الخدمة الاختيار منه (حسب الدرجة). التغيير يسري فورًا على التطبيق."), list);
+  const { data, error } = await sb.from("sub_services").select("*").order("service_name").order("group_name").order("name");
+  if (error) return list.replaceChildren(h("div", { class: "empty" }, "خطأ: " + error.message));
+  const rows = data.filter((s) => s.group_name === "online" || s.group_name === "specialty" || s.price_min != null);
+  const fields = [["price_min", "أدنى"], ["price_max", "أقصى"], ["price_min_specialist", "أخصائي أدنى"], ["price_max_specialist", "أخصائي أقصى"], ["price_min_consultant", "استشاري أدنى"], ["price_max_consultant", "استشاري أقصى"]];
+  list.replaceChildren(...rows.map((s) => {
+    const inputs = fields.map(([k, n]) => [k, n, h("input", { type: "number", value: s[k] ?? "", style: "width:90px", dir: "ltr" })]);
+    return h("div", { class: "card" },
+      h("div", { class: "row" }, h("b", {}, s.name), h("span", { class: "mu" }, `${s.service_name} · ${s.group_name}`)),
+      h("div", { class: "row", style: "margin-top:8px" }, inputs.map(([k, n, el]) => h("label", { class: "mu" }, n, h("br"), el)),
+        h("button", { class: "btn", onclick: async () => {
+          const patch = {}; inputs.forEach(([k, , el]) => (patch[k] = el.value === "" ? null : Number(el.value)));
+          const { error: e } = await sb.from("sub_services").update(patch).eq("id", s.id);
+          alert(e ? "تعذّر الحفظ: " + e.message : "تم الحفظ");
+        } }, "حفظ")));
+  }));
+}
+
+// ───────── التخصصات والمناطق والخدمات الفرعية ─────────
+async function renderManage(root) {
+  root.append(h("div", { class: "mu", style: "margin-bottom:10px" }, "التغييرات هنا تسري فورًا على التطبيقين. الإيقاف يخفي العنصر عن الاختيار الجديد دون حذف بيانات سابقة."));
+  const box = (title) => { const c = h("div", { class: "card" }, h("b", { style: "font-size:17px;color:var(--gold)" }, title), h("div", { class: "mu", style: "margin:4px 0 10px" }, "جاري التحميل…")); root.append(c); return c; };
+  const ask = (m) => { const v = prompt(m); return v == null ? null : v.trim(); };
+  const num = (v) => (v === "" || v == null ? null : Number(v));
+  const toggleBtn = (on, fn) => h("button", { class: "btn " + (on ? "ok" : "ghost"), style: "padding:5px 12px", onclick: fn }, on ? "مفعّل" : "موقوف");
+  // English name (shown when the app language is English)
+  const enBtn = (table, row) => h("button", { class: "btn ghost", style: "padding:5px 12px;direction:ltr", title: "الاسم بالإنجليزي", onclick: async () => {
+    const v = ask("الاسم بالإنجليزي لـ «" + row.name + "»"); if (v == null) return;
+    const { error } = await sb.from(table).update({ name_en: v || null }).eq("id", row.id);
+    if (error) alert("تعذّر: " + error.message); renderShell();
+  } }, row.name_en ? "EN: " + row.name_en : "EN +");
+  const run = async (p) => { const { error } = await p; if (error) alert("تعذّر: " + error.message); renderShell(); };
+
+  // 1) التخصصات
+  const specBox = box("التخصصات (كشف منزلي)");
+  const { data: specs, error: e1 } = await sb.from("sub_services").select("*").eq("service_name", "كشف منزلي").eq("group_name", "specialty").order("name");
+  if (e1) specBox.append(h("div", { class: "err" }, e1.message));
+  else {
+    specBox.children[1].remove();
+    for (const s of specs) specBox.append(h("div", { class: "row", style: "padding:6px 0;border-top:1px solid var(--bd)" },
+      h("b", {}, s.name), h("span", { class: "mu" }, `أخصائي ${s.price_min_specialist ?? "—"}–${s.price_max_specialist ?? "—"} · استشاري ${s.price_min_consultant ?? "—"}–${s.price_max_consultant ?? "—"}`), h("span", { class: "sp" }),
+      enBtn("sub_services", s),
+      toggleBtn(s.is_active, () => run(sb.from("sub_services").update({ is_active: !s.is_active }).eq("id", s.id))),
+      h("button", { class: "btn ghost", style: "padding:5px 12px", onclick: async () => {
+        const n = ask("الاسم الجديد للتخصص"); if (!n || n === s.name) return;
+        const r1 = await sb.from("sub_services").update({ name: n }).eq("id", s.id);
+        if (r1.error) return alert("تعذّر: " + r1.error.message);
+        await sb.from("providers").update({ specialty: n }).eq("specialty", s.name).eq("service_type", "كشف منزلي");
+        renderShell();
+      } }, "تعديل الاسم"),
+      h("button", { class: "btn bad", style: "padding:5px 12px", onclick: async () => {
+        const { count } = await sb.from("providers").select("id", { count: "exact", head: true }).eq("specialty", s.name);
+        if (count) return alert(`لا يمكن الحذف: ${count} من مقدمي الخدمة على هذا التخصص. أوقفه بدل الحذف.`);
+        confirm("حذف التخصص؟") && run(sb.from("sub_services").delete().eq("id", s.id));
+      } }, "حذف")));
+    const nm = h("input", { placeholder: "اسم التخصص الجديد" }); const nmEn = h("input", { placeholder: "English name", dir: "ltr" });
+    const f = ["أخصائي أدنى", "أخصائي أقصى", "استشاري أدنى", "استشاري أقصى"].map((p) => h("input", { type: "number", placeholder: p, style: "width:110px", dir: "ltr" }));
+    specBox.append(h("div", { class: "row", style: "margin-top:12px" }, nm, nmEn, f, h("button", { class: "btn", onclick: () => {
+      if (!nm.value.trim()) return alert("اكتب اسم التخصص");
+      run(sb.from("sub_services").insert({ service_name: "كشف منزلي", group_name: "specialty", name: nm.value.trim(), name_en: nmEn.value.trim() || null, duration: "30 دقيقة", price_min_specialist: num(f[0].value), price_max_specialist: num(f[1].value), price_min_consultant: num(f[2].value), price_max_consultant: num(f[3].value), is_active: true }));
+    } }, "إضافة")));
+  }
+
+  // 2) المحافظات والمدن
+  const geoBox = box("المحافظات والمدن");
+  const [{ data: govs, error: e2 }, { data: areas, error: e3 }] = await Promise.all([
+    sb.from("governorates").select("*").order("name"),
+    sb.from("coverage_areas").select("*").order("name"),
+  ]);
+  if (e2 || e3) geoBox.append(h("div", { class: "err" }, (e2 || e3).message));
+  else {
+    geoBox.children[1].remove();
+    const names = new Set(govs.map((g) => g.name));
+    const extra = [...new Set(areas.map((a) => a.city))].filter((c) => c && !names.has(c)).map((c) => ({ id: null, name: c, is_active: true }));
+    for (const g of [...govs, ...extra]) {
+      const mine = areas.filter((a) => a.city === g.name);
+      const nc = h("input", { placeholder: "مدينة جديدة", style: "width:150px" }); const ncEn = h("input", { placeholder: "English", style: "width:120px", dir: "ltr" });
+      geoBox.append(h("div", { style: "padding:10px 0;border-top:1px solid var(--bd)" },
+        h("div", { class: "row" }, h("b", {}, g.name), h("span", { class: "mu" }, `${mine.length} مدينة`), h("span", { class: "sp" }),
+          g.id ? enBtn("governorates", g) : null,
+          g.id ? toggleBtn(g.is_active, () => run(sb.from("governorates").update({ is_active: !g.is_active }).eq("id", g.id))) : h("span", { class: "mu" }, "غير مسجلة في جدول المحافظات"),
+          g.id ? h("button", { class: "btn ghost", style: "padding:5px 12px", onclick: async () => {
+            const n = ask("الاسم الجديد للمحافظة"); if (!n || n === g.name) return;
+            const r1 = await sb.from("governorates").update({ name: n }).eq("id", g.id);
+            if (r1.error) return alert("تعذّر: " + r1.error.message);
+            await sb.from("coverage_areas").update({ city: n }).eq("city", g.name);
+            renderShell();
+          } }, "تعديل الاسم") : null,
+          g.id ? h("button", { class: "btn bad", style: "padding:5px 12px", onclick: () => mine.length ? alert("احذف مدن المحافظة أولًا أو أوقفها") : confirm("حذف المحافظة؟") && run(sb.from("governorates").delete().eq("id", g.id)) }, "حذف") : null),
+        h("div", { class: "thumbs", style: "margin-top:8px" }, mine.map((a) => h("span", { class: "badge", style: `background:var(--ic);${a.is_active ? "" : "opacity:.5;text-decoration:line-through"}` },
+          a.name, " ",
+          h("a", { href: "#", title: "الاسم بالإنجليزي", style: "color:var(--mu);text-decoration:none;font-size:11px", onclick: async (ev) => { ev.preventDefault(); const v = ask("الاسم بالإنجليزي لـ «" + a.name + "»"); if (v == null) return; const { error } = await sb.from("coverage_areas").update({ name_en: v || null }).eq("id", a.id); if (error) alert("تعذّر: " + error.message); renderShell(); } }, a.name_en ? "(" + a.name_en + ")" : "EN"), " ",
+          h("a", { href: "#", title: a.is_active ? "إيقاف" : "تفعيل", style: "color:var(--gold);text-decoration:none", onclick: (ev) => { ev.preventDefault(); run(sb.from("coverage_areas").update({ is_active: !a.is_active }).eq("id", a.id)); } }, a.is_active ? "⏸" : "▶"), " ",
+          h("a", { href: "#", title: "حذف", style: "color:var(--bad);text-decoration:none", onclick: (ev) => { ev.preventDefault(); confirm("حذف المدينة؟") && run(sb.from("coverage_areas").delete().eq("id", a.id)); } }, "✕")))),
+        h("div", { class: "row", style: "margin-top:8px" }, nc, ncEn, h("button", { class: "btn ghost", onclick: () => nc.value.trim() ? run(sb.from("coverage_areas").insert({ name: nc.value.trim(), name_en: ncEn.value.trim() || null, city: g.name, is_active: true })) : alert("اكتب اسم المدينة") }, "إضافة مدينة"))));
+    }
+    const ng = h("input", { placeholder: "محافظة جديدة" }); const ngEn = h("input", { placeholder: "English", dir: "ltr" });
+    geoBox.append(h("div", { class: "row", style: "margin-top:12px" }, ng, ngEn, h("button", { class: "btn", onclick: () => ng.value.trim() ? run(sb.from("governorates").insert({ name: ng.value.trim(), name_en: ngEn.value.trim() || null, is_active: true })) : alert("اكتب اسم المحافظة") }, "إضافة محافظة")));
+  }
+
+  // 3) الخدمات الفرعية (تمريض / أشعة)
+  const subBox = box("الخدمات الفرعية (تمريض وأشعة)");
+  const { data: subs, error: e4 } = await sb.from("sub_services").select("*").in("service_name", ["تمريض منزلي", "أشعة منزلية"]).order("service_name").order("name");
+  if (e4) subBox.append(h("div", { class: "err" }, e4.message));
+  else {
+    subBox.children[1].remove();
+    for (const s of subs.filter((x) => x.group_name !== "grade")) subBox.append(h("div", { class: "row", style: "padding:6px 0;border-top:1px solid var(--bd)" },
+      h("b", {}, s.name), h("span", { class: "mu" }, `${s.service_name} · ${s.duration || "—"} · ${s.price_min ?? "—"}–${s.price_max ?? "—"} ج.م`), h("span", { class: "sp" }),
+      enBtn("sub_services", s),
+      toggleBtn(s.is_active, () => run(sb.from("sub_services").update({ is_active: !s.is_active }).eq("id", s.id))),
+      h("button", { class: "btn bad", style: "padding:5px 12px", onclick: async () => {
+        const { count } = await sb.from("provider_services").select("id", { count: "exact", head: true }).eq("sub_service_id", s.id);
+        if (count) return alert(`لا يمكن الحذف: ${count} من مقدمي الخدمة يقدمونها. أوقفها بدل الحذف.`);
+        confirm("حذف الخدمة؟") && run(sb.from("sub_services").delete().eq("id", s.id));
+      } }, "حذف")));
+    const sv = h("select", {}, ["تمريض منزلي", "أشعة منزلية"].map((n) => h("option", { value: n }, n)));
+    const nm = h("input", { placeholder: "اسم الخدمة" }), nmEn = h("input", { placeholder: "English name", dir: "ltr" }), du = h("input", { placeholder: "المدة (مثال: 30 دقيقة)" });
+    const mn = h("input", { type: "number", placeholder: "أدنى", style: "width:90px", dir: "ltr" }), mx = h("input", { type: "number", placeholder: "أقصى", style: "width:90px", dir: "ltr" });
+    subBox.append(h("div", { class: "row", style: "margin-top:12px" }, sv, nm, nmEn, du, mn, mx, h("button", { class: "btn", onclick: () => {
+      if (!nm.value.trim()) return alert("اكتب اسم الخدمة");
+      run(sb.from("sub_services").insert({ service_name: sv.value, name: nm.value.trim(), name_en: nmEn.value.trim() || null, duration: du.value.trim() || null, price_min: num(mn.value), price_max: num(mx.value), is_active: true }));
+    } }, "إضافة")));
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

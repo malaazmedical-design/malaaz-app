@@ -1,5 +1,5 @@
 import { BlurView } from "expo-blur";
-import { Tabs, router } from "expo-router";
+import { Redirect, Tabs, router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
@@ -7,8 +7,16 @@ import { useColors } from "@/hooks/useColors";
 import { supabase } from "@/lib/supabase";
 import { getProfile } from "@/lib/mizoStorage";
 import { useApp } from "@/contexts/AppContext";
+import MalazTabBar from "@/components/MalazTabBar";
+import { IS_PROVIDER_APP } from "@/lib/appVariant";
 
+// The standalone Malaaz Provider app opens straight on the provider portal.
 export default function TabLayout() {
+  if (IS_PROVIDER_APP) return <Redirect href="/provider-portal" />;
+  return <ClientTabLayout />;
+}
+
+function ClientTabLayout() {
   const colors = useColors();
   const isIOS = Platform.OS === "ios";
   const { client } = useApp();
@@ -45,6 +53,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <MalazTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: "#C9A84C",
         tabBarInactiveTintColor: "#7A8A89",
@@ -76,6 +85,25 @@ export default function TabLayout() {
         options={{
           title: "حجوزاتي",
           tabBarIcon: ({ color }) => <MaterialCommunityIcons name="calendar-check" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="ask-doctor-entry"
+        options={{
+          title: "إسأل طبيب",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="stethoscope" size={24} color={color} />
+          ),
+          tabBarButton: (props) => (
+            <Pressable
+              style={props.style}
+              onPress={() => router.push("/ask-doctor")}
+              accessibilityRole="button"
+              accessibilityLabel="إسأل طبيب"
+            >
+              {props.children}
+            </Pressable>
+          ),
         }}
       />
       <Tabs.Screen

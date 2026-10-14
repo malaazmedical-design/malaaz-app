@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import {
-  Alert, Modal, Platform, Pressable, ScrollView, Text, View, ActivityIndicator,
-} from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, View, ActivityIndicator } from "react-native";
+import { Text } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SkeletonCards } from "@/components/Skeleton";
+import { ClientConsultList } from "@/components/consult/ClientConsultList";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { Card, EmptyState, Pill, PrimaryButton } from "@/components/ui";
 import { PAYMENT_METHOD_LABELS } from "@/constants/data";
@@ -13,7 +14,9 @@ import { whatsappCompany } from "@/lib/contact";
 import { Booking, useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { useResponsive } from "@/hooks/useResponsive";
+import { useClientConsultCount } from "@/lib/useClientConsultCount";
 
+import { locale } from "@/lib/i18n";
 const STATUS_MAP: Record<string, { label: string; color: string; icon: string }> = {
   pending:   { label: "قيد المراجعة", color: "#F59E0B", icon: "clock-outline" },
   confirmed: { label: "مؤكد",         color: "#16A34A", icon: "check-circle" },
@@ -26,7 +29,11 @@ export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const { isTablet, colWidth } = useResponsive();
   const { bookings, loadingBookings, cancelBooking, refreshBookings, profile } = useApp();
+  const consultCount = useClientConsultCount();
+  const activeBookings = bookings.filter((b) => b.status === "pending" || b.status === "confirmed").length;
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+  const { seg: segParam } = useLocalSearchParams<{ seg?: string }>();
+  const [seg, setSeg] = useState<"bookings" | "consults">(segParam === "consults" ? "consults" : "bookings");
 
   const handleCancel = (booking: Booking) => {
     const doCancel = async () => {
@@ -58,9 +65,23 @@ export default function BookingsScreen() {
             <MaterialCommunityIcons name="refresh" size={20} color="#C9A84C" />
           </Pressable>
         </View>
+        <View style={{ flexDirection: "row-reverse", marginTop: 14, padding: 4, borderRadius: 16, backgroundColor: "#FFFFFF12" }}>
+          {([["bookings", "الحجوزات", activeBookings], ["consults", "الاستشارات", consultCount]] as const).map(([k, name, n]) => (
+            <Pressable key={k} onPress={() => setSeg(k)} style={{ flex: 1, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8, borderRadius: 12, backgroundColor: seg === k ? "#C9A84C" : "transparent" }}>
+              <Text style={{ color: seg === k ? "#10201f" : "#FFFFFFAA", fontFamily: "Cairo_700Bold", fontSize: 14 }}>{name}</Text>
+              {n > 0 ? (
+                <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: seg === k ? "#10201f" : "#C9A84C", alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: seg === k ? "#C9A84C" : "#10201f", fontFamily: "Cairo_700Bold", fontSize: 12 }}>{n}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          ))}
+        </View>
       </View>
 
-      {!profile.phone ? (
+      {seg === "consults" ? (
+        <ClientConsultList />
+      ) : !profile.phone ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32 }}>
           <MaterialCommunityIcons name="account-outline" size={56} color={colors.mutedForeground} />
           <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 18, textAlign: "center", marginTop: 16 }}>
@@ -74,10 +95,7 @@ export default function BookingsScreen() {
           </View>
         </View>
       ) : loadingBookings ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="large" color="#C9A84C" />
-          <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", marginTop: 12 }}>جاري تحميل الحجوزات...</Text>
-        </View>
+        <SkeletonCards count={4} />
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}
@@ -121,7 +139,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
 
   const date =
     booking.appointment_time ??
-    new Date(booking.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
+    new Date(booking.created_at).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <Card style={{ padding: 16 }}>
@@ -235,7 +253,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
                 {booking.providerName ? <DetailField label="مقدم الخدمة" value={booking.providerName} /> : null}
                 {booking.notes ? <DetailField label="ملاحظات" value={booking.notes} wide /> : null}
                 <DetailField label="رقم الحجز" value={`#${booking.id.slice(-6).toUpperCase()}`} />
-                <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })} />
+                <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleString(locale(), { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" })} />
               </View>
 
               {/* استفسار واتساب برسالة جاهزة عن الحجز ده تحديداً */}

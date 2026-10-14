@@ -1,21 +1,28 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
-import {
-  Alert, Platform, Pressable, ScrollView, Text, View,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, View } from "react-native";
+import { Text } from "@/components/i18n";
+import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ScreenContainer } from "@/components/ScreenContainer";
-import { Card, Pill, PrimaryButton, Stars } from "@/components/ui";
-import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS } from "@/constants/data";
+import { PaymentMethod, PAYMENT_METHODS, ProviderService, TIME_PERIODS, providerCities } from "@/constants/data";
 import { serviceIcon } from "@/constants/icons";
+import { TJ, useMalaz } from "@/constants/malazTheme";
 import { callCompany, whatsappCompany } from "@/lib/contact";
 import { useApp } from "@/contexts/AppContext";
-import { useColors } from "@/hooks/useColors";
+import { useRtcStatus } from "@/lib/useRtcStatus";
+import { supabase } from "@/lib/supabase";
+import { trackSchedule } from "@/lib/analytics";
+
+import { locale } from "@/lib/i18n";
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+const REVIEWS_PREVIEW = 3;
+const REVIEWS_MAX = 5;
 
 function getNextDays(count: number) {
   const days: { key: string; label: string; sub: string }[] = [];
@@ -25,61 +32,116 @@ function getNextDays(count: number) {
     d.setDate(today.getDate() + i);
     days.push({
       // التاريخ بصيغة عربية مقروءة عشان يظهر كده في الحجز عند الأدمن والمقدم
-      key: d.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" }),
-      label: i === 0 ? "اليوم" : i === 1 ? "غداً" : d.toLocaleDateString("ar-EG", { weekday: "short" }),
-      sub: d.toLocaleDateString("ar-EG", { day: "numeric", month: "short" }),
+      key: d.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" }),
+      label: i === 0 ? "اليوم" : i === 1 ? "غداً" : d.toLocaleDateString(locale(), { weekday: "short" }),
+      sub: d.toLocaleDateString(locale(), { day: "numeric", month: "short" }),
     });
   }
   return days;
 }
 
 export default function ProviderScreen() {
-  const colors = useColors();
+  const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { providers, profile, createBooking, providerReviews } = useApp();
+  const { id, online: onlineParam } = useLocalSearchParams<{ id: string; online?: string }>();
+  const { providers, profile, client, createBooking, providerReviews, coverageAreas } = useApp();
   const provider = providers.find((p) => p.id === id);
   const reviews = (id && providerReviews[id]) || [];
+  // الاستشارة الأونلاين (لو الطبيب مفعّلها): كل قناة بسعرها ومدتها
+  const rtc = useRtcStatus();
+  const [chans, setChans] = useState<Record<string, { price: number; dur: number }>>({});
+  const [onlineSel, setOnlineSel] = useState(onlineParam === "1");
+  const [channel, setChannel] = useState<"chat" | "voice" | "video">("chat");
+  const [consent, setConsent] = useState(false);
+  const hasOnline = !!chans.chat;
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const out: Record<string, { price: number; dur: number }> = {};
+      const { data: subs } = await supabase.from("sub_services").select("id").eq("group_name", "online");
+      const ids = (subs ?? []).map((x: any) => x.id);
+      if (ids.length) {
+        const { data } = await supabase.from("provider_services").select("custom_price,duration_min").eq("provider_id", id).in("sub_service_id", ids).eq("is_active", true).limit(1);
+        if (data?.[0]?.custom_price) out.chat = { price: Number(data[0].custom_price), dur: data[0].duration_min ?? 15 };
+      }
+      const { data: pcs } = await supabase.from("provider_channels").select("channel,price,duration_min").eq("provider_id", id).eq("is_active", true);
+      for (const r of (pcs ?? []) as any[]) out[r.channel] = { price: Number(r.price), dur: r.duration_min ?? 15 };
+      setChans(out);
+    })();
+  }, [id]);
 
   const [selectedService, setSelectedService] = useState<ProviderService | null>(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [selectedTime, setSelectedTime] = useState<string>(TIME_PERIODS[0]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
   const webTopInset = Platform.OS === "web" ? 67 : 0;
   const days = getNextDays(7);
 
+  const GoldButton = ({ label, onPress, outline, icon }: { label: string; onPress: () => void; outline?: boolean; icon?: IconName }) => (
+    <Pressable
+      onPress={onPress}
+      style={{
+        height: 54, borderRadius: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
+        backgroundColor: outline ? "transparent" : t.gold, borderWidth: outline ? 1.5 : 0, borderColor: t.gold,
+      }}
+    >
+      {icon ? <MaterialCommunityIcons name={icon} size={20} color={outline ? t.gold : t.onGold} /> : null}
+      <Text style={{ color: outline ? t.gold : t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>{label}</Text>
+    </Pressable>
+  );
+
   if (!provider) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <MaterialCommunityIcons name="account-question-outline" size={48} color={colors.mutedForeground} />
-        <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", marginTop: 12 }}>مقدم الخدمة غير موجود</Text>
-        <View style={{ marginTop: 16 }}>
-          <PrimaryButton label="رجوع" onPress={() => router.back()} />
+      <View style={{ flex: 1, backgroundColor: t.bg, alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <MaterialCommunityIcons name="account-question-outline" size={48} color={t.muted} />
+        <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, marginTop: 12 }}>مقدم الخدمة غير موجود</Text>
+        <View style={{ marginTop: 16, width: "100%" }}>
+          <GoldButton label="رجوع" onPress={() => router.back()} />
         </View>
       </View>
     );
   }
 
-  if (!provider.available) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <MaterialCommunityIcons name="account-clock-outline" size={48} color={colors.mutedForeground} />
-        <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, marginTop: 12, textAlign: "center" }}>
-          {provider.name} غير متاح حالياً
-        </Text>
-        <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13, marginTop: 6, textAlign: "center" }}>
-          يمكنك اختيار مقدم خدمة آخر متاح، أو طلب خدمة سريعة وسنحدد لك مقدماً مناسباً
-        </Text>
-        <View style={{ marginTop: 20, gap: 10, width: "100%" }}>
-          <PrimaryButton label="اختار مقدم آخر" icon="account-search" onPress={() => router.replace("/(tabs)")} />
-          <PrimaryButton label="طلب خدمة سريعة" icon="lightning-bolt" variant="outline" onPress={() => router.replace("/quick-request")} />
-        </View>
-      </View>
-    );
-  }
+  const PERIOD_CODES = ["asap", "morning", "noon", "evening"] as const;
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  // استشارة أونلاين: الدفع محفظة أو إنستاباي بس، والحجز بيتعمل عن طريق RPC
+  const bookConsultation = async () => {
+    setSubmitting(true);
+    try {
+      const d = new Date(); d.setDate(d.getDate() + (selectedTime === TIME_PERIODS[0] ? 0 : selectedDay));
+      const { data, error } = await supabase.rpc("book_consultation", {
+        p_provider: provider!.id, p_channel: channel, p_date: ymd(d),
+        p_period: PERIOD_CODES[TIME_PERIODS.indexOf(selectedTime)] ?? "asap",
+        p_pay_method: paymentMethod === "instapay" ? "instapay" : "wallet",
+      });
+      if (error) throw new Error(error.message);
+      trackSchedule("consultation");
+      setConsent(false);
+      router.replace(`/consult/${data}`);
+    } catch (e: any) {
+      setConsent(false);
+      Alert.alert("تعذّر الحجز", e?.message ?? "حاول مرة أخرى");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleBook = async () => {
+    if (!provider.available) return;
+    // الحجز يتطلب حساب — الزائر يتحول لشاشة الدخول
+    if (!client) {
+      router.push("/client-auth");
+      return;
+    }
+    if (onlineSel) {
+      if (!paymentMethod || paymentMethod === "cash") { Alert.alert("تنبيه", "اختار طريقة الدفع: محفظة أو إنستاباي"); return; }
+      if (!chans[channel]) { Alert.alert("تنبيه", "اختار طريقة الاستشارة"); return; }
+      setConsent(true);
+      return;
+    }
     if (!selectedService) { Alert.alert("تنبيه", "اختار الخدمة أولاً"); return; }
     if (!paymentMethod) { Alert.alert("تنبيه", "اختار طريقة الدفع"); return; }
     if (!profile.name || !profile.phone) {
@@ -112,220 +174,305 @@ export default function ProviderScreen() {
     }
   };
 
+  const ready = provider.available && (onlineSel ? !!chans[channel] && !!paymentMethod && paymentMethod !== "cash" : !!selectedService && !!paymentMethod);
+  const visibleReviews = showAllReviews ? reviews.slice(0, REVIEWS_MAX) : reviews.slice(0, REVIEWS_PREVIEW);
+  const heading = { color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" as const, marginBottom: 10 };
+  const chip = (active: boolean) => ({
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5,
+    backgroundColor: active ? t.goldTint : t.card, borderColor: active ? t.gold : t.border,
+  });
+  const chipText = (active: boolean) => ({ color: active ? t.gold : t.text, fontFamily: TJ.bold, fontSize: 13.5 });
+
+  const smallChip = (label: string, icon: IconName) => (
+    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 }}>
+      <MaterialCommunityIcons name={icon} size={12} color={t.gold} />
+      <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 11 }}>{label}</Text>
+    </View>
+  );
+
+  const hasPhoto = !!(provider.avatar && typeof provider.avatar === "object" && "uri" in provider.avatar);
+  const govName = [...providerCities(provider.areas.length ? provider.areas : [provider.city], coverageAreas)][0] ?? provider.city;
+  const glassBg = t.isDark ? "rgba(11,21,20,.62)" : "rgba(244,241,234,.62)";
+  const glassBtn = (icon: IconName, onPress: () => void, color: string, label: string) => (
+    <Pressable onPress={onPress} accessibilityLabel={label} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.92 : 1 }] })}>
+      <View style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden", borderWidth: 1, borderColor: t.border }}>
+        <BlurView intensity={30} tint={t.isDark ? "dark" : "light"} style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: glassBg }}>
+          <MaterialCommunityIcons name={icon} size={20} color={color} />
+        </BlurView>
+      </View>
+    </Pressable>
+  );
+
+  const radio = (active: boolean) => (
+    <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: active ? t.gold : t.border, backgroundColor: active ? t.gold : "transparent", alignItems: "center", justifyContent: "center" }}>
+      {active ? <MaterialCommunityIcons name="check" size={13} color={t.onGold} /> : null}
+    </View>
+  );
+
+  const serviceCard = (key: string, icon: IconName, title: string, sub: string, price: string | null, active: boolean, onPress: () => void) => (
+    <Pressable
+      key={key}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 12, borderRadius: 18, borderWidth: 1.5,
+        backgroundColor: active ? t.selected : t.card, borderColor: active ? t.gold : t.border,
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
+    >
+      <View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: t.goldRing, alignItems: "center", justifyContent: "center", backgroundColor: t.ic }}>
+        <MaterialCommunityIcons name={icon} size={20} color={t.gold} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14, textAlign: "right" }}>{title}</Text>
+        {price ? <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{price}</Text> : null}
+        {sub ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "right" }}>{sub}</Text> : null}
+      </View>
+      {radio(active)}
+    </Pressable>
+  );
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} showsVerticalScrollIndicator={false}>
-        <ScreenContainer>
+        <Animated.View entering={FadeInUp.duration(450)}>
+        {/* ─── Hero: full-width photo ─── */}
+        <View style={{ height: 330 + insets.top + webTopInset, backgroundColor: t.hdr, overflow: "hidden" }}>
+          {hasPhoto ? (
+            <Image source={provider.avatar} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" contentPosition={{ left: "50%", top: "20%" }} />
+          ) : (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+              <LinearGradient colors={[t.ic, t.hdr]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
+              <View style={{ position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: t.goldTint, top: 20 + insets.top }} />
+              <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 150, marginTop: insets.top - 20 }}>{(provider.name || "؟").trim().charAt(0)}</Text>
+            </View>
+          )}
+          <LinearGradient colors={["rgba(0,0,0,.45)", "rgba(0,0,0,0)"]} style={{ position: "absolute", top: 0, left: 0, right: 0, height: 110 + insets.top }} />
+          <LinearGradient colors={["rgba(0,0,0,0)", t.bg]} style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 200 }} />
 
-        {/* ─── Hero ─── */}
-        <LinearGradient colors={["#1C2B2A", "#243635"]} style={{ paddingTop: insets.top + 12 + webTopInset, paddingBottom: 28, paddingHorizontal: 20 }}>
-          <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFFFFF15", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#C9A84C" />
-          </Pressable>
-
-          <View style={{ flexDirection: "row-reverse", gap: 16, alignItems: "center" }}>
-            <Image source={provider.avatar} style={{ width: 88, height: 88, borderRadius: 24, borderWidth: 3, borderColor: "#C9A84C" }} contentFit="cover" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: "#FFFFFF", fontFamily: "Cairo_700Bold", fontSize: 20, textAlign: "right" }}>{provider.name}</Text>
-              <Text style={{ color: "#C9A84C", fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", marginTop: 4 }}>{provider.title}</Text>
-              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 8 }}>
-                {provider.reviewsCount > 0 ? (
-                  <>
-                    <Stars rating={provider.rating} size={14} />
-                    <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 12 }}>
-                      {provider.rating.toFixed(1)} ({provider.reviewsCount} تقييم)
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={{ color: "#FFFFFF88", fontFamily: "Cairo_400Regular", fontSize: 12 }}>
-                    ⭐ مقدم جديد
-                  </Text>
-                )}
-              </View>
+          <View style={{ position: "absolute", top: insets.top + 14 + webTopInset, left: 16, right: 16, flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+            {glassBtn("arrow-right", () => router.back(), t.gold, "رجوع")}
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {/* التواصل دايماً مع رقم الشركة الرئيسي */}
+              {glassBtn("whatsapp", () => whatsappCompany(`مرحباً، عندي استفسار عن مقدم الخدمة: ${provider.name} (${provider.title})`), t.whatsapp, "واتساب")}
+              {glassBtn("phone-outline", callCompany, t.gold, "اتصال")}
             </View>
           </View>
 
-          <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-            <Pill label={`${provider.yearsExperience} سنة خبرة`} icon="medal" />
-            <Pill label={provider.responseTime} icon="clock-fast" tone={provider.available ? "success" : "default"} />
-            {/* التواصل دايماً مع رقم الشركة الرئيسي */}
-            <Pressable onPress={callCompany}
-              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#C9A84C22", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99, borderWidth: 1, borderColor: "#C9A84C44" }}>
-              <MaterialCommunityIcons name="phone" size={13} color="#C9A84C" />
-              <Text style={{ color: "#C9A84C", fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>اتصال</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => whatsappCompany(`مرحباً، عندي استفسار عن مقدم الخدمة: ${provider.name} (${provider.title})`)}
-              style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, backgroundColor: "#25D36622", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99, borderWidth: 1, borderColor: "#25D36644" }}>
-              <MaterialCommunityIcons name="whatsapp" size={13} color="#25D366" />
-              <Text style={{ color: "#25D366", fontFamily: "Cairo_600SemiBold", fontSize: 12 }}>واتساب</Text>
-            </Pressable>
+          <View style={{ position: "absolute", left: 16, right: 16, bottom: 38, alignItems: "flex-end" }}>
+            <View style={{ borderRadius: 14, overflow: "hidden", marginBottom: 10 }}>
+              <BlurView intensity={30} tint={t.isDark ? "dark" : "light"} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: glassBg }}>
+                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: provider.available ? t.online : t.offline }} />
+                <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13 }}>{provider.available ? "متاح" : "غير متاح"}</Text>
+              </BlurView>
+            </View>
+            <Text numberOfLines={2} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 28, textAlign: "right", writingDirection: "ltr", alignSelf: "stretch" }}>{provider.name}</Text>
+            <Text style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 14.5, textAlign: "right", marginTop: 2 }}>{provider.title}</Text>
           </View>
-        </LinearGradient>
+        </View>
 
-        <View style={{ padding: 20, gap: 24 }}>
+        {/* ─── Stats card (overlaps the hero) ─── */}
+        <View style={{ marginTop: -22, marginHorizontal: 16, flexDirection: "row-reverse", backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, paddingVertical: 14 }}>
+          {[
+            { k: "التقييم", v: `${provider.rating.toFixed(1)} ★`, sub: provider.reviewsCount > 0 ? `${provider.reviewsCount} تقييم` : "" },
+            { k: "الخبرة", v: `${provider.yearsExperience}`, sub: "سنة" },
+            { k: "المنطقة", v: govName, sub: "" },
+          ].map((c, i) => (
+            <View key={c.k} style={{ flex: 1, alignItems: "center", paddingHorizontal: 4, borderLeftWidth: i < 2 ? 1 : 0, borderLeftColor: t.border }}>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{c.k}</Text>
+              <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 17, marginTop: 3 }}>{c.v}</Text>
+              {c.sub ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>{c.sub}</Text> : null}
+            </View>
+          ))}
+        </View>
 
-          {/* Bio */}
+        {/* ─── Content ─── */}
+        <View style={{ paddingTop: 6, paddingHorizontal: 16, gap: 26 }}>
           {provider.bio ? (
             <View>
-              <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 8 }}>نبذة</Text>
-              <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 14, textAlign: "right", lineHeight: 24 }}>{provider.bio}</Text>
+              <Text style={heading}>نبذة</Text>
+              <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", lineHeight: 24 }}>{provider.bio}</Text>
             </View>
           ) : null}
 
-          {/* ─── آراء العملاء (زي الموقع) ─── */}
-          {reviews.length > 0 ? (
-            <View>
-              <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>
-                ⭐ آراء العملاء ({reviews.length})
-              </Text>
-              <View style={{ gap: 8 }}>
-                {reviews.map((r, i) => (
-                  <View key={i} style={{ backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
-                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 13 }}>{r.clientName}</Text>
-                      <Stars rating={r.rating} size={12} />
-                    </View>
-                    {r.text ? (
-                      <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "right", lineHeight: 22 }}>
-                        {r.text}
-                      </Text>
-                    ) : null}
-                  </View>
-                ))}
+          {!provider.available ? (
+            <View style={{ backgroundColor: t.card, borderRadius: 20, borderWidth: 1, borderColor: t.border, padding: 16, gap: 12 }}>
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                <MaterialCommunityIcons name="account-clock-outline" size={26} color={t.muted} />
+                <Text style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>غير متاح حالياً</Text>
               </View>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", lineHeight: 22 }}>
+                لا يمكن حجز {provider.name} الآن. اختر مقدم خدمة آخر متاح، أو اطلب خدمة سريعة وسنحدد لك مقدماً مناسباً.
+              </Text>
+              <GoldButton label="اختار مقدم آخر" icon="account-search" onPress={() => router.replace("/(tabs)")} />
+              <GoldButton label="طلب خدمة سريعة" icon="lightning-bolt" outline onPress={() => router.replace("/quick-request")} />
             </View>
           ) : null}
 
           {/* ─── اختيار الخدمة ─── */}
           <View>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>اختار الخدمة</Text>
+            <Text style={heading}>اختار الخدمة</Text>
             {provider.services.length === 0 ? (
-              <View style={{ gap: 12 }}>
-                <View style={{ backgroundColor: colors.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border, alignItems: "center", gap: 8 }}>
-                  <MaterialCommunityIcons name="clipboard-text-off-outline" size={30} color={colors.mutedForeground} />
-                  <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13, textAlign: "center" }}>
-                    لم يحدد خدماته بعد
-                  </Text>
+              <View style={{ gap: 10 }}>
+                <View style={{ backgroundColor: t.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.border, alignItems: "center", gap: 8 }}>
+                  <MaterialCommunityIcons name="clipboard-text-off-outline" size={30} color={t.muted} />
+                  <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "center" }}>لم يحدد خدماته بعد</Text>
                 </View>
-                <Pressable
-                  onPress={() => setSelectedService({ id: "direct", name: "حجز مباشر", description: "سيتم تحديد تفاصيل الخدمة والسعر", price: 0, durationLabel: "" })}
-                  style={({ pressed }) => {
-                    const isActive = selectedService?.id === "direct";
-                    return { flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 2, backgroundColor: isActive ? "#1C2B2A" : colors.card, borderColor: isActive ? "#C9A84C" : colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] };
-                  }}>
-                  {({ pressed: _p }) => {
-                    const isActive = selectedService?.id === "direct";
-                    return (
-                      <>
-                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.10)", borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.35)", alignItems: "center", justifyContent: "center" }}>
-                          <MaterialCommunityIcons name="calendar-check" size={22} color={isActive ? "#1C2B2A" : "#b8860b"} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>احجز مباشرًا</Text>
-                          <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>سيتم تحديد التفاصيل والسعر لاحقاً</Text>
-                        </View>
-                        <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C" : "transparent", alignItems: "center", justifyContent: "center" }}>
-                          {isActive ? <MaterialCommunityIcons name="check" size={13} color="#1C2B2A" /> : null}
-                        </View>
-                      </>
-                    );
-                  }}
-                </Pressable>
+                {serviceCard(
+                  "direct", "calendar-check", "احجز مباشرًا", "سيتم تحديد التفاصيل والسعر لاحقاً", null,
+                  !onlineSel && selectedService?.id === "direct",
+                  () => { setOnlineSel(false); setSelectedService({ id: "direct", name: "حجز مباشر", description: "سيتم تحديد تفاصيل الخدمة والسعر", price: 0, durationLabel: "" }); },
+                )}
               </View>
             ) : (
               <View style={{ gap: 8 }}>
-                {provider.services.map((svc) => {
-                  const isActive = selectedService?.id === svc.id;
-                  return (
-                    <Pressable key={svc.id} onPress={() => setSelectedService(svc)}
-                      style={({ pressed }) => ({ flexDirection: "row-reverse", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 2, backgroundColor: isActive ? "#1C2B2A" : colors.card, borderColor: isActive ? "#C9A84C" : colors.border, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
-                      <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.10)", borderWidth: 1.5, borderColor: isActive ? "#C9A84C" : "rgba(201,168,76,0.35)", alignItems: "center", justifyContent: "center" }}>
-                        <MaterialCommunityIcons name={serviceIcon(svc.name) as any} size={24} color={isActive ? "#1C2B2A" : "#b8860b"} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, textAlign: "right" }}>{svc.name}</Text>
-                        <Text style={{ color: isActive ? "#FFFFFF88" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "right", marginTop: 3 }}>{svc.description}</Text>
-                        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8, marginTop: 8 }}>
-                          <Text style={{ color: isActive ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 15 }}>{svc.price} ج.م</Text>
-                          {svc.durationLabel ? (
-                            <Text style={{ color: isActive ? "#FFFFFF66" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>⏱ {svc.durationLabel}</Text>
-                          ) : null}
-                        </View>
-                      </View>
-                      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isActive ? "#C9A84C" : colors.border, backgroundColor: isActive ? "#C9A84C" : "transparent", alignItems: "center", justifyContent: "center" }}>
-                        {isActive ? <MaterialCommunityIcons name="check" size={13} color="#1C2B2A" /> : null}
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                {provider.services.map((svc) =>
+                  serviceCard(
+                    svc.id, serviceIcon(svc.name) as IconName, svc.name,
+                    [svc.description, svc.durationLabel].filter(Boolean).join(" · "),
+                    `${svc.price} ج.م`,
+                    !onlineSel && selectedService?.id === svc.id,
+                    () => { setOnlineSel(false); setSelectedService(svc); },
+                  ),
+                )}
               </View>
             )}
+
+            {/* استشارة أونلاين: تحت الكشف المنزلي، ومربعات القنوات تظهر تحتها فورًا */}
+            {hasOnline ? (
+              <View style={{ marginTop: 8 }}>
+                {serviceCard(
+                  "online", "chat-processing-outline", "استشارة أونلاين", "للمتابعة · مش بديل عن الكشف",
+                  `من ${Math.min(...Object.values(chans).map((c) => c.price))} ج.م`,
+                  onlineSel,
+                  () => { setOnlineSel(true); setSelectedService(null); },
+                )}
+                {onlineSel ? (
+                  <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 8 }}>
+                    {([["chat", "شات", "chat-outline"], ["voice", "صوت", "phone-outline"], ["video", "فيديو", "video-outline"]] as const).map(([k, name, icon]) => {
+                      const info = chans[k];
+                      const live = k === "chat" ? true : rtc.enabled && rtc.available;
+                      if (!info) return null;
+                      const usable = live;
+                      const on = channel === k && usable;
+                      return (
+                        <Pressable key={k} disabled={!usable} onPress={() => setChannel(k)}
+                          style={{ flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: on ? t.gold : t.border, backgroundColor: on ? t.goldTint : t.card, opacity: usable ? 1 : 0.45 }}>
+                          <MaterialCommunityIcons name={icon} size={20} color={on ? t.goldText : t.muted} />
+                          <Text style={{ color: on ? t.text : t.muted, fontFamily: TJ.heavy, fontSize: 13, marginTop: 2 }}>{name}</Text>
+                          <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11, textAlign: "center" }}>
+                            {usable ? `${info.price} ج.م · ${info.dur} د` : !rtc.enabled ? "قريبًا" : "متوقف مؤقتًا"}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
+                {onlineSel && rtc.enabled && !rtc.available && (chans.voice || chans.video) ? (
+                  <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "right", marginTop: 6 }}>الصوت والفيديو متوقفان مؤقتًا. الشات متاح.</Text>
+                ) : null}
+              </View>
+            ) : null}
           </View>
 
           {/* ─── الموعد ─── */}
           <View>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>اختار الفترة</Text>
+            <Text style={heading}>اختار الفترة</Text>
             <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
-              {TIME_PERIODS.map((t) => (
-                <Pressable key={t} onPress={() => setSelectedTime(t)}
-                  style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, backgroundColor: selectedTime === t ? "#1C2B2A" : colors.card, borderColor: selectedTime === t ? "#C9A84C" : colors.border }}>
-                  <Text style={{ color: selectedTime === t ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 13 }}>{t}</Text>
+              {TIME_PERIODS.map((p) => (
+                <Pressable key={p} onPress={() => setSelectedTime(p)} style={chip(selectedTime === p)}>
+                  <Text style={chipText(selectedTime === p)}>{p}</Text>
                 </Pressable>
               ))}
             </View>
-
             {/* اختيار اليوم — يظهر بس لو مش "أسرع وقت ممكن" */}
             {selectedTime !== TIME_PERIODS[0] ? (
-              <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row-reverse", gap: 8, marginTop: 12 }}>
                 {days.map((d, i) => (
-                  <Pressable key={d.key} onPress={() => setSelectedDay(i)}
-                    style={{ alignItems: "center", padding: 12, borderRadius: 14, minWidth: 72, borderWidth: 2, backgroundColor: selectedDay === i ? "#1C2B2A" : colors.card, borderColor: selectedDay === i ? "#C9A84C" : colors.border }}>
-                    <Text style={{ color: selectedDay === i ? "#C9A84C" : colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 11 }}>{d.label}</Text>
-                    <Text style={{ color: selectedDay === i ? "#FFFFFF" : colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 14, marginTop: 4 }}>{d.sub}</Text>
+                  <Pressable key={d.key} onPress={() => setSelectedDay(i)} style={[chip(selectedDay === i), { alignItems: "center", minWidth: 72 }]}>
+                    <Text style={{ color: selectedDay === i ? t.gold : t.muted, fontFamily: TJ.medium, fontSize: 11.5 }}>{d.label}</Text>
+                    <Text style={{ color: selectedDay === i ? t.gold : t.text, fontFamily: TJ.heavy, fontSize: 14, marginTop: 2 }}>{d.sub}</Text>
                   </Pressable>
                 ))}
-              </View>
+              </ScrollView>
             ) : null}
           </View>
 
           {/* ─── طريقة الدفع ─── */}
           <View>
-            <Text style={{ color: colors.foreground, fontFamily: "Cairo_700Bold", fontSize: 16, textAlign: "right", marginBottom: 12 }}>طريقة الدفع</Text>
+            <Text style={heading}>{onlineSel ? "طريقة الدفع (محفظة أو إنستاباي)" : "طريقة الدفع"}</Text>
             <View style={{ flexDirection: "row-reverse", gap: 8 }}>
-              {PAYMENT_METHODS.map((opt) => (
-                <Pressable key={opt.id} onPress={() => setPaymentMethod(opt.id)}
-                  style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 12, borderRadius: 14, borderWidth: 2, backgroundColor: paymentMethod === opt.id ? "#1C2B2A" : colors.card, borderColor: paymentMethod === opt.id ? "#C9A84C" : colors.border }}>
-                  <MaterialCommunityIcons name={opt.icon as any} size={20} color={paymentMethod === opt.id ? "#C9A84C" : colors.mutedForeground} />
-                  <Text style={{ color: paymentMethod === opt.id ? "#C9A84C" : colors.foreground, fontFamily: "Cairo_600SemiBold", fontSize: 12, textAlign: "center" }}>{opt.name}</Text>
-                </Pressable>
-              ))}
+              {PAYMENT_METHODS.filter((o) => !onlineSel || o.id !== "cash").map((opt) => {
+                const active = paymentMethod === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setPaymentMethod(opt.id)}
+                    style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 14, paddingHorizontal: 6, borderRadius: 16, borderWidth: 1.5, backgroundColor: active ? t.selected : t.card, borderColor: active ? t.gold : t.border }}
+                  >
+                    <MaterialCommunityIcons name={opt.icon as IconName} size={20} color={active ? t.gold : t.muted} />
+                    <Text style={{ color: active ? t.gold : t.text, fontFamily: TJ.bold, fontSize: 12.5, textAlign: "center" }}>{opt.name}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
+          {reviews.length > 0 ? (
+            <View>
+              <Text style={heading}>آراء العملاء ({reviews.length}) ★</Text>
+              <View style={{ gap: 8 }}>
+                {visibleReviews.map((r, i) => (
+                  <View key={i} style={{ backgroundColor: t.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: t.border }}>
+                    <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14 }}>{r.clientName}</Text>
+                      <Text style={{ color: t.goldText, fontSize: 12, letterSpacing: 1 }}>{"★".repeat(Math.max(0, Math.min(5, Math.round(r.rating))))}</Text>
+                    </View>
+                    {r.text ? (
+                      <Text style={{ color: t.text2, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", lineHeight: 21, marginTop: 4 }}>{r.text}</Text>
+                    ) : null}
+                  </View>
+                ))}
+                {!showAllReviews && reviews.length > REVIEWS_PREVIEW ? (
+                  <Pressable onPress={() => setShowAllReviews(true)} style={{ height: 46, borderRadius: 14, borderWidth: 1.5, borderColor: t.gold, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 14 }}>عرض المزيد ({Math.min(reviews.length, REVIEWS_MAX) - REVIEWS_PREVIEW})</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
 
         </View>
-        </ScreenContainer>
+        </Animated.View>
       </ScrollView>
 
-      {/* ─── Sticky Book Button ─── */}
-      <View style={{ padding: 20, paddingBottom: insets.bottom + 16, backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.border }}>
-        {selectedService ? (
-          <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13 }}>الإجمالي</Text>
-            {selectedService.price > 0
-              ? <Text style={{ color: "#C9A84C", fontFamily: "Cairo_700Bold", fontSize: 22 }}>{selectedService.price} ج.م</Text>
-              : <Text style={{ color: colors.mutedForeground, fontFamily: "Cairo_400Regular", fontSize: 13 }}>يحدد لاحقاً</Text>
-            }
-          </View>
-        ) : null}
-        <PrimaryButton
-          label={submitting ? "جاري الحجز..." : "تأكيد الحجز"}
-          icon={submitting ? undefined : "calendar-check"}
-          loading={submitting}
-          disabled={!selectedService || !paymentMethod}
+      {/* ─── Fixed footer ─── */}
+      <BlurView intensity={40} tint={t.isDark ? "dark" : "light"} style={{ position: "absolute", left: 0, right: 0, bottom: 0, paddingTop: 12, paddingHorizontal: 16, paddingBottom: insets.bottom + 18, backgroundColor: glassBg, borderTopWidth: 1, borderTopColor: t.border }}>
+        <Pressable
           onPress={handleBook}
-        />
-      </View>
+          disabled={submitting || !provider.available}
+          style={{ height: 54, borderRadius: 18, backgroundColor: t.gold, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, opacity: ready && !submitting ? 1 : 0.45 }}
+        >
+          <MaterialCommunityIcons name={onlineSel ? "chat-processing-outline" : "calendar-check"} size={20} color={t.onGold} />
+          <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 17 }}>
+            {!provider.available ? "غير متاح حالياً" : submitting ? "جاري الحجز..." : `احجز مع ${provider.serviceType === "doctor" && !provider.name.startsWith("د") ? `د. ${provider.name}` : provider.name} الآن`}
+          </Text>
+        </Pressable>
+      </BlurView>
+
+      <Modal visible={consent} transparent animationType="fade" onRequestClose={() => setConsent(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,.6)", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <View style={{ backgroundColor: t.bg, borderRadius: 24, padding: 22, width: "100%", maxWidth: 380 }}>
+            <Text style={{ color: t.text2, fontFamily: TJ.bold, fontSize: 15, lineHeight: 25, textAlign: "center" }}>
+              الاستشارة الأونلاين للمتابعة فقط وليست بديلًا عن الكشف.
+            </Text>
+            <Pressable onPress={bookConsultation} disabled={submitting} style={{ height: 52, borderRadius: 16, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", marginTop: 18 }}>
+              {submitting ? <ActivityIndicator color={t.onGold} /> : <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>تأكيد ومتابعة</Text>}
+            </Pressable>
+            <Pressable onPress={() => setConsent(false)} style={{ alignItems: "center", paddingTop: 14 }}>
+              <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>رجوع</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -33,8 +33,21 @@
       },
       "env": {
         "APP_VARIANT": "mizotest",
-        "EXPO_PUBLIC_SUPABASE_URL": "https://omsictbrqlsohrmxeuym.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tc2ljdGJycWxzb2hybXhldXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTc1NzcsImV4cCI6MjA5NTI5MzU3N30.tbFL_7mWZ6qVUtgFkagfSwWdgni5JKRuCR8nbwqIqho",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dmyxxreescjwdpkdeqan.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRteXh4cmVlc2Nqd2Rwa2RlcWFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMDMyNjUsImV4cCI6MjEwNjY3OTI2NX0.h9tJO-Qlt7oTx6K2YhQ6WBxNFlhnQxZr8OK9DvyafOo",
+        "EXPO_PUBLIC_VODAFONE_CASH": "01039091989"
+      }
+    },
+    "mizo-provider": {
+      "distribution": "internal",
+      "channel": "mizo-provider",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "mizoprovider",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dmyxxreescjwdpkdeqan.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRteXh4cmVlc2Nqd2Rwa2RlcWFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMDMyNjUsImV4cCI6MjEwNjY3OTI2NX0.h9tJO-Qlt7oTx6K2YhQ6WBxNFlhnQxZr8OK9DvyafOo",
         "EXPO_PUBLIC_VODAFONE_CASH": "01039091989"
       }
     },
@@ -46,7 +59,7 @@
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tc2ljdGJycWxzb2hybXhldXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTc1NzcsImV4cCI6MjA5NTI5MzU3N30.tbFL_7mWZ6qVUtgFkagfSwWdgni5JKRuCR8nbwqIqho",
         "EXPO_PUBLIC_VODAFONE_CASH": "01039091989",
         "FACEBOOK_APP_ID": "1793244008351742",
-        "FACEBOOK_CLIENT_TOKEN": "YOUR_CLIENT_TOKEN_HERE"
+        "FACEBOOK_CLIENT_TOKEN": "014c33fb723a3c5fa6d1f32e3a99372d"
       }
     },
     "production-apk": {
@@ -60,7 +73,46 @@
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tc2ljdGJycWxzb2hybXhldXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTc1NzcsImV4cCI6MjA5NTI5MzU3N30.tbFL_7mWZ6qVUtgFkagfSwWdgni5JKRuCR8nbwqIqho",
         "EXPO_PUBLIC_VODAFONE_CASH": "01039091989",
         "FACEBOOK_APP_ID": "1793244008351742",
-        "FACEBOOK_CLIENT_TOKEN": "YOUR_CLIENT_TOKEN_HERE"
+        "FACEBOOK_CLIENT_TOKEN": "014c33fb723a3c5fa6d1f32e3a99372d"
+      }
+    },
+    "mizo-test-ios": {
+      "distribution": "store",
+      "channel": "mizo-test",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "APP_VARIANT": "mizotest",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dmyxxreescjwdpkdeqan.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRteXh4cmVlc2Nqd2Rwa2RlcWFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMDMyNjUsImV4cCI6MjEwNjY3OTI2NX0.h9tJO-Qlt7oTx6K2YhQ6WBxNFlhnQxZr8OK9DvyafOo",
+        "EXPO_PUBLIC_VODAFONE_CASH": "01039091989"
+      }
+    },
+    "mizo-provider-ios": {
+      "distribution": "store",
+      "channel": "mizo-provider",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "APP_VARIANT": "mizoprovider",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dmyxxreescjwdpkdeqan.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRteXh4cmVlc2Nqd2Rwa2RlcWFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMDMyNjUsImV4cCI6MjEwNjY3OTI2NX0.h9tJO-Qlt7oTx6K2YhQ6WBxNFlhnQxZr8OK9DvyafOo",
+        "EXPO_PUBLIC_VODAFONE_CASH": "01039091989"
+      }
+    },
+    "mizo-test-sim": {
+      "distribution": "internal",
+      "channel": "mizo-test",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "APP_VARIANT": "mizotest",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dmyxxreescjwdpkdeqan.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRteXh4cmVlc2Nqd2Rwa2RlcWFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMDMyNjUsImV4cCI6MjEwNjY3OTI2NX0.h9tJO-Qlt7oTx6K2YhQ6WBxNFlhnQxZr8OK9DvyafOo",
+        "EXPO_PUBLIC_VODAFONE_CASH": "01039091989"
       }
     }
   }

@@ -1,16 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  ViewStyle,
-  TextStyle,
-} from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View, ViewStyle, TextStyle } from "react-native";
+import { Text } from "@/components/i18n";
 
 import { useColors } from "@/hooks/useColors";
 

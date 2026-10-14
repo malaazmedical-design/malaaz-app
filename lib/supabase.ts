@@ -52,8 +52,10 @@ export type DbProvider = {
   id: string;
   user_id: string | null;
   name: string;
+  name_en?: string | null;
   email: string | null;
   phone: string | null;
+  whatsapp?: string | null;
   service_type: string;
   specialty: string | null;
   grade: string | null;
@@ -94,6 +96,7 @@ export type DbBooking = {
   patient_email: string | null;
   client_id: string | null;
   on_way_at: string | null;
+  cancel_reason?: string | null;
   created_at: string;
 };
 
@@ -186,6 +189,7 @@ export type DbProviderService = {
   provider_id: string;
   sub_service_id: string;
   custom_price: number | null;
+  duration_min?: number | null;
   is_active: boolean;
 };
 
@@ -194,6 +198,72 @@ export type DbCoverageArea = {
   city: string;
   name: string;
   is_active: boolean;
+  created_at: string;
+};
+
+export type DbAskDoctorCase = {
+  id: string;
+  case_number: string | null;
+  client_id: string | null;
+  patient_name: string | null;
+  patient_phone: string | null;
+  message: string;
+  intent: "symptoms" | "specialty" | "file_review" | "location_search" | "unknown";
+  suggested_specialty: string | null;
+  location: string | null;
+  urgency_flag: boolean;
+  // new = تم الإرسال (عند الأدمن) · routed = موجّه لتخصص · answered = تم الرد · cancelled
+  status: "new" | "routed" | "answered" | "cancelled" | string;
+  assigned_doctor_id: string | null;
+  communication_type: "chat" | "voice" | "video" | null;
+  routed_specialty: string | null;
+  routed_at: string | null;
+  answer: string | null;
+  answered_at: string | null;
+  edited_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// صف صندوق أسئلة الدكتور (RPC ask_doctor_inbox) — من غير بيانات تواصل المريض
+export type AskInboxRow = {
+  id: string;
+  case_number: string | null;
+  message: string;
+  routed_specialty: string | null;
+  urgency_flag: boolean;
+  status: string;
+  created_at: string;
+  answer: string | null;
+  answered_at: string | null;
+  mine: boolean;
+  attachments: number;
+};
+
+export type AskCaseDoctor = {
+  provider_id: string;
+  name: string;
+  specialty: string | null;
+  grade: string | null;
+  photo_url: string | null;
+  online_price: number | null;
+  visit_price: number | null;
+};
+
+export type DbAskDoctorMessage = {
+  id: string;
+  case_id: string;
+  sender_id: string;
+  sender_type: "patient" | "doctor" | "system";
+  content: string;
+  created_at: string;
+};
+
+export type DbAskDoctorAttachment = {
+  id: string;
+  case_id: string;
+  storage_path: string;
+  file_type: string;
   created_at: string;
 };
 
@@ -214,6 +284,9 @@ export type OfferDetails = {
   area: string | null;
   appointment_time: string | null;
   distance_km: number | null;
+  // test project only (09_quick_request_routing.sql): the price this provider would get + payment method
+  price?: number | null;
+  payment_method?: string | null;
 };
 
 export type DbClient = {
@@ -225,4 +298,58 @@ export type DbClient = {
   whatsapp: string | null;
   email: string | null;
   created_at: string;
+  // test project only (see supabase/test-project/05_new_columns.sql)
+  birth_date?: string | null;
+  gender?: "male" | "female" | null;
+};
+
+// ─── استشارة أونلاين (شات) ───
+export type DbConsultation = {
+  id: string;
+  case_number: string | null;
+  client_id: string;
+  provider_id: string;
+  client_name: string | null;
+  channel: "chat" | "voice" | "video";
+  price: number;
+  duration_min: number;
+  period_date: string;
+  period: "morning" | "noon" | "evening" | "asap";
+  pay_method: "wallet" | "instapay" | null;
+  pay_status: "pending" | "paid" | "cancelled";
+  doctor_status: "pending" | "accepted" | "declined" | "expired";
+  cancel_reason: string | null;
+  pay_deadline: string | null;
+  paid_at: string | null;
+  prop_at: string | null;
+  prop_status: "none" | "pending" | "ok" | "no" | "handled";
+  appt_at: string | null;
+  state: "wait" | "live" | "ended";
+  started_at: string | null;
+  opened_at: string | null;
+  ended_at: string | null;
+  extra_min: number;
+  client_in_at: string | null;
+  no_show: boolean;
+  refunded: boolean;
+  sum_note: string | null;
+  sum_recs: string | null;
+  sum_follow: "none" | "week" | "two" | "month";
+  sum_at: string | null;
+  rating: number | null;
+  rating_text: string | null;
+  rating_ok: boolean;
+  created_at: string;
+};
+
+export type DbConsultMessage = {
+  id: string;
+  consultation_id: string;
+  sender: "c" | "d";
+  body: string | null;
+  file_path: string | null;
+  file_name: string | null;
+  created_at: string;
+  edited_at?: string | null;
+  deleted_at?: string | null;
 };

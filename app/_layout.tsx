@@ -14,6 +14,12 @@ import {
   Cairo_700Bold,
 } from "@expo-google-fonts/cairo";
 import {
+  Tajawal_400Regular,
+  Tajawal_500Medium,
+  Tajawal_700Bold,
+  Tajawal_800ExtraBold,
+} from "@expo-google-fonts/tajawal";
+import {
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
@@ -22,18 +28,25 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
+import { applyStoredTheme } from "@/constants/malazTheme";
+import { loadEnglishNames, loadLang, patchAlert } from "@/lib/i18n";
+import { captureInstallAttribution, syncAttribution } from "@/lib/attribution";
+import { useOnReconnect } from "@/lib/reconnect";
+import { routeForNotification } from "@/lib/notificationRoute";
 import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Updates from "expo-updates";
 import React, { useEffect, useRef, useState } from "react";
-import { AppState, Platform, Text, TouchableOpacity } from "react-native";
+import { Alert, AppState, Platform, TouchableOpacity, View } from "react-native";
+import { Text } from "@/components/i18n";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AnimatedSplash } from "@/components/AnimatedSplash";
+import { LogoIntro } from "@/components/LogoIntro";
+import { IS_PROVIDER_APP } from "@/lib/appVariant";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { AppProvider } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
@@ -74,6 +87,14 @@ function RootLayoutNav() {
         options={{ headerShown: false, presentation: "card", animation: "slide_from_right" }}
       />
       <Stack.Screen
+        name="auth-callback"
+        options={{ headerShown: false, animation: "none" }}
+      />
+      <Stack.Screen
+        name="edit-profile"
+        options={{ headerShown: false, presentation: "card", animation: "slide_from_right" }}
+      />
+      <Stack.Screen
         name="quick-request"
         options={{ headerShown: false, presentation: "card", animation: "slide_from_bottom" }}
       />
@@ -89,6 +110,7 @@ function RootLayoutNav() {
         name="provider-portal"
         options={{ headerShown: false, animation: "slide_from_left" }}
       />
+      <Stack.Screen name="legal" options={{ headerShown: false, animation: "slide_from_left" }} />
       <Stack.Screen
         name="client-auth"
         options={{ headerShown: false, presentation: "modal", animation: "slide_from_bottom" }}
@@ -105,6 +127,11 @@ function RootLayoutNav() {
         name="reset-password"
         options={{ headerShown: false, presentation: "modal", animation: "slide_from_bottom" }}
       />
+      <Stack.Screen
+        name="ask-doctor"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen name="consult" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -113,9 +140,18 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
     Cairo_400Regular, Cairo_500Medium, Cairo_600SemiBold, Cairo_700Bold,
+    Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold,
   });
   // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
+  useEffect(() => { applyStoredTheme(); patchAlert(); loadLang(); loadEnglishNames(); }, []);
+  useOnReconnect(loadEnglishNames);
+  // مصدر التثبيت: نقراه أول فتح، ونبعته أول ما يبقى فيه مستخدم مسجّل دخول
+  useEffect(() => {
+    captureInstallAttribution().then(() => supabase.auth.getSession()).then(({ data }) => { if (data.session) syncAttribution(); }).catch(() => {});
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { if (session) syncAttribution(); });
+    return () => sub.subscription.unsubscribe();
+  }, []);
   const [updateReady, setUpdateReady] = useState(false);
   const updateReadyRef = useRef(false);
 
@@ -135,23 +171,24 @@ export default function RootLayout() {
     return () => clearTimeout(fallback);
   }, [fontsLoaded, fontError]);
 
-  // فتح شاشة الحجوزات لما المستخدم يضغط على أي إشعار
+  // فتح الشاشة المناسبة لما المستخدم يضغط على إشعار (والتطبيق شغّال، أو كان مقفول وفتحه الإشعار)
+  // على الويب الإشعارات المحلية مش مدعومة (الدالة بترمي خطأ) — Platform.OS ثابت طول عمر التطبيق فمفيش مشكلة في ترتيب الـ hooks
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const lastResponse = Platform.OS === "web" ? null : Notifications.useLastNotificationResponse();
+  const handledResponseId = useRef<string | null>(null);
   useEffect(() => {
-    if (Platform.OS === "web") return;
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
-      if (data?.type === "medicine") {
-        router.push("/medicines");
-      } else if (data?.type === "OFFER_INSERT") {
-        router.push("/provider-portal");
-      } else {
-        router.push("/(tabs)/bookings");
-      }
-    });
-    return () => sub.remove();
-  }, []);
+    if (Platform.OS === "web" || !lastResponse) return;
+    const id = lastResponse.notification.request.identifier + ":" + lastResponse.notification.date;
+    if (handledResponseId.current === id) return;
+    handledResponseId.current = id;
+    const data = lastResponse.notification.request.content.data as Record<string, unknown> | undefined;
+    // مهلة صغيرة عشان الـ navigation يكون جاهز لو التطبيق لسه بيفتح
+    const t = setTimeout(() => routeForNotification(data), 600);
+    return () => clearTimeout(t);
+  }, [lastResponse]);
 
-  // فحص OTA تلقائي — ينزّل التحديث وبعد كده يطبّقه لما التطبيق يروح الخلفية
+  // فحص OTA تلقائي — ينزّل التحديث ويتطبّق عند أول فتح بعد قفل التطبيق خالص.
+  // مفيش reloadAsync() وإحنا شغّالين: على الأندرويد (New Architecture) بيسيب شاشة بيضا.
   useEffect(() => {
     if (Platform.OS === "web" || !Updates.isEnabled) return;
 
@@ -162,18 +199,12 @@ export default function RootLayout() {
         await Updates.fetchUpdateAsync();
         updateReadyRef.current = true;
         setUpdateReady(true);
-        // لو التطبيق في الخلفية دلوقت، نطبّق فوراً
-        if (AppState.currentState !== "active") {
-          Updates.reloadAsync().catch(() => {});
-        }
       } catch {}
     };
 
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active" && !updateReadyRef.current) {
         checkUpdate();
-      } else if (state === "background" && updateReadyRef.current) {
-        Updates.reloadAsync().catch(() => {});
       }
     });
 
@@ -184,6 +215,22 @@ export default function RootLayout() {
   // معالجة deep link لإعادة تعيين كلمة المرور
   useEffect(() => {
     const handleUrl = async (url: string) => {
+      // Google sign-in comes back here with the session tokens in the URL fragment
+      if (url.includes("auth-callback")) {
+        try {
+          const fragment = new URLSearchParams(url.split("#")[1] ?? "");
+          const query = new URLSearchParams(url.split("?")[1]?.split("#")[0] ?? "");
+          const accessToken = fragment.get("access_token");
+          const refreshToken = fragment.get("refresh_token");
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          } else {
+            const reason = fragment.get("error_description") ?? query.get("error_description");
+            if (reason) Alert.alert("تعذّر الدخول بجوجل", reason.replace(/\+/g, " "));
+          }
+        } catch {}
+        return;
+      }
       if (!url.includes("reset-password")) return;
       try {
         // PKCE flow (Supabase v2 default): ?code=XXX in query string
@@ -224,10 +271,10 @@ export default function RootLayout() {
               <AppProvider>
                 <OfflineBanner />
                 <RootLayoutNav />
-                {!introDone ? <AnimatedSplash onDone={() => setIntroDone(true)} /> : null}
+                {!introDone ? <LogoIntro provider={IS_PROVIDER_APP} onDone={() => setIntroDone(true)} /> : null}
                 {updateReady && introDone ? (
                   <TouchableOpacity
-                    onPress={() => Updates.reloadAsync().catch(() => {})}
+                    onPress={() => setUpdateReady(false)}
                     style={{
                       position: "absolute",
                       bottom: 90,
@@ -246,7 +293,7 @@ export default function RootLayout() {
                     }}
                   >
                     <Text style={{ color: "#1C2B2A", fontFamily: "Cairo_700Bold", fontSize: 15 }}>
-                      ✦ تحديث جديد متاح — اضغط للتحديث الآن
+                      ✦ نزل تحديث جديد — هيتفعّل لما تقفل التطبيق وتفتحه
                     </Text>
                   </TouchableOpacity>
                 ) : null}

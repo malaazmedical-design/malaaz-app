@@ -1,0 +1,642 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, KeyboardAvoidingView, LayoutAnimation, Platform, Pressable, ScrollView, UIManager, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { Toggle } from "@/components/account/AccountUI";
+import { PText, PriceSlider, SearchableSelect, useCheckBurst } from "@/components/provider/PUI";
+import { FALLBACK_SPECIALTIES, gradeLabelFor, gradesFor, priceRangeFor } from "@/lib/providerLists";
+import { TJ, useMalaz } from "@/constants/malazTheme";
+import { useProvider } from "@/contexts/ProviderContext";
+import { supabase } from "@/lib/supabase";
+
+import { locale } from "@/lib/i18n";
+const DARK = "#1C2B2A";
+const GOLD = "#C9A84C";
+
+
+const TYPE_LABEL: Record<string, string> = { "كشف منزلي": "كشف منزلي", "تمريض منزلي": "تمريض منزلي", "أشعة منزلية": "أشعة منزلية" };
+
+export default function ProviderProfileScreen() {
+  const t = useMalaz();
+  const burst = useCheckBurst();
+  const [micOn, setMicOn] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { provider, areas, subServices, myServices, saveProfile, saveMyServices, logout } = useProvider();
+
+  const [name, setName] = useState("");
+  const [nameEn, setNameEn] = useState("");
+  const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [exp, setExp] = useState("");
+  const [bio, setBio] = useState("");
+  const [price, setPrice] = useState("");
+  const [serviceType, setServiceType] = useState("كشف منزلي");
+  const [grade, setGrade] = useState("");
+  const [specialty, setSpecialty] = useState<string | null>(null);
+  const [visitPrice, setVisitPrice] = useState<number | null>(null);
+  const [visitOn, setVisitOn] = useState(true);
+  const [expanded, setExpanded] = useState<null | string>(null); // "visit" | "online" | a nursing/radiology sub-service id
+  const [svcSaving, setSvcSaving] = useState(false);
+  const [onlineOn, setOnlineOn] = useState(false);
+  const [onlinePrice, setOnlinePrice] = useState<number | null>(null);
+  const [onlineDur, setOnlineDur] = useState(15);
+  // خدمات التمريض/الأشعة: { subServiceId: { on, price } }
+  const [otherSvc, setOtherSvc] = useState<Record<string, { on: boolean; price: number | null }>>({});
+  // voice / video channels (provider_channels): own price + length per channel
+  type Chan = { on: boolean; price: number | null; dur: number };
+  const [chan, setChan] = useState<Record<"voice" | "video", Chan>>({ voice: { on: false, price: null, dur: 15 }, video: { on: false, price: null, dur: 15 } });
+  useEffect(() => {
+    if (!provider?.id) return;
+    supabase.from("provider_channels").select("*").eq("provider_id", provider.id).then(({ data }) => {
+      if (!data) return;
+      setChan((cur) => {
+        const next = { ...cur };
+        for (const r of data as any[]) if (r.channel === "voice" || r.channel === "video") next[r.channel as "voice" | "video"] = { on: !!r.is_active, price: Number(r.price), dur: r.duration_min ?? 15 };
+        return next;
+      });
+    });
+  }, [provider?.id]);
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [areaSearch, setAreaSearch] = useState("");
+  const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!provider) return;
+    setName(provider.name ?? "");
+    setNameEn(provider.name_en ?? "");
+    setPhone(provider.phone ?? "");
+    setWhatsapp(provider.whatsapp ?? "");
+    setExp(provider.experience ? String(provider.experience) : "");
+    setBio(provider.bio ?? "");
+    setPrice(provider.price ? String(provider.price) : "");
+    setServiceType(provider.service_type ?? "كشف منزلي");
+    setGrade(provider.grade && gradesFor(provider.service_type).includes(provider.grade) ? provider.grade : "");
+    setSpecialty(provider.specialty ?? null);
+    setPhotoUrl(provider.photo_url ?? null);
+    const saved = (provider.areas ?? provider.area ?? "").split(",").map((a) => a.trim()).filter(Boolean);
+    setSelectedAreas(saved);
+    // المحافظات بتفضل مقفولة؛ عدّاد "المحدد/الكل" على كل محافظة بيوضح اللي اخترته من غير ما نفتحها
+  }, [provider, areas]);
+
+  // تخصصات الكشف المنزلي من sub_services (نفس مصدر الموقع)
+  const specialties = useMemo(
+    () => subServices.filter((s) => s.service_name === "كشف منزلي" && s.group_name === "specialty"),
+    [subServices]
+  );
+
+  // أسعار الدكتور: سعر الكشف المنزلي للتخصص المختار + الاستشارة الأونلاين، داخل نطاق الأدمن للدرجة
+  const specialtyRow = useMemo(
+    () => subServices.find((x) => x.service_name === "كشف منزلي" && x.group_name === "specialty" && x.name === specialty),
+    [subServices, specialty],
+  );
+  const onlineRow = useMemo(
+    () => subServices.find((x) => x.service_name === "كشف منزلي" && x.group_name === "online"),
+    [subServices],
+  );
+  const visitRange = useMemo(() => priceRangeFor(specialtyRow, grade), [specialtyRow, grade]);
+  const onlineRange = useMemo(() => priceRangeFor(onlineRow, grade), [onlineRow, grade]);
+  const clampTo = (v: number | null, r: { min: number; max: number }) => (v == null ? r.min : Math.min(r.max, Math.max(r.min, v)));
+
+  // التمريض / الأشعة: كارت لكل خدمة من sub_services، السعر داخل نطاق الأدمن
+  const otherRows = useMemo(
+    () => (serviceType === "كشف منزلي" ? [] : subServices.filter((x) => x.service_name === serviceType && x.group_name !== "grade" && x.is_active)),
+    [subServices, serviceType],
+  );
+  const otherInit = useRef(false);
+  useEffect(() => {
+    if (otherInit.current || otherRows.length === 0) return;
+    otherInit.current = true;
+    const init: Record<string, { on: boolean; price: number | null }> = {};
+    for (const r of otherRows) {
+      const m = myServices.find((x) => x.sub_service_id === r.id);
+      init[r.id] = { on: !!m, price: m?.custom_price ?? null };
+    }
+    setOtherSvc(init);
+  }, [otherRows, myServices]);
+
+  // القيم المحفوظة: أول مرة بس
+  const pricesInit = useRef(false);
+  useEffect(() => {
+    if (pricesInit.current || !specialtyRow) return;
+    pricesInit.current = true;
+    const mine = myServices.find((m) => m.sub_service_id === specialtyRow.id);
+    setVisitPrice(mine?.custom_price ?? null);
+    setVisitOn(!!mine || myServices.length === 0);
+    const on = onlineRow ? myServices.find((m) => m.sub_service_id === onlineRow.id) : undefined;
+    setOnlineOn(!!on);
+    setOnlinePrice(on?.custom_price ?? null);
+    setOnlineDur(on?.duration_min ?? 15);
+  }, [specialtyRow, onlineRow, myServices]);
+
+  // تجميع المناطق حسب المحافظة مع دعم البحث
+  const groupedAreas = useMemo(() => {
+    const q = areaSearch.trim();
+    const filtered = q
+      ? areas.filter((a) => a.name.includes(q) || a.city.includes(q))
+      : areas;
+    const map = new Map<string, typeof areas>();
+    for (const a of filtered) {
+      if (!map.has(a.city)) map.set(a.city, []);
+      map.get(a.city)!.push(a);
+    }
+    return map;
+  }, [areas, areaSearch]);
+
+  const toggleCity = (city: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCities((prev) => {
+      const next = new Set(prev);
+      next.has(city) ? next.delete(city) : next.add(city);
+      return next;
+    });
+  };
+
+  const toggleAllInCity = (city: string, cityAreas: typeof areas) => {
+    const names = cityAreas.map((a) => a.name);
+    const allSelected = names.every((n) => selectedAreas.includes(n));
+    if (allSelected) {
+      setSelectedAreas((prev) => prev.filter((a) => !names.includes(a)));
+    } else {
+      setSelectedAreas((prev) => [...new Set([...prev, ...names])]);
+    }
+  };
+
+  const pickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets?.[0] || !provider) return;
+
+    setUploading(true);
+    try {
+      // الجلسة ممكن تبقى انتهت/فقدت من غير ما تظهر في الواجهة — تحقق قبل الرفع
+      // لأن غيرها بيوصل خطأ RLS مش مفهوم بدل رسالة واضحة
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        Alert.alert("انتهت الجلسة", "سجّل دخولك تاني وحاول من جديد");
+        await logout();
+        router.replace("/provider-portal/login");
+        return;
+      }
+
+      const asset = result.assets[0];
+      const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
+      const fileName = `${provider.id}-${Date.now()}.${ext}`;
+      const response = await fetch(asset.uri);
+      const blob = await response.arrayBuffer();
+
+      const { error } = await supabase.storage
+        .from("provider-photos")
+        .upload(fileName, blob, { upsert: true, contentType: asset.mimeType ?? "image/jpeg" });
+      if (error) throw new Error(error.message);
+
+      const { data } = supabase.storage.from("provider-photos").getPublicUrl(fileName);
+      setPhotoUrl(data.publicUrl);
+      Alert.alert("تم", "✅ تم رفع الصورة — اضغط حفظ لتأكيد");
+    } catch (e: any) {
+      Alert.alert("خطأ", "تعذر رفع الصورة: " + (e.message ?? ""));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const toggleArea = (areaName: string) => {
+    setSelectedAreas((prev) =>
+      prev.includes(areaName) ? prev.filter((a) => a !== areaName) : [...prev, areaName]
+    );
+  };
+
+  // Doctor services: home visit (their specialty) + online consultation with its channels. Also used by each card's own "حفظ".
+  const saveDoctorServices = async () => {
+    if (!specialtyRow) return;
+    const rows: { sub_service_id: string; custom_price: number; duration_min?: number }[] = [];
+    if (visitOn) rows.push({ sub_service_id: specialtyRow.id, custom_price: clampTo(visitPrice, visitRange) });
+    if (onlineRow && onlineOn) rows.push({ sub_service_id: onlineRow.id, custom_price: clampTo(onlinePrice, onlineRange), duration_min: onlineDur });
+    await saveMyServices(rows);
+    // voice / video: saved only together with an active online consultation, otherwise switched off
+    for (const k of ["voice", "video"] as const) {
+      const ch = chan[k];
+      if (provider?.id && onlineOn && ch.on) {
+        const { error } = await supabase.from("provider_channels").upsert(
+          { provider_id: provider.id, channel: k, price: clampTo(ch.price, onlineRange), duration_min: ch.dur, is_active: true, updated_at: new Date().toISOString() },
+          { onConflict: "provider_id,channel" },
+        );
+        if (error) throw new Error(error.message);
+      } else if (provider?.id) {
+        await supabase.from("provider_channels").delete().eq("provider_id", provider.id).eq("channel", k);
+      }
+    }
+  };
+
+  // Nursing / radiology services: the ones switched on, each with its price inside the admin range
+  const saveOtherServices = async () => {
+    const rows = otherRows
+      .filter((r) => otherSvc[r.id]?.on)
+      .map((r) => ({ sub_service_id: r.id, custom_price: clampTo(otherSvc[r.id].price, priceRangeFor(r, grade)) }));
+    await saveMyServices(rows);
+  };
+
+  const saveCard = async () => {
+    setSvcSaving(true);
+    try { await (isDoctor ? saveDoctorServices() : saveOtherServices()); setExpanded(null); burst.show("تم حفظ الخدمة"); }
+    catch (e: any) { Alert.alert("خطأ", e.message ?? "تعذر الحفظ"); }
+    finally { setSvcSaving(false); }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) { Alert.alert("تنبيه", "أدخل اسمك"); return; }
+    if (!/^01[0125]\d{8}$/.test(phone.trim())) { Alert.alert("تنبيه", "رقم الموبايل لازم يكون مصري من 11 رقم (01xxxxxxxxx)"); return; }
+    if (grades.length && !grade && !serviceType.includes("أشعة")) { Alert.alert("تنبيه", isNurse ? "اختر المسمى الوظيفي: أخصائي تمريض أو فني تمريض" : "اختر الدرجة العلمية: أخصائي أو استشاري"); return; }
+    if (isDoctor && !specialty) { Alert.alert("تنبيه", "اختر التخصص"); return; }
+    if (!selectedAreas.length) { Alert.alert("تنبيه", "اختر منطقة واحدة على الأقل"); return; }
+    setSaving(true);
+    try {
+      await saveProfile({
+        name: name.trim(),
+        nameEn,
+        phone: phone.trim(),
+        whatsapp: whatsapp.trim(),
+        experience: exp ? parseFloat(exp) : null,
+        bio: bio.trim(),
+        areas: selectedAreas,
+        serviceType,
+        grade,
+        specialty: serviceType === "كشف منزلي" ? specialty : (specialty ?? provider?.specialty ?? null),
+        photoUrl,
+      });
+      if (isDoctor) await saveDoctorServices();
+      if (!isDoctor && otherRows.length) await saveOtherServices();
+      burst.show("تم حفظ الحساب");
+    } catch (e: any) {
+      Alert.alert("خطأ", e.message ?? "تعذر الحفظ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isDoctor = serviceType === "كشف منزلي";
+  const isNurse = serviceType === "تمريض منزلي";
+  const grades = gradesFor(serviceType);
+
+  // الإملاء الصوتي: Web Speech API على الويب فقط — على الموبايل رسالة بديلة
+  const toggleMic = () => {
+    const SR = Platform.OS === "web" ? ((globalThis as any).SpeechRecognition ?? (globalThis as any).webkitSpeechRecognition) : null;
+    if (!SR) {
+      Alert.alert("الإملاء الصوتي", "الإملاء الصوتي غير مدعوم على جهازك. استخدم ميكروفون الكيبورد للكتابة بصوتك.");
+      return;
+    }
+    if (micOn) { setMicOn(false); return; }
+    const rec = new SR();
+    rec.lang = locale();
+    rec.onresult = (e: any) => setBio((prev) => (prev ? prev + " " : "") + e.results[0][0].transcript);
+    rec.onend = () => setMicOn(false);
+    rec.onerror = () => setMicOn(false);
+    setMicOn(true);
+    rec.start();
+  };
+
+  const input = {
+    height: 48, borderRadius: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.card,
+    color: t.text, paddingHorizontal: 14, fontSize: 15, fontFamily: TJ.medium, textAlign: "right" as const,
+  };
+  const label = (txt: string) => (
+    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginHorizontal: 4, marginBottom: 6 }}>{txt}</PText>
+  );
+  const title = (txt: string, count?: number, sub?: string) => (
+    <View style={{ marginTop: 22, marginBottom: 8, marginHorizontal: 4 }}>
+      <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>
+        {txt}{count != null ? <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 15 }}>{` (${count})`}</PText> : null}
+      </PText>
+      {sub ? <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 2 }}>{sub}</PText> : null}
+    </View>
+  );
+  const chip = (txt: string, on: boolean, onPress: () => void) => (
+    <Pressable key={txt} onPress={onPress}
+      style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, backgroundColor: on ? t.gold : t.card, borderWidth: 1, borderColor: on ? t.gold : t.border }}>
+      <PText style={{ color: on ? t.onGold : t.text2, fontFamily: TJ.bold, fontSize: 14 }}>{txt}</PText>
+    </Pressable>
+  );
+
+  return (
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12 }}>
+        <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+          <MaterialCommunityIcons name="chevron-right" size={24} color={t.gold} />
+        </Pressable>
+        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 21 }}>تعديل الحساب</PText>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+        <View style={{ alignItems: "center", marginTop: 6 }}>
+          <View>
+            <View style={{ width: 148, height: 148, borderRadius: 74, backgroundColor: t.ic, borderWidth: 3, borderColor: t.goldRing, alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={{ width: "100%", height: "100%" }} contentFit="cover" />
+              ) : (
+                <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 56 }}>{(name || "؟").trim().charAt(0)}</PText>
+              )}
+            </View>
+            <Pressable onPress={pickPhoto} disabled={uploading}
+              style={({ pressed }) => ({ position: "absolute", bottom: 2, left: 2, height: 38, paddingHorizontal: 14, borderRadius: 19, backgroundColor: t.gold, flexDirection: "row-reverse", alignItems: "center", gap: 6, transform: [{ scale: pressed ? 0.95 : 1 }], opacity: uploading ? 0.6 : 1 })}>
+              <MaterialCommunityIcons name="pencil" size={15} color={t.onGold} />
+              <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 14 }}>{uploading ? "جاري الرفع" : "تعديل"}</PText>
+            </Pressable>
+          </View>
+        </View>
+
+        {title("المعلومات الأساسية")}
+        <View style={{ gap: 10 }}>
+          <View>{label("الاسم الكامل")}<TextInput value={name} onChangeText={setName} style={input} placeholderTextColor={t.muted} /></View>
+          <View>{label("الاسم بالإنجليزي (اختياري)")}<TextInput value={nameEn} onChangeText={setNameEn} style={[input, { textAlign: "left", writingDirection: "ltr" }]} placeholder="مثال: Ahmed Samir" placeholderTextColor={t.muted} autoCapitalize="words" autoCorrect={false} />
+            <PText style={{ color: t.muted, fontSize: 11.5, marginTop: 4, textAlign: "right" }}>بيظهر للعملاء لما يستخدموا التطبيق بالإنجليزي. لو سبته فاضي هيتحوّل اسمك تلقائيًا.</PText></View>
+          <View style={{ flexDirection: "row-reverse", gap: 10 }}>
+            <View style={{ flex: 1.6 }}>{label("رقم الموبايل")}<TextInput value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, "").slice(0, 11))} keyboardType="phone-pad" placeholder="01xxxxxxxxx" placeholderTextColor={t.muted} style={[input, { writingDirection: "ltr" }]} /></View>
+            <View style={{ flex: 1 }}>{label("سنوات الخبرة")}<TextInput value={exp} onChangeText={(v) => setExp(v.replace(/[^\d.]/g, ""))} keyboardType="numeric" style={input} /></View>
+          </View>
+          <View>{label("رقم الواتساب (اختياري · لو مختلف عن الموبايل)")}<TextInput value={whatsapp} onChangeText={(v) => setWhatsapp(v.replace(/\D/g, "").slice(0, 11))} keyboardType="phone-pad" placeholder="01xxxxxxxxx" style={[input, { writingDirection: "ltr" }]} placeholderTextColor={t.muted} /></View>
+          <View>
+            {label("السعر الأساسي (ج.م) · يظهر للعملاء كسعر بداية")}
+            <View style={{ height: 48, borderRadius: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.ic, paddingHorizontal: 14, flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+              <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15 }}>{price ? `${price} ج.م` : "—"}</PText>
+              <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>أقل سعر في خدماتي وأسعاري (تلقائي)</PText>
+            </View>
+          </View>
+          <View>
+            <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginHorizontal: 4, marginBottom: 6 }}>
+              <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>نبذة عنك</PText>
+              <Pressable onPress={toggleMic}
+                style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 14, backgroundColor: micOn ? t.destructive : t.btn }}>
+                <MaterialCommunityIcons name="microphone-outline" size={15} color={micOn ? "#fff" : t.gold} />
+                <PText style={{ color: micOn ? "#fff" : t.gold, fontFamily: TJ.bold, fontSize: 13 }}>{micOn ? "جارٍ الاستماع…" : "إملاء صوتي"}</PText>
+              </Pressable>
+            </View>
+            <TextInput value={bio} onChangeText={setBio} multiline numberOfLines={3}
+              style={[input, { height: undefined, minHeight: 88, paddingTop: 12, fontSize: 14.5, textAlignVertical: "top" }]} />
+          </View>
+        </View>
+
+        {grades.length ? (
+          <>
+            {title(gradeLabelFor(serviceType), undefined, serviceType.includes("أشعة") ? undefined : "مطلوب")}
+            <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+              {grades.map((g) => chip(g, grade === g, () => setGrade(g)))}
+            </View>
+          </>
+        ) : null}
+
+        {isDoctor ? (
+          <View style={{ marginTop: 22 }}>
+            <SearchableSelect
+              label="التخصص"
+              hint="مطلوب"
+              sheetTitle="اختر التخصص"
+              value={specialty ?? ""}
+              options={specialties.length > 0 ? specialties.map((x) => x.name) : FALLBACK_SPECIALTIES}
+              onChange={(v) => setSpecialty(v)}
+              placeholder="اختر تخصصك"
+            />
+          </View>
+        ) : null}
+
+        {isDoctor && grade && specialty && specialtyRow ? (
+          <>
+            {title("خدماتي وأسعاري", undefined, "فعّل الخدمات وحدد سعرك ضمن نطاق الأدمن")}
+            <View style={{ gap: 12 }}>
+              {/* كشف منزلي */}
+              {(() => {
+                const open = expanded === "visit";
+                const v = clampTo(visitPrice, visitRange);
+                return (
+                  <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: visitOn ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: visitOn ? 1 : 0.85 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>كشف منزلي</PText>
+                        <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>30 دقيقة · {v} ج.م</PText>
+                      </View>
+                      <Pressable onPress={() => setExpanded(open ? null : "visit")} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                        <MaterialCommunityIcons name={open ? "close" : "pencil-outline"} size={18} color={t.gold} />
+                      </Pressable>
+                      <Toggle on={visitOn} onChange={setVisitOn} />
+                    </View>
+                    {open ? (
+                      <View style={{ marginTop: 12 }}>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>السعر</PText>
+                          <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>{v} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText></PText>
+                        </View>
+                        <PriceSlider value={v} min={visitRange.min} max={visitRange.max} disabled={visitRange.max === visitRange.min} onChange={setVisitPrice} />
+                        <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{visitRange.min}</PText>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن</PText>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{visitRange.max}</PText>
+                        </View>
+                        <Pressable onPress={saveCard} disabled={svcSaving} style={({ pressed }) => ({ marginTop: 12, height: 46, borderRadius: 14, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: pressed || svcSaving ? 0.85 : 1 })}>
+                          <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>{svcSaving ? "جاري الحفظ..." : "حفظ"}</PText>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })()}
+
+              {/* استشارة أونلاين */}
+              {onlineRow ? (() => {
+                const open = expanded === "online";
+                const activeCh = [["chat", "شات", "email-outline"] as const, ...(["voice", "video"] as const).filter((k) => chan[k].on).map((k) => [k, k === "voice" ? "صوتية" : "فيديو", k === "voice" ? "phone-outline" : "video-outline"] as const)];
+                return (
+                  <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: onlineOn ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: onlineOn ? 1 : 0.85 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>استشارة أونلاين</PText>
+                        <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>{onlineOn ? `${activeCh.length} قنوات مفعّلة` : "غير مفعّلة"}</PText>
+                      </View>
+                      <Pressable onPress={() => setExpanded(open ? null : "online")} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                        <MaterialCommunityIcons name={open ? "close" : "pencil-outline"} size={18} color={t.gold} />
+                      </Pressable>
+                      <Toggle on={onlineOn} onChange={(v) => { setOnlineOn(v); if (v && onlinePrice == null) setOnlinePrice(onlineRange.min); }} />
+                    </View>
+                    {onlineOn && !open ? (
+                      <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 12 }}>
+                        {activeCh.map(([k, label, icon]) => (
+                          <View key={k} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: t.ic }}>
+                            <MaterialCommunityIcons name={icon} size={16} color={t.goldText} />
+                            <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>{label}</PText>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                    {open && onlineOn ? (
+                      <View style={{ marginTop: 12, gap: 10 }}>
+                        {(["chat", "voice", "video"] as const).map((k) => {
+                          const isChat = k === "chat";
+                          const on = isChat ? true : chan[k].on;
+                          const price = isChat ? clampTo(onlinePrice, onlineRange) : clampTo(chan[k].price, onlineRange);
+                          const dur = isChat ? onlineDur : chan[k].dur;
+                          const title2 = isChat ? "شات" : k === "voice" ? "مكالمة صوتية" : "مكالمة فيديو";
+                          const icon = isChat ? "email-outline" : k === "voice" ? "phone-outline" : "video-outline";
+                          return (
+                            <View key={k} style={{ borderRadius: 18, borderWidth: 1, borderColor: on ? t.goldRing : t.border, padding: 12, backgroundColor: t.bg }}>
+                              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10 }}>
+                                <PText style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 15.5, textAlign: "right" }}>{title2}</PText>
+                                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                                  <MaterialCommunityIcons name={icon} size={16} color={t.gold} />
+                                </View>
+                                <Toggle on={on} onChange={(v) => {
+                                  if (isChat) { Alert.alert("", "الشات هو الأساس في الاستشارة الأونلاين ولا يمكن إيقافه"); return; }
+                                  setChan((cur) => ({ ...cur, [k]: { ...cur[k], on: v, price: cur[k].price ?? onlineRange.min } }));
+                                }} />
+                              </View>
+                              {on ? (
+                                <>
+                                  <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 10 }}>مدة الجلسة</PText>
+                                  <View style={{ flexDirection: "row-reverse", gap: 8, marginTop: 6 }}>
+                                    {[10, 15, 20, 30, 45].map((m) => (
+                                      <Pressable key={m} onPress={() => (isChat ? setOnlineDur(m) : setChan((cur) => ({ ...cur, [k]: { ...cur[k], dur: m } })))}
+                                        style={{ flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, backgroundColor: dur === m ? t.goldTint : t.ic, borderWidth: 1.5, borderColor: dur === m ? t.gold : "transparent" }}>
+                                        <PText style={{ color: dur === m ? t.goldText : t.text2, fontFamily: TJ.heavy, fontSize: 13 }}>{m} د</PText>
+                                      </Pressable>
+                                    ))}
+                                  </View>
+                                  <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+                                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13 }}>السعر</PText>
+                                    <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 22 }}>{price} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 13 }}>ج.م</PText></PText>
+                                  </View>
+                                  <PriceSlider value={price} min={onlineRange.min} max={onlineRange.max} disabled={onlineRange.max === onlineRange.min}
+                                    onChange={(n: number) => (isChat ? setOnlinePrice(n) : setChan((cur) => ({ ...cur, [k]: { ...cur[k], price: n } })))} />
+                                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
+                                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>{onlineRange.min}</PText>
+                                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>نطاق الأدمن</PText>
+                                    <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>{onlineRange.max}</PText>
+                                  </View>
+                                </>
+                              ) : null}
+                            </View>
+                          );
+                        })}
+                        <Pressable onPress={saveCard} disabled={svcSaving} style={({ pressed }) => ({ height: 46, borderRadius: 14, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: pressed || svcSaving ? 0.85 : 1 })}>
+                          <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>{svcSaving ? "جاري الحفظ..." : "حفظ"}</PText>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })() : null}
+
+              {/* حجز العيادة: قريبًا */}
+              <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, padding: 16, opacity: 0.6 }}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ alignSelf: "flex-end", backgroundColor: t.goldTint, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 4 }}>
+                    <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 12 }}>قريبًا</PText>
+                  </View>
+                  <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>حجز العيادة</PText>
+                  <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>30 دقيقة</PText>
+                </View>
+                <Toggle on={false} onChange={() => {}} />
+              </View>
+            </View>
+          </>
+        ) : null}
+
+        {!isDoctor && otherRows.length ? (
+          <>
+            {title("خدماتي وأسعاري", undefined, "فعّل الخدمات اللي بتقدمها وحدد سعرك داخل نطاق الإدارة")}
+            <View style={{ gap: 12 }}>
+              {otherRows.map((r) => {
+                const st = otherSvc[r.id] ?? { on: false, price: null };
+                const range = priceRangeFor(r, grade);
+                const v = clampTo(st.price, range);
+                const open = expanded === r.id;
+                // same card as the doctor's: name + "duration · price" on top, pencil opens the slider and its own "حفظ", toggle on the side
+                return (
+                  <View key={r.id} style={{ backgroundColor: t.card, borderWidth: 1, borderColor: st.on ? t.goldRing : t.border, borderRadius: 22, padding: 16, opacity: st.on ? 1 : 0.85 }}>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <PText style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>{r.name}</PText>
+                        <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "right", marginTop: 2 }}>{r.duration ? `${r.duration} · ` : ""}{v} ج.م</PText>
+                      </View>
+                      <Pressable onPress={() => setExpanded(open ? null : r.id)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}>
+                        <MaterialCommunityIcons name={open ? "close" : "pencil-outline"} size={18} color={t.gold} />
+                      </Pressable>
+                      <Toggle on={st.on} onChange={(on) => setOtherSvc((cur) => ({ ...cur, [r.id]: { on, price: cur[r.id]?.price ?? range.min } }))} />
+                    </View>
+                    {open ? (
+                      <View style={{ marginTop: 12 }}>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", justifyContent: "space-between" }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5 }}>السعر</PText>
+                          <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 24 }}>{v} <PText style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 14 }}>ج.م</PText></PText>
+                        </View>
+                        <PriceSlider value={v} min={range.min} max={range.max} disabled={range.max === range.min}
+                          onChange={(n: number) => setOtherSvc((cur) => ({ ...cur, [r.id]: { on: true, price: n } }))} />
+                        <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 2 }}>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{range.min}</PText>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>نطاق الأدمن</PText>
+                          <PText style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>{range.max}</PText>
+                        </View>
+                        <Pressable onPress={saveCard} disabled={svcSaving} style={({ pressed }) => ({ marginTop: 12, height: 46, borderRadius: 14, backgroundColor: t.gold, alignItems: "center", justifyContent: "center", opacity: pressed || svcSaving ? 0.85 : 1 })}>
+                          <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15 }}>{svcSaving ? "جاري الحفظ..." : "حفظ"}</PText>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
+
+        {title("مناطق التغطية", selectedAreas.length, "المحافظات والمدن المفعّلة من الإدارة")}
+        <View style={{ gap: 8 }}>
+          {[...groupedAreas.entries()].map(([city, list]) => {
+            const open = expandedCities.has(city);
+            const sel = list.filter((a) => selectedAreas.includes(a.name)).length;
+            const all = sel === list.length;
+            return (
+              <View key={city} style={{ backgroundColor: t.card, borderRadius: 20, borderWidth: 1, borderColor: sel ? t.goldRing : t.border }}>
+                <Pressable onPress={() => toggleCity(city)} style={{ flexDirection: "row-reverse", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 14 }}>
+                  <PText style={{ flex: 1, color: t.text, fontFamily: TJ.heavy, fontSize: 15, textAlign: "right" }}>{city}</PText>
+                  <View style={{ backgroundColor: sel ? t.gold : t.btn, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 2 }}>
+                    <PText style={{ color: sel ? t.onGold : t.muted, fontFamily: TJ.heavy, fontSize: 12.5 }}>{sel}/{list.length}</PText>
+                  </View>
+                  <MaterialCommunityIcons name={open ? "chevron-up" : "chevron-down"} size={20} color={t.muted} />
+                </Pressable>
+                {open ? (
+                  <View style={{ paddingHorizontal: 14, paddingBottom: 14 }}>
+                    <Pressable onPress={() => toggleAllInCity(city, list)}>
+                      <PText style={{ color: t.goldText, fontFamily: TJ.bold, fontSize: 13.5, textAlign: "right", marginBottom: 10 }}>{all ? "مسح الكل" : "اختيار كل المدن"}</PText>
+                    </Pressable>
+                    <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 8 }}>
+                      {list.map((a) => chip(a.name, selectedAreas.includes(a.name), () => toggleArea(a.name)))}
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <View style={{ backgroundColor: t.nav, borderTopWidth: 1, borderTopColor: t.border, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 16) }}>
+        <Pressable onPress={handleSave} disabled={saving}
+          style={({ pressed }) => ({ borderRadius: 18, paddingVertical: 15, alignItems: "center", backgroundColor: t.gold, opacity: saving ? 0.6 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+          <PText style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 15.5 }}>{saving ? "جاري الحفظ..." : "حفظ"}</PText>
+        </Pressable>
+      </View>
+      {burst.node}
+    </KeyboardAvoidingView>
+  );
+}

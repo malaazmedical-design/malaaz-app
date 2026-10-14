@@ -1,0 +1,251 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Platform, Pressable, View } from "react-native";
+import { Text } from "@/components/i18n";
+
+import { TJ, useMalaz } from "@/constants/malazTheme";
+import { getLiveKit } from "@/lib/livekit";
+import { supabase, DbConsultation } from "@/lib/supabase";
+
+type Phase = "check" | "joining" | "in" | "fallback";
+type Conn = { url: string; token: string };
+
+// Voice / video part of a live consultation. The chat room below it stays open all the time (also as the fallback).
+export function CallPanel({ c, role, onEntered }: { c: DbConsultation; role: "c" | "d"; onEntered?: () => void }) {
+  const t = useMalaz();
+  const lk = getLiveKit();
+  const isVideo = c.channel === "video";
+  const [phase, setPhase] = useState<Phase>("check");
+  const [fallbackMsg, setFallbackMsg] = useState("");
+  const [conn, setConn] = useState<Conn | null>(null);
+  const [mic, setMic] = useState<"idle" | "ok" | "fail" | "testing">("idle");
+  const [cam, setCam] = useState<"idle" | "ok" | "fail" | "testing">("idle");
+  const [busy, setBusy] = useState(false);
+  const other = role === "d" ? "المريض" : "الطبيب";
+
+  if (!lk) {
+    return (
+      <View style={{ margin: 12, padding: 14, borderRadius: 16, backgroundColor: t.card, borderWidth: 1, borderColor: t.border }}>
+        <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14.5, textAlign: "right" }}>
+          {isVideo ? "مكالمة الفيديو" : "المكالمة الصوتية"} تحتاج تحديث التطبيق
+        </Text>
+        <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13, textAlign: "right", marginTop: 4, lineHeight: 20 }}>
+          حدّث التطبيق لآخر نسخة. في الوقت الحالي كمّل الاستشارة بالشات تحت.
+        </Text>
+      </View>
+    );
+  }
+
+  const testDevices = async () => {
+    setMic("testing");
+    setCam(isVideo ? "testing" : "idle");
+    try {
+      const stream: any = await lk.webrtc.mediaDevices.getUserMedia({ audio: true, video: isVideo });
+      setMic(stream.getAudioTracks().length ? "ok" : "fail");
+      if (isVideo) setCam(stream.getVideoTracks().length ? "ok" : "fail");
+      stream.getTracks().forEach((tr: any) => tr.stop());
+    } catch {
+      setMic("fail");
+      if (isVideo) setCam("fail");
+    }
+  };
+
+  const join = async () => {
+    setBusy(true);
+    setPhase("joining");
+    const { data, error } = await supabase.functions.invoke("livekit-token", { body: { consultation_id: c.id } });
+    setBusy(false);
+    if (error || !data?.token) {
+      // a non-2xx answer comes back as an error whose body holds the server's reason
+      let body: any = data;
+      try { if (!body && (error as any)?.context?.json) body = await (error as any).context.json(); } catch {}
+      const code = body?.error ?? "";
+      const detail = body?.detail ? ` ${String(body.detail)}` : "";
+      setFallbackMsg(
+        code === "rtc_unavailable"
+          ? "الصوت والفيديو متوقفان مؤقتًا. كمّل الاستشارة بالشات."
+          : `تعذّر بدء المكالمة. تأكد من الإنترنت أو كمّل بالشات.${code || error?.message ? `\n(${String(code || error?.message)}${detail})`.slice(0, 260) : ""}`,
+      );
+      setPhase("fallback");
+      return;
+    }
+    setConn({ url: data.url, token: data.token });
+    setPhase("in");
+  };
+
+  const statusIcon = (s: typeof mic) =>
+    s === "ok" ? <MaterialCommunityIcons name="check-circle" size={18} color={t.online} />
+    : s === "fail" ? <MaterialCommunityIcons name="close-circle" size={18} color={t.destructive} />
+    : s === "testing" ? <ActivityIndicator size="small" color={t.gold} />
+    : <MaterialCommunityIcons name="circle-outline" size={18} color={t.muted} />;
+
+  if (phase === "check" || phase === "joining") {
+    const passed = mic === "ok" && (!isVideo || cam === "ok");
+    return (
+      <View style={{ margin: 12, padding: 14, borderRadius: 18, backgroundColor: t.card, borderWidth: 1, borderColor: t.border, gap: 10 }}>
+        <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15.5, textAlign: "right" }}>فحص الجهاز قبل الدخول</Text>
+        <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right" }}>
+          تأكد أن الميكروفون{isVideo ? " والكاميرا" : ""} يعمل قبل بدء الاستشارة
+        </Text>
+        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+          {statusIcon(mic)}
+          <Text style={{ color: t.text2, fontFamily: TJ.bold, fontSize: 14 }}>الميكروفون {mic === "ok" ? "يعمل" : mic === "fail" ? "لا يعمل — اسمح بالصلاحية" : ""}</Text>
+        </View>
+        {isVideo ? (
+          <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 8 }}>
+            {statusIcon(cam)}
+            <Text style={{ color: t.text2, fontFamily: TJ.bold, fontSize: 14 }}>الكاميرا {cam === "ok" ? "تعمل" : cam === "fail" ? "لا تعمل — اسمح بالصلاحية" : ""}</Text>
+          </View>
+        ) : null}
+        <View style={{ flexDirection: "row-reverse", gap: 10, marginTop: 4 }}>
+          <Pressable onPress={testDevices} disabled={busy} style={{ flex: 1, height: 46, borderRadius: 14, borderWidth: 1.5, borderColor: t.border, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 14 }}>اختبار الجهاز</Text>
+          </Pressable>
+          <Pressable onPress={join} disabled={!passed || busy} style={{ flex: 1.4, height: 46, borderRadius: 14, backgroundColor: passed ? t.gold : t.btn, alignItems: "center", justifyContent: "center" }}>
+            {busy ? <ActivityIndicator color={t.onGold} /> : <Text style={{ color: passed ? t.onGold : t.muted, fontFamily: TJ.heavy, fontSize: 14 }}>جاهز · ادخل الجلسة</Text>}
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  if (phase === "fallback" || !conn) {
+    return (
+      <View style={{ margin: 12, padding: 14, borderRadius: 16, backgroundColor: t.card, borderWidth: 1, borderColor: t.border }}>
+        <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 14, textAlign: "right", lineHeight: 22 }}>{fallbackMsg.split("\n")[0]}</Text>
+        {fallbackMsg.includes("\n") ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 11.5, textAlign: "left", writingDirection: "ltr", marginTop: 4 }}>{fallbackMsg.split("\n").slice(1).join(" ")}</Text> : null}
+        <Pressable onPress={() => setPhase("check")} style={{ marginTop: 10, alignSelf: "flex-end", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: t.btn }}>
+          <Text style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 13.5 }}>إعادة المحاولة</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const { LiveKitRoom, AudioSession } = lk.rn;
+  return (
+    <CallRoom
+      key={conn.token}
+      lk={lk}
+      conn={conn}
+      isVideo={isVideo}
+      otherName={other}
+      onFail={(msg: string) => { setFallbackMsg(msg); setPhase("fallback"); }}
+      LiveKitRoom={LiveKitRoom}
+      AudioSession={AudioSession}
+      cid={c.id}
+      onEntered={onEntered}
+    />
+  );
+}
+
+function CallRoom({ lk, conn, isVideo, otherName, onFail, LiveKitRoom, AudioSession, cid, onEntered }: any) {
+  const t = useMalaz();
+  // voice calls play through the earpiece (far less echo), video calls through the loudspeaker; the user can switch
+  const [speaker, setSpeaker] = useState(isVideo);
+  useEffect(() => {
+    (async () => {
+      try {
+        await AudioSession.configureAudio({
+          android: {
+            preferredOutputList: isVideo ? ["bluetooth", "headset", "speaker", "earpiece"] : ["bluetooth", "headset", "earpiece", "speaker"],
+            audioTypeOptions: lk.rn.AndroidAudioTypePresets?.communication ?? { manageAudioFocus: true, audioMode: "inCommunication", audioFocusMode: "gain", audioStreamType: "voiceCall", audioAttributesUsageType: "voiceCommunication", audioAttributesContentType: "speech" },
+          },
+          ios: { defaultOutput: isVideo ? "speaker" : "earpiece" },
+        });
+      } catch { /* defaults are fine */ }
+      AudioSession.startAudioSession();
+    })();
+    return () => { AudioSession.stopAudioSession(); };
+  }, [AudioSession, lk, isVideo]);
+  const toggleSpeaker = async () => {
+    const next = !speaker;
+    setSpeaker(next);
+    try {
+      if (Platform.OS === "ios") await AudioSession.selectAudioOutput(next ? "force_speaker" : "default");
+      else await AudioSession.selectAudioOutput(next ? "speaker" : "earpiece");
+    } catch { setSpeaker(!next); }
+  };
+
+  return (
+    <LiveKitRoom
+      serverUrl={conn.url}
+      token={conn.token}
+      connect
+      onConnected={() => { supabase.rpc("enter_consultation", { p_id: cid }).then(() => onEntered?.()); }}
+      audio={{ echoCancellation: true, noiseSuppression: true, autoGainControl: true }}
+      video={isVideo}
+      options={{ adaptiveStream: { pixelDensity: "screen" }, dynacast: true }}
+      onError={(e: any) => onFail(`انقطعت المكالمة. كمّل بالشات أو أعد المحاولة.${e?.message ? `\n(${String(e.message).slice(0, 140)})` : ""}`)}
+      onDisconnected={(reason: any) => { if (reason !== undefined && reason !== null && reason !== 1) onFail(`انقطعت المكالمة. كمّل بالشات أو أعد المحاولة.\n(code ${String(reason)})`); }}
+    >
+      <RoomBody lk={lk} isVideo={isVideo} otherName={otherName} speaker={speaker} onToggleSpeaker={toggleSpeaker} />
+    </LiveKitRoom>
+  );
+}
+
+function RoomBody({ lk, isVideo, otherName, speaker, onToggleSpeaker }: { lk: NonNullable<ReturnType<typeof getLiveKit>>; isVideo: boolean; otherName: string; speaker: boolean; onToggleSpeaker: () => void }) {
+  const t = useMalaz();
+  const { useConnectionState, useRemoteParticipants, useLocalParticipant, useTracks, VideoTrack, isTrackReference } = lk.rn as any;
+  const { ConnectionState, Track } = lk.client as any;
+  const state = useConnectionState();
+  const remotes = useRemoteParticipants();
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+  const tracks = useTracks([Track.Source.Camera]);
+  const hadRemote = useRef(false);
+  if (remotes.length) hadRemote.current = true;
+
+  const remoteTrack = tracks.find((x: any) => !x.participant.isLocal && isTrackReference(x));
+  const localTrack = tracks.find((x: any) => x.participant.isLocal && isTrackReference(x));
+  const dropped = state === ConnectionState.Reconnecting || state === ConnectionState.Disconnected;
+  const connecting = state === ConnectionState.Connecting;
+
+  const banner = dropped ? { text: "انقطع اتصالك. جاري إعادة الاتصال، والعد التنازلي مستمر", bad: true }
+    : !remotes.length ? { text: hadRemote.current ? `انقطع اتصال ${otherName}. سيعود قريبًا` : `بانتظار دخول ${otherName}`, bad: hadRemote.current }
+    : null;
+
+  return (
+    <View style={{ margin: 12, borderRadius: 18, overflow: "hidden", backgroundColor: "#0b1514", height: isVideo ? 280 : 150 }}>
+      {isVideo && remoteTrack ? (
+        <VideoTrack trackRef={remoteTrack} style={{ flex: 1 }} objectFit="cover" />
+      ) : (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 8 }}>
+          {connecting ? <ActivityIndicator color={t.gold} /> : (
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#243433", alignItems: "center", justifyContent: "center" }}>
+              <MaterialCommunityIcons name={remotes.length ? "account-voice" : "account-clock-outline"} size={32} color="#c9a84c" />
+            </View>
+          )}
+          <Text style={{ color: "#f2efe6", fontFamily: TJ.bold, fontSize: 14 }}>{remotes.length ? `${otherName} متصل` : connecting ? "جاري الاتصال…" : ""}</Text>
+        </View>
+      )}
+
+      {isVideo && localTrack && isCameraEnabled ? (
+        <View style={{ position: "absolute", top: 10, left: 10, width: 84, height: 112, borderRadius: 12, overflow: "hidden", borderWidth: 2, borderColor: "#c9a84c" }}>
+          <VideoTrack trackRef={localTrack} style={{ flex: 1 }} objectFit="cover" mirror />
+        </View>
+      ) : null}
+
+      {banner ? (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, backgroundColor: banner.bad ? t.destructive : "rgba(0,0,0,.55)", paddingVertical: 5 }}>
+          <Text style={{ color: "#fff", fontFamily: TJ.bold, fontSize: 12, textAlign: "center" }}>{banner.text}</Text>
+        </View>
+      ) : null}
+
+      <View style={{ position: "absolute", bottom: 10, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 14 }}>
+        <Pressable onPress={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled).catch(() => Alert.alert("", "تعذّر تشغيل الميكروفون"))}
+          style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isMicrophoneEnabled ? "rgba(255,255,255,.18)" : t.destructive, alignItems: "center", justifyContent: "center" }}>
+          <MaterialCommunityIcons name={isMicrophoneEnabled ? "microphone" : "microphone-off"} size={22} color="#fff" />
+        </Pressable>
+        <Pressable onPress={onToggleSpeaker} accessibilityLabel="تبديل السماعة"
+          style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: speaker ? "rgba(201,168,76,.45)" : "rgba(255,255,255,.18)", alignItems: "center", justifyContent: "center" }}>
+          <MaterialCommunityIcons name={speaker ? "volume-high" : "phone-in-talk"} size={22} color="#fff" />
+        </Pressable>
+        {isVideo ? (
+          <Pressable onPress={() => localParticipant.setCameraEnabled(!isCameraEnabled).catch(() => Alert.alert("", "تعذّر تشغيل الكاميرا"))}
+            style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: isCameraEnabled ? "rgba(255,255,255,.18)" : t.destructive, alignItems: "center", justifyContent: "center" }}>
+            <MaterialCommunityIcons name={isCameraEnabled ? "video" : "video-off"} size={22} color="#fff" />
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}

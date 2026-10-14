@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
-import {
-  View, Text, StyleSheet, SafeAreaView, Pressable,
-  ScrollView, TextInput, Alert, Modal, Image, useWindowDimensions,
-} from "react-native";
+import { View, StyleSheet, SafeAreaView, Pressable, ScrollView, Alert, Modal, Image, useWindowDimensions } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";

@@ -1,8 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useRef, useState } from "react";
-import {
-  Animated, Modal, Pressable, StyleSheet, Text, View,
-} from "react-native";
+import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/i18n";
 
 const KEY = "mizo_onboarding_done_v1";
 

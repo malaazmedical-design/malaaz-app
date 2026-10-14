@@ -1,26 +1,26 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router } from "expo-router";
-import React, { useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useApp } from "@/contexts/AppContext";
+import { digitsOnly } from "@/lib/digits";
+import { supabase } from "@/lib/supabase";
 
-const DARK = "#1C2B2A";
-const GOLD = "#C9A84C";
+
+const CONSENT_ERROR = "لازم توافق على الشروط وسياسة الخصوصية الأول";
 
 export default function ClientAuthScreen() {
   const insets = useSafeAreaInsets();
-  const { clientLogin, clientRegister, clientResetPassword } = useApp();
+  const t = useMalaz();
+  const {
+    client, needsPhone, profile,
+    clientLogin, clientRegister, clientResetPassword, clientSignInWithGoogle, clientCompleteProfile, clientLogout,
+  } = useApp();
 
   const [tab, setTab] = useState<"login" | "register">("login");
   const [busy, setBusy] = useState(false);
@@ -28,48 +28,59 @@ export default function ClientAuthScreen() {
 
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
-
   const [rName, setRName] = useState("");
   const [rPhone, setRPhone] = useState("");
   const [rEmail, setREmail] = useState("");
   const [rPass, setRPass] = useState("");
 
-  const handleLogin = async () => {
-    if (!email.trim() || !pass) { setError("أدخل البريد وكلمة المرور"); return; }
+  // explicit consent to the terms and privacy policy (health data is sensitive): required before an account is created
+  const [agreed, setAgreed] = useState(false);
+
+  // phone step (shown after any sign-in that has no mobile number yet)
+  const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
+
+  // signed in successfully (and has a client record) -> leave the screen
+  useEffect(() => {
+    if (client) router.back();
+  }, [client]);
+
+  // pre-fill the name from the account (Google gives the full name)
+  useEffect(() => {
+    if (!needsPhone) return;
+    supabase.auth.getUser().then(({ data }) => {
+      const meta: any = data.user?.user_metadata ?? {};
+      setName((cur) => cur || meta.full_name || meta.name || profile.name || "");
+    }).catch(() => {});
+  }, [needsPhone, profile.name]);
+
+  const run = async (fn: () => Promise<void>) => {
     setError(""); setBusy(true);
-    try {
-      await clientLogin(email.trim(), pass);
-      router.back();
-    } catch (e: any) {
-      setError(e.message ?? "حدث خطأ");
-    } finally {
-      setBusy(false);
-    }
+    try { await fn(); }
+    catch (e: any) { setError(e?.message ?? "حدث خطأ"); }
+    finally { setBusy(false); }
   };
 
-  const handleRegister = async () => {
-    if (!rName.trim() || !rPhone.trim() || !rEmail.trim() || !rPass) {
-      setError("املأ كل الحقول"); return;
-    }
-    if (!/^01[0125]\d{8}$/.test(rPhone.trim().replace(/\s/g, ""))) {
-      setError("رقم الموبايل غير صحيح"); return;
-    }
+  const handleLogin = () => {
+    if (!email.trim() || !pass) { setError("أدخل البريد وكلمة المرور"); return; }
+    run(async () => { await clientLogin(email.trim(), pass); });
+  };
+
+  const handleRegister = () => {
+    if (!rName.trim() || !rPhone.trim() || !rEmail.trim() || !rPass) { setError("املأ كل الحقول"); return; }
+    if (!/^01[0125]\d{8}$/.test(rPhone.trim())) { setError("رقم الموبايل غير صحيح"); return; }
     if (rPass.length < 6) { setError("كلمة المرور 6 أحرف على الأقل"); return; }
-    setError(""); setBusy(true);
-    try {
-      await clientRegister({
-        name: rName.trim(),
-        phone: rPhone.trim().replace(/\s/g, ""),
-        email: rEmail.trim(),
-        password: rPass,
-      });
+    if (!agreed) { setError(CONSENT_ERROR); return; }
+    run(async () => {
+      await clientRegister({ name: rName.trim(), phone: rPhone.trim(), email: rEmail.trim(), password: rPass });
+      recordConsent();
       Alert.alert("أهلاً بيك في ملاذ 🎉", "تم إنشاء حسابك بنجاح");
-      router.back();
-    } catch (e: any) {
-      setError(e.message ?? "حدث خطأ");
-    } finally {
-      setBusy(false);
-    }
+    });
+  };
+
+  // keeps proof of when / which version of the terms the user accepted (best effort, never blocks the sign-up)
+  const recordConsent = () => {
+    supabase.auth.updateUser({ data: { consent_at: new Date().toISOString(), consent_version: "2026-10" } }).catch(() => {});
   };
 
   const handleForgot = async () => {
@@ -77,107 +88,163 @@ export default function ClientAuthScreen() {
     try {
       await clientResetPassword(email.trim());
       Alert.alert("تم", "✅ تم إرسال رابط إعادة تعيين كلمة المرور على بريدك");
-    } catch (e: any) {
-      Alert.alert("خطأ", e.message ?? "حدث خطأ");
-    }
+    } catch (e: any) { Alert.alert("خطأ", e.message ?? "حدث خطأ"); }
   };
 
-  const inputStyle = {
-    width: "100%" as const,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.12)",
-    borderRadius: 12,
-    fontSize: 14,
-    fontFamily: "Cairo_400Regular",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    color: "#FFFFFF",
-    marginBottom: 12,
-    textAlign: "right" as const,
+  const savePhone = () => {
+    if (phone.length < 10) { setError("اكتب رقم موبايل صحيح"); return; }
+    if (!agreed) { setError(CONSENT_ERROR); return; }
+    run(async () => { await clientCompleteProfile(phone, name.trim() || undefined); recordConsent(); });
   };
+
+  const input = {
+    height: 54, paddingHorizontal: 14, borderWidth: 1, borderColor: t.border, borderRadius: 16,
+    fontSize: 14, fontFamily: TJ.medium, backgroundColor: t.card, color: t.text, marginBottom: 12, textAlign: "right" as const,
+  };
+  const linkStyle = { color: t.muted, fontSize: 13, textAlign: "center" as const, fontFamily: TJ.medium };
+
+  const GoldButton = ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || busy}
+      style={({ pressed }) => ({
+        height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: t.gold,
+        opacity: disabled || busy ? 0.45 : pressed ? 0.9 : 1,
+      })}
+    >
+      <Text style={{ color: t.onGold, fontFamily: TJ.heavy, fontSize: 16 }}>{busy ? "..." : label}</Text>
+    </Pressable>
+  );
+
+  const Heading = ({ title, sub }: { title: string; sub: string }) => (
+    <>
+      <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 24, textAlign: "center" }}>{title}</Text>
+      <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 13.5, textAlign: "center", marginTop: 6, marginBottom: 22, lineHeight: 22 }}>{sub}</Text>
+    </>
+  );
+
+  const Consent = () => (
+    <Pressable onPress={() => { setAgreed((v) => !v); setError(""); }} accessibilityRole="checkbox" accessibilityState={{ checked: agreed }}
+      style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
+      <MaterialCommunityIcons name={agreed ? "checkbox-marked" : "checkbox-blank-outline"} size={24} color={agreed ? t.gold : t.muted} />
+      <Text style={{ flex: 1, color: t.text2, fontFamily: TJ.medium, fontSize: 13, lineHeight: 21, textAlign: "right" }}>
+        أوافق على{" "}
+        <Text onPress={() => router.push("/legal?open=terms")} style={{ color: t.goldText, textDecorationLine: "underline" }}>الشروط والأحكام</Text>
+        {" و"}
+        <Text onPress={() => router.push("/legal?open=privacy")} style={{ color: t.goldText, textDecorationLine: "underline" }}>سياسة الخصوصية</Text>
+        {"، وأوافق على معالجة بياناتي الشخصية والصحية لتقديم الخدمة."}
+      </Text>
+    </Pressable>
+  );
+
+  const Err = () => (error ? <Text style={{ color: t.destructive, fontSize: 13, fontFamily: TJ.bold, textAlign: "center", lineHeight: 21, marginBottom: 10 }}>{error}</Text> : null);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: DARK }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 20, paddingTop: insets.top + 20, paddingBottom: insets.bottom + 30 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 20, paddingTop: insets.top + 70, paddingBottom: insets.bottom + 30 }}
         keyboardShouldPersistTaps="handled"
       >
         <Pressable
           onPress={() => router.back()}
-          style={{ position: "absolute", top: insets.top + 12, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" }}
+          accessibilityLabel="رجوع"
+          style={{ position: "absolute", top: insets.top + 12, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: t.btn, alignItems: "center", justifyContent: "center" }}
         >
-          <MaterialCommunityIcons name="chevron-right" size={24} color="#FFFFFF" />
+          <MaterialCommunityIcons name="arrow-right" size={22} color={t.text} />
         </Pressable>
 
-        <View style={{ backgroundColor: "#243635", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", borderRadius: 24, padding: 28 }}>
-          <Text style={{ fontSize: 34, fontFamily: "Cairo_700Bold", color: "#FFFFFF", textAlign: "center" }}>ملاذ</Text>
-          <Text style={{ fontSize: 11, letterSpacing: 4, color: GOLD, opacity: 0.8, textAlign: "center", marginBottom: 4 }}>MALAAZ</Text>
-          <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", textAlign: "center", marginBottom: 22, fontFamily: "Cairo_400Regular" }}>
-            حسابك بيحفظ بياناتك وعناوينك وكل حجوزاتك — على الموقع والتطبيق
-          </Text>
+        <Image
+          source={t.isDark ? require("../assets/images/malaz/logo-dark.png") : require("../assets/images/malaz/logo-light.png")}
+          style={{ width: 110, height: 44, alignSelf: "center", marginBottom: 18 }}
+          contentFit="contain"
+        />
 
-          {/* Tabs */}
-          <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 20 }}>
-            {([["login", "دخول"], ["register", "حساب جديد"]] as const).map(([key, label]) => (
-              <Pressable
-                key={key}
-                onPress={() => { setTab(key); setError(""); }}
-                style={{
-                  flex: 1, padding: 11, borderRadius: 10, alignItems: "center",
-                  borderWidth: 1.5,
-                  borderColor: tab === key ? "rgba(201,168,76,0.4)" : "rgba(255,255,255,0.1)",
-                  backgroundColor: tab === key ? "rgba(201,168,76,0.12)" : "transparent",
-                }}
-              >
-                <Text style={{ fontSize: 13, fontFamily: "Cairo_700Bold", color: tab === key ? GOLD : "rgba(255,255,255,0.5)" }}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
+        {needsPhone ? (
+          <>
+            <Heading title="أضف رقم موبايلك" sub="الرقم ده هو اللي هيتواصل بيه معاك مقدم الخدمة. ولو عندك حساب قديم بنفس الرقم هنفتحه لك بدل ما نعمل حساب جديد." />
+            <TextInput style={input} placeholder="الاسم" placeholderTextColor={t.muted} value={name} onChangeText={setName} />
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
+              <View style={{ height: 54, paddingHorizontal: 14, borderRadius: 16, backgroundColor: t.ic, borderWidth: 1, borderColor: t.border, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15 }}>+20</Text>
+              </View>
+              <TextInput
+                value={phone}
+                onChangeText={(v) => setPhone(digitsOnly(v, 11))}
+                placeholder="01X XXXX XXXX"
+                placeholderTextColor={t.muted}
+                keyboardType="number-pad"
+                autoComplete="tel"
+                style={[input, { flex: 1, marginBottom: 0, textAlign: "left", writingDirection: "ltr", fontSize: 17, letterSpacing: 1 }]}
+              />
+            </View>
+            <Consent />
+            <Err />
+            <GoldButton label="حفظ ومتابعة" onPress={savePhone} disabled={phone.length < 10 || !agreed} />
+            <Pressable onPress={() => clientLogout()} style={{ marginTop: 22 }}>
+              <Text style={[linkStyle, { textDecorationLine: "underline" }]}>تسجيل الخروج</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Heading title={tab === "login" ? "تسجيل الدخول" : "إنشاء حساب"} sub="حسابك بيحفظ بياناتك وعناوينك وكل حجوزاتك — على الموقع والتطبيق" />
 
-          {error ? (
-            <Text style={{ color: "#ff6b6b", fontSize: 12, fontFamily: "Cairo_600SemiBold", textAlign: "center", marginBottom: 10 }}>{error}</Text>
-          ) : null}
+            <Pressable
+              onPress={() => { if (tab === "register" && !agreed) { setError(CONSENT_ERROR); return; } run(clientSignInWithGoogle); }}
+              disabled={busy}
+              style={({ pressed }) => ({
+                height: 54, borderRadius: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 10,
+                backgroundColor: t.card, borderWidth: 1.5, borderColor: t.border, opacity: busy ? 0.6 : pressed ? 0.9 : 1,
+              })}
+            >
+              <MaterialCommunityIcons name="google" size={22} color="#DB4437" />
+              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15.5 }}>المتابعة بحساب جوجل</Text>
+            </Pressable>
 
-          {tab === "login" ? (
-            <>
-              <TextInput style={inputStyle} placeholder="البريد الإلكتروني" placeholderTextColor="rgba(255,255,255,0.3)" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-              <TextInput style={inputStyle} placeholder="كلمة المرور" placeholderTextColor="rgba(255,255,255,0.3)" value={pass} onChangeText={setPass} secureTextEntry />
-              <GoldButton label={busy ? "جاري الدخول..." : "دخول"} icon="login" onPress={handleLogin} disabled={busy} />
-              <Pressable onPress={handleForgot} style={{ marginTop: 14 }}>
-                <Text style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, textAlign: "center", fontFamily: "Cairo_400Regular" }}>نسيت كلمة المرور؟</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <TextInput style={inputStyle} placeholder="الاسم الكامل" placeholderTextColor="rgba(255,255,255,0.3)" value={rName} onChangeText={setRName} />
-              <TextInput style={inputStyle} placeholder="رقم الموبايل (01xxxxxxxxx)" placeholderTextColor="rgba(255,255,255,0.3)" value={rPhone} onChangeText={setRPhone} keyboardType="phone-pad" />
-              <TextInput style={inputStyle} placeholder="البريد الإلكتروني" placeholderTextColor="rgba(255,255,255,0.3)" value={rEmail} onChangeText={setREmail} autoCapitalize="none" keyboardType="email-address" />
-              <TextInput style={inputStyle} placeholder="كلمة المرور (6 أحرف على الأقل)" placeholderTextColor="rgba(255,255,255,0.3)" value={rPass} onChangeText={setRPass} secureTextEntry />
-              <GoldButton label={busy ? "جاري الإنشاء..." : "إنشاء حساب"} icon="account-plus" onPress={handleRegister} disabled={busy} />
-            </>
-          )}
-        </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 18 }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: t.border }} />
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>أو بالبريد الإلكتروني</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: t.border }} />
+            </View>
+
+            <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 16 }}>
+              {([["login", "دخول"], ["register", "حساب جديد"]] as const).map(([key, label]) => (
+                <Pressable
+                  key={key}
+                  onPress={() => { setTab(key); setError(""); }}
+                  style={{ flex: 1, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: tab === key ? t.gold : t.border, backgroundColor: tab === key ? t.goldTint : t.card }}
+                >
+                  <Text style={{ fontSize: 14, fontFamily: TJ.heavy, color: tab === key ? t.gold : t.text }}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Err />
+            {tab === "login" ? (
+              <>
+                <TextInput style={input} placeholder="البريد الإلكتروني" placeholderTextColor={t.muted} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+                <TextInput style={input} placeholder="كلمة المرور" placeholderTextColor={t.muted} value={pass} onChangeText={setPass} secureTextEntry />
+                <GoldButton label="دخول" onPress={handleLogin} />
+                <Pressable onPress={handleForgot} style={{ marginTop: 16 }}><Text style={linkStyle}>نسيت كلمة المرور؟</Text></Pressable>
+              </>
+            ) : (
+              <>
+                <TextInput style={input} placeholder="الاسم الكامل" placeholderTextColor={t.muted} value={rName} onChangeText={setRName} />
+                <TextInput style={input} placeholder="رقم الموبايل (01xxxxxxxxx)" placeholderTextColor={t.muted} value={rPhone} onChangeText={(v) => setRPhone(digitsOnly(v, 11))} keyboardType="number-pad" />
+                <TextInput style={input} placeholder="البريد الإلكتروني" placeholderTextColor={t.muted} value={rEmail} onChangeText={setREmail} autoCapitalize="none" keyboardType="email-address" />
+                <TextInput style={input} placeholder="كلمة المرور (6 أحرف على الأقل)" placeholderTextColor={t.muted} value={rPass} onChangeText={setRPass} secureTextEntry />
+                <Consent />
+                <GoldButton label="إنشاء حساب" onPress={handleRegister} disabled={!agreed} />
+              </>
+            )}
+            {tab === "login" ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12, textAlign: "center", marginTop: 18 }}>
+              بالمتابعة أنت موافق على{" "}
+              <Text onPress={() => router.push("/legal?open=terms")} style={{ color: t.goldText, textDecorationLine: "underline" }}>الشروط والأحكام</Text>
+              {" و"}
+              <Text onPress={() => router.push("/legal?open=privacy")} style={{ color: t.goldText, textDecorationLine: "underline" }}>سياسة الخصوصية</Text>
+            </Text> : null}
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-function GoldButton({ label, icon, onPress, disabled }: {
-  label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  onPress: () => void; disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => ({
-        flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8,
-        backgroundColor: GOLD, borderRadius: 12, padding: 14,
-        opacity: disabled ? 0.6 : pressed ? 0.85 : 1,
-      })}
-    >
-      <MaterialCommunityIcons name={icon} size={18} color={DARK} />
-      <Text style={{ color: DARK, fontFamily: "Cairo_700Bold", fontSize: 15 }}>{label}</Text>
-    </Pressable>
   );
 }

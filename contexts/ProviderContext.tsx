@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ExpoLinking from "expo-linking";
 import * as Location from "expo-location";
 import React, {
   createContext,
@@ -12,7 +14,8 @@ import React, {
 import { AppState, Linking, Platform } from "react-native";
 
 import { sendMalaazEmail } from "@/lib/emailjs";
-import { clientHasPushToken, registerProviderPushToken } from "@/lib/push";
+import { GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
+import { clientHasPushToken, registerProviderPushToken, unregisterPushToken } from "@/lib/push";
 import {
   supabase,
   DbBooking,
@@ -35,19 +38,22 @@ export type ProviderRegisterInput = {
   phone: string;
   serviceType: string;
   specialty: string;
-  areas: string;
+  grade?: string;
+  areas?: string;
 };
 
 export type ProviderProfileInput = {
   name: string;
+  nameEn?: string;
   phone: string;
+  whatsapp?: string;
   experience: number | null;
   bio: string;
   areas: string[];
   serviceType: string;
   grade: string;
   specialty: string | null;
-  price: number | null;
+  price?: number | null;
   photoUrl?: string | null;
 };
 
@@ -65,6 +71,13 @@ type ProviderContextValue = {
   incomingOffer: ProviderOffer | null;
   dismissIncomingOffer: () => void;
 
+  // دخول/تسجيل بجوجل (بيرجع من المتصفح عن طريق deep link)
+  googleProfile: { name: string; email: string } | null;
+  googleNotice: "pending" | "suspended" | null;
+  clearGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  completeGoogleRegistration: (input: Omit<ProviderRegisterInput, "email" | "password">) => Promise<string>;
+
   login: (email: string, password: string) => Promise<void>;
   register: (input: ProviderRegisterInput) => Promise<string>;
   resetPassword: (email: string) => Promise<void>;
@@ -76,13 +89,16 @@ type ProviderContextValue = {
   toggleAvailability: (value: boolean) => Promise<void>;
   updateBookingStatus: (
     id: string,
-    status: "confirmed" | "completed" | "cancelled"
+    status: "confirmed" | "completed" | "cancelled",
+    cancelReason?: string
   ) => Promise<void>;
+  // ملاحظة بعد الزيارة — بتوصل للإدارة بس (المقدم مبيقدرش يقراها تاني)
+  sendVisitNote: (bookingId: string, note: string) => Promise<void>;
   // "في الطريق إليك" — بيوصل إشعار للعميل تلقائياً من السيرفر
   setOnWay: (id: string) => Promise<void>;
   saveProfile: (input: ProviderProfileInput) => Promise<void>;
   saveMyServices: (
-    rows: { sub_service_id: string; custom_price: number | null }[]
+    rows: { sub_service_id: string; custom_price: number | null; duration_min?: number }[]
   ) => Promise<void>;
 };
 
@@ -99,12 +115,29 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   const [offers, setOffers] = useState<ProviderOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [incomingOffer, setIncomingOffer] = useState<ProviderOffer | null>(null);
+  const [googleProfile, setGoogleProfile] = useState<{ name: string; email: string } | null>(null);
+  const [googleNotice, setGoogleNotice] = useState<"pending" | "suspended" | null>(null);
   const providerRef = useRef<DbProvider | null>(null);
   useEffect(() => {
     providerRef.current = provider;
   }, [provider]);
 
   // ─── استرجاع الجلسة المحفوظة ──────────────────────────────────────────────
+  // رجوع جوجل: لو المستخدم بدأ الدخول من بوابة المقدم (GOOGLE_INTENT) بنحدد حالته من جدول providers
+  const handleGoogleReturn = async (user: { id: string; email?: string | null; user_metadata?: any }) => {
+    const intent = await AsyncStorage.getItem(GOOGLE_INTENT).catch(() => null);
+    if (!intent) return false;
+    const { data } = await supabase.from("providers").select("*").eq("user_id", user.id).maybeSingle();
+    await AsyncStorage.removeItem(GOOGLE_INTENT).catch(() => {});
+    if (data?.status === "active") { setProvider(data as DbProvider); return true; }
+    if (data?.status === "pending") { setGoogleNotice("pending"); await supabase.auth.signOut(); return true; }
+    if (data?.status === "suspended") { setGoogleNotice("suspended"); await supabase.auth.signOut(); return true; }
+    const meta = user.user_metadata ?? {};
+    await AsyncStorage.setItem(PROVIDER_SIGNUP, "1").catch(() => {});
+    setGoogleProfile({ name: meta.full_name ?? meta.name ?? "", email: user.email ?? "" });
+    return true;
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -116,6 +149,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
             .eq("user_id", session.user.id)
             .single();
           if (data && data.status === "active") setProvider(data as DbProvider);
+          else await handleGoogleReturn(session.user);
         }
       } catch {
         // ignore
@@ -123,13 +157,42 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
         setInitializing(false);
       }
     })();
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        const u = session.user;
+        setTimeout(() => { handleGoogleReturn(u).catch(() => {}); }, 0);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
+
+  const signInWithGoogle = async () => {
+    await AsyncStorage.setItem(GOOGLE_INTENT, "1");
+    const redirectTo = ExpoLinking.createURL("provider-auth-callback");
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (error || !data?.url) {
+      await AsyncStorage.removeItem(GOOGLE_INTENT).catch(() => {});
+      throw new Error(error?.message ?? "تعذّر بدء الدخول بجوجل");
+    }
+    await Linking.openURL(data.url);
+  };
+
+  const clearGoogle = async () => {
+    await AsyncStorage.removeItem(PROVIDER_SIGNUP).catch(() => {});
+    setGoogleProfile(null);
+    setGoogleNotice(null);
+    await AsyncStorage.removeItem(GOOGLE_INTENT).catch(() => {});
+    await supabase.auth.signOut();
+  };
 
   // ─── تسجيل الدخول (نفس منطق provider.html) ───────────────────────────────
   const login = async (email: string, password: string) => {
     const { data: authData, error: authErr } =
       await supabase.auth.signInWithPassword({ email, password });
-    if (authErr) throw new Error("بيانات الدخول غلط — تحقق من البريد وكلمة المرور");
+    if (authErr) throw new Error("البريد أو كلمة المرور غير صحيحة.");
 
     const { data, error } = await supabase
       .from("providers")
@@ -143,7 +206,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     }
     if (data.status === "pending") {
       await supabase.auth.signOut();
-      throw new Error("حسابك قيد المراجعة من الأدمن");
+      throw Object.assign(new Error("حسابك قيد المراجعة من الإدارة. سنراسلك على بريدك عند التفعيل."), { code: "pending" });
     }
     if (data.status === "suspended") {
       await supabase.auth.signOut();
@@ -157,6 +220,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email: input.email,
       password: input.password,
+      // the registration screen requires the consent checkbox, so the time / version of the accepted terms is kept with the account
+      options: { data: { consent_at: new Date().toISOString(), consent_version: "2026-10" } },
     });
     if (authErr) {
       throw new Error(
@@ -171,15 +236,25 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       return "✅ تم إنشاء الحساب — تحقق من بريدك الإلكتروني لتأكيد الحساب";
     }
 
-    const areasList = input.areas.split(",").map((a) => a.trim()).filter(Boolean);
+    return createPendingProvider(userId, input.email, input);
+  };
+
+  // صف providers بحالة pending + إشعار الأدمن + إيميل المستندات (مشترك بين الإيميل وجوجل)
+  const createPendingProvider = async (
+    userId: string,
+    email: string,
+    input: Omit<ProviderRegisterInput, "email" | "password">
+  ): Promise<string> => {
+    const areasList = (input.areas ?? "").split(",").map((a) => a.trim()).filter(Boolean);
     const { error: provErr } = await supabase.from("providers").insert([{
       user_id: userId,
       name: input.name,
-      email: input.email,
+      email,
       phone: input.phone,
       service_type: input.serviceType,
-      specialty: input.specialty,
-      area: areasList[0] ?? input.areas,
+      specialty: input.specialty || null,
+      grade: input.grade || null,
+      area: areasList[0] ?? "",
       areas: areasList.join(", "),
       status: "pending",
       is_available: false,
@@ -197,7 +272,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       details:
         `👤 الاسم: ${input.name}<br>` +
         `📱 الموبايل: ${input.phone}<br>` +
-        `✉️ الإيميل: ${input.email}<br>` +
+        `✉️ الإيميل: ${email}<br>` +
         `⚕️ نوع الخدمة: ${input.serviceType || "—"}<br>` +
         `🩺 التخصص: ${input.specialty || "—"}<br>` +
         `📍 المناطق: ${areasList.join("، ") || "—"}`,
@@ -208,7 +283,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
 
     // إيميل ترحيب للمقدم بطلب المستندات المطلوبة
     sendMalaazEmail({
-      to_email: input.email,
+      to_email: email,
       subject: "مرحباً بك في ملاذ 🏥 — المستندات المطلوبة للانضمام",
       title: "أهلاً بك في شبكة ملاذ!",
       title_color: "#1C2B2A",
@@ -227,11 +302,11 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
         `7️⃣ السيرة الذاتية الطبية (CV)<br>` +
         `8️⃣ شهادة حسن السيرة والسلوك (إن أمكن)<br><br>` +
         `<b>📤 طريقة الإرسال:</b><br>` +
-        `واتساب: <b>01039091989</b><br>` +
+        `واتساب: <b>01039097982</b><br>` +
         `أو ابعت على: <b>malaaz.medical@gmail.com</b><br><br>` +
         `بعد مراجعة المستندات خلال 3-5 أيام عمل، سيتم تفعيل حسابك وتبدأ في استقبال الحجوزات فوراً.`,
       button_text: "📱 تواصل معنا على واتساب",
-      button_link: "https://wa.me/201039091989",
+      button_link: "https://wa.me/201039097982",
       button_color: "#25D366",
     });
 
@@ -239,7 +314,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     // (لو فشل الإرسال بصمت، يفضل المقدم عارف المطلوب منه وما يستناش إيميل ممكن ما يجيش)
     return (
       "✅ تم إنشاء الحساب — انتظر موافقة الأدمن (3-5 أيام عمل)\n\n" +
-      "📋 جهّز المستندات دي وابعتها واتساب 01039091989 أو ايميل malaaz.medical@gmail.com:\n" +
+      "📋 جهّز المستندات دي وابعتها واتساب 01039097982 أو ايميل malaaz.medical@gmail.com:\n" +
       "1) شهادة مزاولة المهنة\n" +
       "2) كارنيه عضوية النقابة\n" +
       "3) المؤهل العلمي\n" +
@@ -247,6 +322,18 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       "5) صورة شخصية\n" +
       "6) السيرة الذاتية (CV)"
     );
+  };
+
+  const completeGoogleRegistration = async (
+    input: Omit<ProviderRegisterInput, "email" | "password">
+  ): Promise<string> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error("انتهت جلسة جوجل — حاول من جديد");
+    const msg = await createPendingProvider(session.user.id, session.user.email ?? "", input);
+    await AsyncStorage.removeItem(PROVIDER_SIGNUP).catch(() => {});
+    setGoogleProfile(null);
+    await supabase.auth.signOut();
+    return msg;
   };
 
   const resetPassword = async (email: string) => {
@@ -257,6 +344,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    await unregisterPushToken();
     await supabase.auth.signOut();
     setProvider(null);
     setBookings([]);
@@ -470,7 +558,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   // ─── تحديث حالة الحجز + إشعارات العميل (نفس منطق الموقع) ────────────────
   const updateBookingStatus = async (
     id: string,
-    status: "confirmed" | "completed" | "cancelled"
+    status: "confirmed" | "completed" | "cancelled",
+    cancelReason?: string
   ) => {
     const updatePayload: Record<string, unknown> = { status };
     if (status === "confirmed" && provider?.id) {
@@ -487,7 +576,11 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       throw new Error("لم يتم التحديث — تحقق من الصلاحيات");
 
     const booking = bookings.find((b) => b.id === id);
-    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
+    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status, ...(cancelReason ? { cancel_reason: cancelReason } : {}) } : b)));
+    if (status === "cancelled" && cancelReason) {
+      // best-effort: العمود موجود في مشروع الاختبار بس (08_provider_app.sql)
+      await supabase.from("bookings").update({ cancel_reason: cancelReason, cancelled_by: "provider" }).eq("id", id);
+    }
     if (!booking) return;
 
     // الـ push بيتبعت تلقائياً من السيرفر (تريجر) — الإيميل fallback بس لو العميل معندوش التطبيق
@@ -506,7 +599,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
           `🕐 الميعاد: ${booking.appointment_time || "—"}<br>` +
           `👨‍⚕️ مقدم الخدمة: ${provider?.name || "سيتم التواصل معك"}`,
         button_text: "📱 تواصل معنا",
-        button_link: "https://wa.me/201039091989",
+        button_link: "https://wa.me/201039097982",
         button_color: "#25D366",
       });
     }
@@ -545,6 +638,14 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   };
 
   // ─── "في الطريق إليك" ────────────────────────────────────────────────────
+  const sendVisitNote = async (bookingId: string, note: string) => {
+    if (!provider?.id) throw new Error("غير مسجل");
+    const { error } = await supabase
+      .from("booking_visit_notes")
+      .insert({ booking_id: bookingId, provider_id: provider.id, note });
+    if (error) throw new Error(error.message);
+  };
+
   const setOnWay = async (id: string) => {
     const now = new Date().toISOString();
     const { data, error } = await supabase
@@ -563,6 +664,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     const payload: Record<string, unknown> = {
       name: input.name,
       phone: input.phone,
+      ...(input.whatsapp !== undefined ? { whatsapp: input.whatsapp || null } : {}),
       experience: input.experience,
       bio: input.bio,
       areas: input.areas.join(", "),
@@ -570,8 +672,9 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       service_type: input.serviceType,
       grade: input.grade,
       specialty: input.specialty,
-      price: input.price,
     };
+    // السعر الأساسي بيتحسب تلقائي من خدماتي وأسعاري — مش بيتكتب يدوي
+    if (input.price !== undefined) payload.price = input.price;
     if (input.photoUrl) payload.photo_url = input.photoUrl;
 
     const { error } = await supabase
@@ -579,12 +682,20 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       .update(payload)
       .eq("id", provider.id);
     if (error) throw new Error(error.message);
-    setProvider({ ...provider, ...(payload as Partial<DbProvider>) });
+    // الاسم الإنجليزي بطلب منفصل: لو العمود لسه مش موجود (قبل SQL 31) الحفظ الأساسي يفضل شغال
+    let nameEn: string | null | undefined;
+    if (input.nameEn !== undefined) {
+      const v = input.nameEn.trim() || null;
+      const { error: enErr } = await supabase.from("providers").update({ name_en: v }).eq("id", provider.id);
+      if (!enErr) nameEn = v;
+      else if (!/name_en/.test(enErr.message)) throw new Error(enErr.message);
+    }
+    setProvider({ ...provider, ...(payload as Partial<DbProvider>), ...(nameEn !== undefined ? { name_en: nameEn } : {}) });
   };
 
   // ─── حفظ الخدمات والأسعار (حذف ثم إدراج زي الموقع) ──────────────────────
   const saveMyServices = async (
-    rows: { sub_service_id: string; custom_price: number | null }[]
+    rows: { sub_service_id: string; custom_price: number | null; duration_min?: number }[]
   ) => {
     if (!provider) return;
     const svcType = provider.service_type || "كشف منزلي";
@@ -604,6 +715,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
           provider_id: provider.id,
           sub_service_id: r.sub_service_id,
           custom_price: r.custom_price,
+          ...(r.duration_min ? { duration_min: r.duration_min } : {}),
           is_active: true,
         }))
       );
@@ -615,6 +727,15 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("provider_id", provider.id);
     setMyServices((data ?? []) as DbProviderService[]);
+
+    // السعر الأساسي = أقل سعر بين خدماته المفعّلة (بيظهر للعملاء "من X ج.م")
+    const onlineIds = new Set(subServices.filter((x) => x.group_name === "online").map((x) => x.id));
+    const prices = rows.filter((r) => !onlineIds.has(r.sub_service_id)).map((r) => r.custom_price).filter((p): p is number => p != null && p > 0);
+    if (prices.length) {
+      const base = Math.min(...prices);
+      const { error: pErr } = await supabase.from("providers").update({ price: base }).eq("id", provider.id);
+      if (!pErr) setProvider((prev) => (prev ? { ...prev, price: base } : prev));
+    }
   };
 
   const value = useMemo<ProviderContextValue>(
@@ -626,6 +747,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       subServices,
       areas,
       myServices,
+      sendVisitNote,
       offers,
       loadingOffers,
       incomingOffer,
@@ -633,6 +755,11 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
       login,
       register,
       resetPassword,
+      googleProfile,
+      googleNotice,
+      clearGoogle,
+      signInWithGoogle,
+      completeGoogleRegistration,
       logout,
       refreshAll,
       refreshOffers,
@@ -647,6 +774,8 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
     [
       initializing,
       provider,
+      googleProfile,
+      googleNotice,
       bookings,
       loadingBookings,
       subServices,

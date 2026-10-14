@@ -46,6 +46,14 @@ export async function getExpoPushToken(): Promise<string | null> {
   }
 }
 
+// عند تسجيل الخروج: شيل توكن الجهاز من الحساب الحالي عشان الإشعارات تقف (لازم قبل signOut)
+export async function unregisterPushToken(): Promise<void> {
+  try {
+    const token = await getExpoPushToken();
+    if (token) await supabase.rpc("unregister_push_token", { p_token: token });
+  } catch {}
+}
+
 // تسجيل توكن العميل (بالموبايل — مفيش حسابات للعملاء في التطبيق)
 export async function registerClientPushToken(phone: string): Promise<void> {
   if (!phone) return;

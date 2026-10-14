@@ -2,7 +2,8 @@
 // كمان بتتنادى لما بيتعمل offer لمقدم خدمة (OFFER_INSERT)
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const WEBHOOK_SECRET = "4f6e073da3168f12f3e3181b0c62ab71776d267fee8293b7";
+// السر بيتقرا من أسرار Edge Function (WEBHOOK_SECRET) — ممنوع يتكتب هنا. غيّره من لوحة Supabase.
+const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET") ?? "";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -143,7 +144,7 @@ async function notifyAdminNewBooking(booking: Booking) {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.headers.get("x-webhook-secret") !== WEBHOOK_SECRET) {
+  if (!WEBHOOK_SECRET || req.headers.get("x-webhook-secret") !== WEBHOOK_SECRET) {
     return new Response("forbidden", { status: 403 });
   }
 

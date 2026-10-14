@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, View } from "react-native";
+import { Text } from "@/components/i18n";
 
 import { ProviderOffer, useProvider } from "@/contexts/ProviderContext";
 import { useColors } from "@/hooks/useColors";

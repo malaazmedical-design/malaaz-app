@@ -27,4 +27,11 @@ jobs:
       - name: Push OTA update to production channel
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
+          # same values as the "production" build profile in eas.json (public anon key). They are inlined into the JS
+          # bundle at publish time; without them the update would have no Supabase address and the app would break.
+          EXPO_PUBLIC_SUPABASE_URL: https://omsictbrqlsohrmxeuym.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tc2ljdGJycWxzb2hybXhldXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTc1NzcsImV4cCI6MjA5NTI5MzU3N30.tbFL_7mWZ6qVUtgFkagfSwWdgni5JKRuCR8nbwqIqho
+          EXPO_PUBLIC_VODAFONE_CASH: "01039091989"
+          FACEBOOK_APP_ID: "1793244008351742"
+          FACEBOOK_CLIENT_TOKEN: 014c33fb723a3c5fa6d1f32e3a99372d
         run: eas update --channel production --message "$(echo "$COMMIT_MSG" | head -1)" --non-interactive

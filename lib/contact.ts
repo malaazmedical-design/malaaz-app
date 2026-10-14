@@ -1,8 +1,8 @@
 import { Linking } from "react-native";
 
 // كل التواصل في التطبيق بيروح لرقم الشركة الرئيسي — مش لرقم مقدم الخدمة
-export const COMPANY_PHONE = "01039091989";
-const COMPANY_PHONE_INTL = "201039091989";
+export const COMPANY_PHONE = "01039097982";
+const COMPANY_PHONE_INTL = "201039097982";
 
 export function callCompany(): void {
   Linking.openURL(`tel:${COMPANY_PHONE}`).catch(() => {});

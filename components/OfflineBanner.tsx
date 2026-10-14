@@ -1,11 +1,15 @@
+import { useSegments } from "expo-router";
 import React from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "@/components/i18n";
 
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export function OfflineBanner() {
   const online = useOnlineStatus();
-  if (online) return null;
+  const segments = useSegments() as string[];
+  // the consultation room / call screens show their own connection banner
+  if (online || segments.includes("consult")) return null;
   return (
     <View style={{
       backgroundColor: "#CC2200",

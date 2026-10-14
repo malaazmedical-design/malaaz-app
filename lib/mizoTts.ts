@@ -1,6 +1,7 @@
 import * as Speech from "expo-speech";
 import { azureSpeak } from "@/lib/azureTts";
 import { elevenLabsSpeak } from "@/lib/elevenLabsTts";
+import { cloneSpeak } from "@/lib/cloneTts";
 import { hasRecording, playRecording } from "@/lib/mizoRecording";
 import { getVoiceOptions } from "@/lib/mizoStorage";
 import type { MizoProfile } from "@/lib/mizoStorage";
@@ -8,10 +9,10 @@ import type { MizoProfile } from "@/lib/mizoStorage";
 export async function mizoSpeak(
   phrase: string,
   wordId: string,
-  profile: Pick<MizoProfile, "ttsMode" | "azureVoice" | "azureKey" | "azureRegion" | "elevenApiKey" | "elevenVoiceId" | "elevenGender" | "voiceType">,
+  profile: Pick<MizoProfile, "ttsMode" | "azureVoice" | "azureKey" | "azureRegion" | "elevenApiKey" | "elevenVoiceId" | "elevenGender" | "voiceType" | "voiceProfileId">,
   onDone?: () => void,
 ): Promise<void> {
-  const { ttsMode, azureVoice, azureKey, azureRegion, elevenApiKey, elevenVoiceId, elevenGender, voiceType } = profile;
+  const { ttsMode, azureVoice, azureKey, azureRegion, elevenApiKey, elevenVoiceId, elevenGender, voiceType, voiceProfileId } = profile;
 
   if (ttsMode === "recorded") {
     const exists = await hasRecording(wordId);
@@ -24,6 +25,17 @@ export async function mizoSpeak(
           // fall through silently to device TTS
         }
       }
+    }
+  }
+
+  // Cloned patient voice: personal, never uses the shared cache. Falls through
+  // to device TTS if the profile isn't ready or generation fails.
+  if (ttsMode === "clone" && voiceProfileId) {
+    try {
+      const played = await cloneSpeak(phrase, wordId, voiceProfileId, onDone);
+      if (played) return;
+    } catch (e: any) {
+      if (e?.message !== "NEEDS_NATIVE_BUILD") console.warn("Clone TTS failed:", e);
     }
   }
 

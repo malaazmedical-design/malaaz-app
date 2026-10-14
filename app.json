@@ -3,15 +3,14 @@
     "name": "ملاذ",
     "slug": "malaaz",
     "owner": "malaazapp",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "malaaz",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#1C2B2A",
     "newArchEnabled": true,
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1",
     "updates": {
       "url": "https://u.expo.dev/a2dcbf20-8580-4220-b882-8477c635aba0",
       "checkAutomatically": "ON_LOAD",
@@ -20,7 +19,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1C2B2A"
+      "backgroundColor": "#F4F1EA"
     },
     "ios": {
       "supportsTablet": true,
@@ -64,7 +63,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1C2B2A",
+          "backgroundColor": "#F4F1EA",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 240
         }

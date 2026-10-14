@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  View, Text, StyleSheet, SafeAreaView,
-  FlatList, Pressable, RefreshControl,
-} from "react-native";
+import { View, StyleSheet, SafeAreaView, FlatList, Pressable, RefreshControl } from "react-native";
+import { Text } from "@/components/i18n";
 import { router } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { getLocalEvents, AacEvent } from "@/lib/mizoStorage";

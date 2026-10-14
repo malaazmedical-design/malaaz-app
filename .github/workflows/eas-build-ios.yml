@@ -1,0 +1,50 @@
+name: EAS Build — iOS (ReVoice / Provider)
+
+# iOS builds for the test variants only (own bundle ids, never com.malaaz.app). Android workflows are untouched.
+# First time: create the Apple credentials once with `eas build -p ios --profile mizo-test-ios` from a terminal
+# (it asks for the Apple Developer login). After that this workflow can run non-interactively. See docs/ios-setup.md.
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'الـ branch'
+        required: true
+        default: 'revoice'
+      profile:
+        description: 'mizo-test-ios (TestFlight) أو mizo-provider-ios (TestFlight) أو mizo-test-sim (محاكي، مجاني)'
+        required: true
+        default: 'mizo-test-ios'
+      submit:
+        description: 'رفع تلقائي لـ TestFlight بعد البناء (true/false)'
+        required: true
+        default: 'false'
+
+jobs:
+  build:
+    name: Build iOS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS
+        run: |
+          EXTRA=""
+          if [ "${{ github.event.inputs.submit }}" = "true" ]; then EXTRA="--auto-submit"; fi
+          eas build --platform ios --profile ${{ github.event.inputs.profile }} --non-interactive $EXTRA
+
+      - name: Done
+        run: echo "✅ البناء خلص — https://expo.dev/accounts/malaazapp/projects/malaaz/builds"

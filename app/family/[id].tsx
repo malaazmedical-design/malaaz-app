@@ -3,22 +3,15 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, Modal, Pressable, ScrollView, Switch, View } from "react-native";
+import { Text, TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useApp } from "@/contexts/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { supabase, DbMedicalFile, DbMedicineReminder } from "@/lib/supabase";
 
+import { locale } from "@/lib/i18n";
 const DARK = "#1C2B2A";
 const GOLD = "#C9A84C";
 
@@ -366,7 +359,7 @@ export default function FamilyMemberScreen() {
                   <View style={{ padding: 8 }}>
                     <Text numberOfLines={1} style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: colors.foreground, textAlign: "right" }}>{f.title}</Text>
                     <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: colors.mutedForeground, textAlign: "right" }}>
-                      <MaterialCommunityIcons name={(typeInfo?.icon ?? "paperclip") as any} size={10} /> {typeInfo?.label} · {new Date(f.created_at).toLocaleDateString("ar-EG", { day: "numeric", month: "short" })}
+                      <MaterialCommunityIcons name={(typeInfo?.icon ?? "paperclip") as any} size={10} /> {typeInfo?.label} · {new Date(f.created_at).toLocaleDateString(locale(), { day: "numeric", month: "short" })}
                     </Text>
                   </View>
                 </Pressable>

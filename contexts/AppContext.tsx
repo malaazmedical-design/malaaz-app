@@ -1,4 +1,7 @@
+import { trackRegistration, trackSchedule } from "@/lib/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
+import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import React, {
   createContext,
@@ -12,7 +15,7 @@ import React, {
 } from "react";
 import { AppState, Platform } from "react-native";
 
-import { registerClientPushToken, notifyProviderCancellation } from "@/lib/push";
+import { registerClientPushToken, unregisterPushToken, notifyProviderCancellation } from "@/lib/push";
 import { sendMalaazEmail } from "@/lib/emailjs";
 import {
   supabase,
@@ -31,6 +34,7 @@ import {
   ServiceType,
   PaymentMethod,
 } from "@/constants/data";
+import { useOnReconnect } from "@/lib/reconnect";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +53,8 @@ export type CustomerProfile = {
   phone2?: string;
   avatarUri?: string;
   termsAccepted?: boolean;
+  birthDate?: string; // YYYY-MM-DD
+  gender?: "male" | "female";
 };
 
 export type Review = {
@@ -181,8 +187,13 @@ type AppContextValue = {
 
   // ─── حساب العميل (زي client.html) ─────────────────────────────────────
   client: DbClient | null;
-  clientLogin: (email: string, password: string) => Promise<void>;
+  clientLogin: (email: string, password: string) => Promise<{ needsPhone: boolean }>;
   clientRegister: (input: ClientRegisterInput) => Promise<void>;
+  // true when someone is signed in (email / Google) but has no client record yet — the app
+  // then asks for a mobile number (see supabase/test-project/07_register_client.sql)
+  needsPhone: boolean;
+  clientSignInWithGoogle: () => Promise<void>;
+  clientCompleteProfile: (phone: string, name?: string) => Promise<void>;
   clientLogout: () => Promise<void>;
   clientResetPassword: (email: string) => Promise<void>;
 
@@ -215,6 +226,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [client, setClient] = useState<DbClient | null>(null);
   const [addresses, setAddresses] = useState<DbClientAddress[]>([]);
+  const [needsPhone, setNeedsPhone] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<DbFamilyMember[]>([]);
 
   // الكاش المحلي ممكن يحتوي حجوزات اتعملت من نفس الجهاز بهويات مختلفة (أرقام مختلفة
@@ -247,28 +259,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // ─── حساب العميل: استرجاع الجلسة المحفوظة ────────────────────────────────
+  // ─── حساب العميل: استرجاع الجلسة المحفوظة + أي تسجيل دخول جديد (إيميل / جوجل) ────
+  // Loads the client row for the current session; if there is a session but no client yet,
+  // flags that the mobile number is still needed.
+  const syncClientFromSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { setNeedsPhone(false); return; }
+
+      // الجلسة دي بتاعة مقدم خدمة (دخول جوجل من بوابة المقدم، أو تسجيل مقدم جديد لسه شغّال، أو حسابه فعلاً مقدم):
+      // مننزلهاش كحساب عميل ومنطلبش منه رقم موبايل عميل
+      const [intent, signup] = await Promise.all([
+        AsyncStorage.getItem(GOOGLE_INTENT).catch(() => null),
+        AsyncStorage.getItem(PROVIDER_SIGNUP).catch(() => null),
+      ]);
+      if (intent || signup) { setNeedsPhone(false); return; }
+      const { data: prov } = await supabase.from("providers").select("id").eq("user_id", session.user.id).maybeSingle();
+      if (prov) { setNeedsPhone(false); return; }
+
+      const { data } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("auth_id", session.user.id)
+        .maybeSingle();
+      if (data) await onClientReady(data as DbClient);
+      else setNeedsPhone(true);
+    } catch {
+      // مفيش جلسة عميل — وضع الزائر عادي
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
-        const { data } = await supabase
-          .from("clients")
-          .select("*")
-          .eq("auth_id", session.user.id)
-          .single();
-        if (data) await onClientReady(data as DbClient);
-      } catch {
-        // مفيش جلسة عميل — وضع الزائر عادي
-      }
-    })();
+    syncClientFromSession();
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      // SIGNED_IN also fires after OAuth deep links and password logins
+      if (event === "SIGNED_IN") setTimeout(() => { syncClientFromSession(); }, 0);
+    });
+    return () => sub.subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // بعد تسجيل الدخول/الاسترجاع: مزامنة البروفايل + ربط الحجوزات القديمة + تحميل بياناته
   const onClientReady = async (c: DbClient) => {
     setClient(c);
+    setNeedsPhone(false);
     setProfile((prev) => {
       const merged: CustomerProfile = {
         ...prev,
@@ -279,6 +313,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         phone2: c.phone2 ?? prev.phone2,
         // استعادة الصورة من DB لو مش موجودة محلياً (مثلاً بعد إعادة تثبيت التطبيق)
         avatarUri: prev.avatarUri || (c as any).avatar_url || undefined,
+        birthDate: c.birth_date ?? prev.birthDate,
+        gender: c.gender ?? prev.gender,
         isGuest: false,
       };
       AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(merged)).catch(() => {});
@@ -316,12 +352,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .from("clients")
       .select("*")
       .eq("auth_id", authData.user.id)
-      .single();
+      .maybeSingle();
     if (!data) {
-      await supabase.auth.signOut();
-      throw new Error("لم يتم العثور على حسابك — جرّب إنشاء حساب جديد");
+      // signed in but never gave a mobile number: keep the session and ask for it
+      setNeedsPhone(true);
+      return { needsPhone: true };
     }
     await onClientReady(data as DbClient);
+    return { needsPhone: false };
   };
 
   const clientRegister = async (input: ClientRegisterInput) => {
@@ -335,20 +373,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
     }
     const userId = authData?.user?.id ?? authData?.session?.user?.id;
-    if (!userId) throw new Error("✅ تم إنشاء الحساب — تحقق من بريدك الإلكتروني لتأكيده ثم سجّل دخول");
-
-    const { data: newClient, error: cErr } = await supabase
-      .from("clients")
-      .insert([{ auth_id: userId, name: input.name, phone: input.phone, email: input.email }])
-      .select()
-      .single();
-    if (cErr) throw new Error(cErr.message);
-    await onClientReady(newClient as DbClient);
+    if (!userId || !authData?.session) throw new Error("✅ تم إنشاء الحساب — تحقق من بريدك الإلكتروني لتأكيده ثم سجّل دخول");
+    // one client per mobile number, enforced on the server
+    await clientCompleteProfile(input.phone, input.name);
+    trackRegistration();
   };
 
   const clientLogout = async () => {
+    await unregisterPushToken();
     await supabase.auth.signOut();
     setClient(null);
+    setBookings([]);
+    AsyncStorage.removeItem(BOOKINGS_KEY).catch(() => {});   // the saved bookings belong to the account that just left
+    setNeedsPhone(false);
     setAddresses([]);
     setFamilyMembers([]);
     const cleared: CustomerProfile = { ...DEFAULT_PROFILE };
@@ -356,9 +393,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(cleared)).catch(() => {});
   };
 
+  // Creates / links the client record for the signed-in user and the given mobile number.
+  // Server rules (07_register_client.sql): one account per number; an unlinked old record with
+  // the same number is linked; a number owned by another login is rejected.
+  const clientCompleteProfile = async (phone: string, name?: string) => {
+    const { data, error } = await supabase.rpc("register_my_client", { p_phone: phone, p_name: name ?? null });
+    if (error) {
+      const msg = error.message ?? "";
+      if (msg.includes("phone_taken")) {
+        const hint = msg.split("phone_taken:")[1]?.trim();
+        throw new Error(
+          hint
+            ? `الرقم ده مسجّل بحساب تاني (${hint}). سجّل دخول بنفس الحساب بدل ما تعمل حساب جديد.`
+            : "الرقم ده مسجّل بحساب تاني. سجّل دخول بنفس الحساب.",
+        );
+      }
+      if (msg.includes("invalid_phone")) throw new Error("رقم الموبايل غير صحيح (مثال: 01012345678)");
+      throw new Error(msg);
+    }
+    await onClientReady(data as DbClient);
+  };
+
+  // Google sign-in through the system browser; the app comes back via the auth-callback deep link
+  // handled in app/_layout.tsx (no extra native module needed).
+  const clientSignInWithGoogle = async () => {
+    const redirectTo = Linking.createURL("auth-callback");
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (error || !data?.url) throw new Error(error?.message ?? "تعذّر بدء الدخول بجوجل");
+    await Linking.openURL(data.url);
+  };
+
   const clientResetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "malaaz://reset-password",
+      redirectTo: Linking.createURL("reset-password"),
     });
     if (error) throw new Error(error.message);
   };
@@ -490,7 +560,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const realServices = own
             .map((ps) => {
               const sub = subsById.get(ps.sub_service_id);
-              if (!sub) return null;
+              if (!sub || sub.group_name === "online") return null;
               const fallbackPrice =
                 (consultant ? sub.price_min_consultant : sub.price_min_specialist) ??
                 sub.price_min ?? 0;
@@ -532,6 +602,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshProviders();
   }, [refreshProviders]);
+
+  // connection came back: reload the lists without restarting the app
+  useOnReconnect(refreshProviders);
 
   // Realtime: تحديث مناطق التغطية فور تغييرها من الأدمن (بدون إعادة تشغيل التطبيق)
   useEffect(() => {
@@ -646,6 +719,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         })
         .eq("id", client.id)
         .then(() => {});
+      // Optional columns that only exist where 05_new_columns.sql was applied.
+      // Kept in a separate call so a missing column can never break the main sync.
+      supabase
+        .from("clients")
+        .update({ birth_date: merged.birthDate || null, gender: merged.gender || null })
+        .eq("id", client.id)
+        .then(() => {}, () => {});
     }
   };
 
@@ -704,6 +784,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from("bookings").insert(bookingData);
 
     if (error) throw error;
+    trackSchedule(bookingData.provider_id ? "home_visit" : "quick_request");
 
     // لو الحجز من غير مقدم محدد: ابعت عروض لكل مقدمي الخدمة النشطين
     // (fire-and-forget — الحجز نفسه ينجح بغض النظر عن نتيجة ده)
@@ -826,6 +907,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       client,
       clientLogin,
       clientRegister,
+      needsPhone,
+      clientSignInWithGoogle,
+      clientCompleteProfile,
       clientLogout,
       clientResetPassword,
       addresses,
@@ -838,7 +922,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateFamilyMember,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, visibleBookings, loadingBookings, client, addresses, familyMembers]
+    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, visibleBookings, loadingBookings, client, addresses, familyMembers, needsPhone]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
