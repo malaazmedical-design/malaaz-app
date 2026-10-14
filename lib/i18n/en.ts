@@ -1384,6 +1384,16 @@ export const EN: Record<string, string> = {
   "لو الخدمة اتقدمت فعلًا، مفيش استرداد بسبب عدم الرضا عن النتيجة أو رأي الطبيب، لأن القرار الطبي مسؤولية مقدم الخدمة. لو عندك شكوى من سلوك أو تأخير أو مشكلة في الخدمة نفسها، كلمنا وهنراجعها.": "If the service was actually delivered, there is no refund for being unhappy with the outcome or the doctor's opinion, because the medical decision is the provider's responsibility. If you have a complaint about behaviour, delays or a problem with the service itself, contact us and we'll review it.",
   "الزيارات المنزلية": "Home visits",
   "لازم يكون فيه شخص بالغ في البيت وقت الزيارة. من حق مقدم الخدمة يوقف الزيارة ويمشي لو حس بخطر أو اتعرض لإساءة، ومش بيتحاسب بغياب. لو حصل تصرف مش مقبول من أي طرف بلّغنا فورًا، وفي الخطر الحقيقي اتصل بالشرطة أو الإسعاف.": "An adult must be at home during the visit. The provider may stop the visit and leave if they feel in danger or are abused, and they are not counted absent. If anyone behaves unacceptably, tell us right away, and in real danger call the police or ambulance.",
+  "حدد مناطق التغطية": "Set your coverage areas",
+  "حدد التخصص": "Set your specialty",
+  "حدد التخصص ومناطق التغطية": "Set your specialty and coverage areas",
+  "حدد الدرجة العلمية": "Set your academic grade",
+  "حدد الدرجة العلمية ومناطق التغطية": "Set your academic grade and coverage areas",
+  "حدد الدرجة العلمية والتخصص": "Set your academic grade and specialty",
+  "حدد الدرجة العلمية والتخصص ومناطق التغطية": "Set your academic grade, specialty and coverage areas",
+  "حدد المسمى الوظيفي": "Set your job title",
+  "حدد المسمى الوظيفي ومناطق التغطية": "Set your job title and coverage areas",
+  "حدد نوع الجهة ومناطق التغطية": "Set your facility type and coverage areas",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
