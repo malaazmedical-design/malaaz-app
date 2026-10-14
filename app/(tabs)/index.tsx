@@ -1,3 +1,4 @@
+import { matchCoverageArea } from "@/lib/areaMatch";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -173,15 +174,11 @@ export default function HomeScreen() {
 
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
         const [geo] = await Location.reverseGeocodeAsync(loc.coords);
-        const district = geo.district || geo.subregion || geo.city;
-        if (!district) return;
-
-        const match = coverageAreas.find(
-          (a) => district.includes(a.name) || a.name.includes(district)
-        );
-        if (match && match.city) {
+        const match = matchCoverageArea([geo.district, geo.subregion, geo.name, geo.street, geo.city, geo.region], coverageAreas);
+        const matchCity = match?.city;
+        if (matchCity) {
           // ما نغيّرش الفلتر لو العميل غيّره يدوي وهو منتظر نتيجة تحديد الموقع
-          setCityFilter((prev) => (prev === "الكل" ? match.city : prev));
+          setCityFilter((prev) => (prev === "الكل" ? matchCity : prev));
         }
       } catch {
         // تعذّر تحديد الموقع — القائمة تفضل بدون فلتر مدينة (السلوك الافتراضي)
