@@ -1,7 +1,7 @@
 -- 04_unify_specialties.sql — توحيد تخصصات الأطباء القدام على القايمة الرسمية (sub_services)
 -- للتطبيق الأصلي فقط (omsictbrqlsohrmxeuym). شغّله بعد النسخة الاحتياطية وبعد مراجعة الأسماء.
 -- آمن: بيحفظ القيم القديمة في جدول specialty_unify_backup (للرجوع)، وبيعدّل بالـ id مش بالاسم.
--- (0) بيضيف 6 تخصصات جديدة، (أ) بيحوّل 19 دكتور على الأسماء الرسمية. بدون تخصص: اتنين متسابين.
+-- (0) بيضيف 6 تخصصات جديدة، (أ) بيحوّل 20 دكتور على الأسماء الرسمية، وبينقل مني محمد رجب لتمريض.
 
 create table if not exists public.specialty_unify_backup (
   provider_id uuid primary key,
@@ -48,9 +48,8 @@ insert into _map values
   ('18aea9d7-1f37-451f-80d0-8d9d6a3b0dc3', 'أخصائي نفسي وإرشاد',             null),        -- علاج نفسي
   ('9b50f120-feb3-4c6a-9a52-f728e50b50ec', 'باطنة',                          null),        -- قلب وباطنه
   ('dacf5de1-5cbe-40ad-b64f-85f39bf4860b', 'قلب وأوعية دموية',               null),        -- كشف قلب و ايكو
-  ('f9774f75-df49-4869-af0d-8072cec6d554', 'أخصائي نفسي وإرشاد',             null);        -- معالج نفسي
-
--- (بدون تعديل): Abdelrahman Elbanna (752de425…) ومني محمد رجب (a407f6e5…) — مفيش تخصص مكتوب.
+  ('f9774f75-df49-4869-af0d-8072cec6d554', 'أخصائي نفسي وإرشاد',             null),        -- معالج نفسي
+  ('752de425-1097-49bd-ae9b-35d5da5bf016', 'الاورام',                        null);        -- Abdelrahman Elbanna (أخصائي أورام)
 
 -- حماية: ما نحوّلش لاسم مش موجود في القايمة الرسمية
 do $$
@@ -69,6 +68,13 @@ insert into public.specialty_unify_backup(provider_id, old_specialty, old_grade)
 select p.id, p.specialty, p.grade from public.providers p join _map m on m.id = p.id
 on conflict (provider_id) do nothing;
 
+-- مني محمد رجب (a407f6e5…): أخصائي تمريض كانت مسجّلة غلط تحت "كشف منزلي" → ننقلها لـ"تمريض منزلي" (درجتها أخصائي زي ما هي)
+insert into public.specialty_unify_backup(provider_id, old_specialty, old_grade)
+select id, specialty, grade from public.providers where id = 'a407f6e5-0e14-41c9-9dcb-eceed4eca169'
+on conflict (provider_id) do nothing;
+update public.providers set service_type = 'تمريض منزلي', specialty = null
+ where id = 'a407f6e5-0e14-41c9-9dcb-eceed4eca169' and service_type = 'كشف منزلي';
+
 -- التنفيذ (الدرجة بتتملي بس لو كانت فاضية)
 update public.providers p
    set specialty = m.new_specialty,
@@ -85,6 +91,6 @@ select p.name, p.specialty
 
 drop table if exists _map;
 
--- للرجوع لو احتجت:
+-- للرجوع لو احتجت (مني محمد رجب ترجع service_type = 'كشف منزلي' يدوي):
 -- update public.providers p set specialty=b.old_specialty, grade=b.old_grade
 --   from public.specialty_unify_backup b where b.provider_id=p.id;
