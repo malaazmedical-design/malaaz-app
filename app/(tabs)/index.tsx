@@ -294,11 +294,14 @@ export default function HomeScreen() {
     [filtered],
   );
 
+  // نرجّع للكارت الأول فقط لو ترتيب/محتوى النتائج اتغيّر فعلاً — مش مع كل تحديث
+  // خلفي للبيانات (العروض/المقدمين) اللي بيغيّر هوية المصفوفة بس
+  const filteredKey = useMemo(() => filtered.map((p) => p.id).join("|"), [filtered]);
   useEffect(() => {
     setRowIdx(0);
     setShown(PAGE);
     rowRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [filtered]);
+  }, [filteredKey]);
 
   useEffect(() => {
     if (!viewAll) return;
