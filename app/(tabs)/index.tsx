@@ -67,7 +67,6 @@ const CARD_W = 168;
 const CARD_GAP = 12;
 const CARD_STEP = CARD_W + CARD_GAP;
 const TOP_N = 10;
-const PAGE = 10;
 
 import { IntroAnchor } from "@/components/IntroAnchor";
 const LOGO_LIGHT = require("../../assets/images/malaz/logo-light.png");
@@ -107,7 +106,6 @@ export default function HomeScreen() {
   const [spType, setSpType] = useState<ServiceType | "all">("all");
   const [spGrade, setSpGrade] = useState<string | null>(null);
   const [spSel, setSpSel] = useState<string[]>([]);
-  const [shown, setShown] = useState(PAGE);
   const [rowIdx, setRowIdx] = useState(0);
   const rowRef = useRef<FlatList<CarouselItem>>(null);
   const rowIdxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -294,11 +292,13 @@ export default function HomeScreen() {
     [filtered],
   );
 
+  // نرجّع للكارت الأول فقط لو ترتيب/محتوى النتائج اتغيّر فعلاً — مش مع كل تحديث
+  // خلفي للبيانات (العروض/المقدمين) اللي بيغيّر هوية المصفوفة بس
+  const filteredKey = useMemo(() => filtered.map((p) => p.id).join("|"), [filtered]);
   useEffect(() => {
     setRowIdx(0);
-    setShown(PAGE);
     rowRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [filtered]);
+  }, [filteredKey]);
 
   useEffect(() => {
     if (!viewAll) return;
@@ -660,18 +660,14 @@ export default function HomeScreen() {
           </View>
           <FlatList
             extraData={offers}
-            data={filtered.slice(0, shown)}
+            data={filtered}
             keyExtractor={(p) => p.id}
+            style={{ flex: 1 }}
+            initialNumToRender={12}
+            windowSize={7}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 110, gap: 12 }}
-            onEndReachedThreshold={0.3}
-            onEndReached={() => setShown((s) => (s < filtered.length ? s + PAGE : s))}
             ListEmptyComponent={
               <Text style={{ color: t.muted, fontFamily: TJ.bold, textAlign: "center", marginTop: 40 }}>لا توجد نتائج</Text>
-            }
-            ListFooterComponent={
-              shown < filtered.length ? (
-                <Text style={{ color: t.muted, fontFamily: TJ.medium, textAlign: "center", paddingVertical: 12 }}>جاري تحميل المزيد...</Text>
-              ) : null
             }
             renderItem={({ item }) => <ProviderRow provider={item} onPress={openProvider} online={offers[item.id]} />}
           />
@@ -779,8 +775,14 @@ const CarouselCard = React.memo(function CarouselCard({ provider, onPress, onlin
       <View style={{ height: 128, borderRadius: 16, overflow: "hidden", backgroundColor: t.ic }}>
         <ProviderAvatar provider={provider} style={{ width: "100%", height: "100%" }} letterSize={56} />
         <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.card, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
-          <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>{provider.rating.toFixed(1)}</Text>
-          <MaterialCommunityIcons name="star" size={12} color={t.gold} />
+          {provider.reviewsCount > 0 ? (
+            <>
+              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>{provider.rating.toFixed(1)}</Text>
+              <MaterialCommunityIcons name="star" size={12} color={t.gold} />
+            </>
+          ) : (
+            <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>جديد</Text>
+          )}
         </View>
         <View style={{ position: "absolute", bottom: 8, left: 8, width: 14, height: 14, borderRadius: 7, backgroundColor: provider.available ? t.online : t.offline, borderWidth: 2, borderColor: t.card }} />
       </View>
@@ -814,9 +816,15 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress, online 
           {provider.title} · {govName}
         </Text>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 }}>
-          <MaterialCommunityIcons name="star" size={13} color={t.gold} />
-          <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
-          {provider.reviewsCount > 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text> : null}
+          {provider.reviewsCount > 0 ? (
+            <>
+              <MaterialCommunityIcons name="star" size={13} color={t.gold} />
+              <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text>
+            </>
+          ) : (
+            <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 12.5 }}>جديد</Text>
+          )}
         </View>
         <ServiceLines provider={provider} online={online} />
       </View>
