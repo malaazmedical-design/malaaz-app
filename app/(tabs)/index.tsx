@@ -67,7 +67,6 @@ const CARD_W = 168;
 const CARD_GAP = 12;
 const CARD_STEP = CARD_W + CARD_GAP;
 const TOP_N = 10;
-const PAGE = 10;
 
 import { IntroAnchor } from "@/components/IntroAnchor";
 const LOGO_LIGHT = require("../../assets/images/malaz/logo-light.png");
@@ -107,7 +106,6 @@ export default function HomeScreen() {
   const [spType, setSpType] = useState<ServiceType | "all">("all");
   const [spGrade, setSpGrade] = useState<string | null>(null);
   const [spSel, setSpSel] = useState<string[]>([]);
-  const [shown, setShown] = useState(PAGE);
   const [rowIdx, setRowIdx] = useState(0);
   const rowRef = useRef<FlatList<CarouselItem>>(null);
   const rowIdxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -299,7 +297,6 @@ export default function HomeScreen() {
   const filteredKey = useMemo(() => filtered.map((p) => p.id).join("|"), [filtered]);
   useEffect(() => {
     setRowIdx(0);
-    setShown(PAGE);
     rowRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [filteredKey]);
 
@@ -663,18 +660,14 @@ export default function HomeScreen() {
           </View>
           <FlatList
             extraData={offers}
-            data={filtered.slice(0, shown)}
+            data={filtered}
             keyExtractor={(p) => p.id}
+            style={{ flex: 1 }}
+            initialNumToRender={12}
+            windowSize={7}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 110, gap: 12 }}
-            onEndReachedThreshold={0.3}
-            onEndReached={() => setShown((s) => (s < filtered.length ? s + PAGE : s))}
             ListEmptyComponent={
               <Text style={{ color: t.muted, fontFamily: TJ.bold, textAlign: "center", marginTop: 40 }}>لا توجد نتائج</Text>
-            }
-            ListFooterComponent={
-              shown < filtered.length ? (
-                <Text style={{ color: t.muted, fontFamily: TJ.medium, textAlign: "center", paddingVertical: 12 }}>جاري تحميل المزيد...</Text>
-              ) : null
             }
             renderItem={({ item }) => <ProviderRow provider={item} onPress={openProvider} online={offers[item.id]} />}
           />
