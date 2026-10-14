@@ -837,7 +837,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (error) throw new Error(error.message);
     } else {
       // الزائر: لا يوجد auth session، نحاول مباشرة (بدون ضمان)
-      await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id).eq("phone", booking.phone);
+      await supabase.from("bookings").update({ status: "cancelled", cancelled_by: "client" }).eq("id", id).eq("phone", booking.phone);
     }
 
     await persistBookings(
