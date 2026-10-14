@@ -1401,6 +1401,8 @@ export const EN: Record<string, string> = {
   "كلمة مرور (اختياري، لو عايز تدخل بالبريد كمان)": "Password (optional, if you also want to sign in by email)",
   "كلمة المرور 6 أحرف على الأقل (أو اتركها فاضية)": "Password must be at least 6 characters (or leave it empty)",
   "إكمال التسجيل": "Complete sign-up",
+  "الحساب موقوف": "Account suspended",
+  "تم إيقاف حساب مقدم الخدمة المرتبط بهذا البريد. تواصل مع الإدارة لإعادة تفعيله.": "The provider account linked to this email has been suspended. Contact the admin to reactivate it.",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;

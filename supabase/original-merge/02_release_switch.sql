@@ -105,7 +105,7 @@ begin
 end;
 $function$;
 
--- ======== from 10 create_booking_offers (normalized Arabic area matching) ========
+-- ======== from 10 create_booking_offers (normalized Arabic area matching + providers without areas still receive requests) ========
 create or replace function public.create_booking_offers(p_booking_id uuid, p_radius_km double precision default 999, p_max_offers integer default 100)
  returns setof booking_offers
  language plpgsql
@@ -154,7 +154,7 @@ begin
             and (ss.name = v_booking.sub_option or v_booking.sub_option like '% ' || ss.name)
         )
       )
-      and exists (
+      and ((coalesce(btrim(p.areas), '') = '' and coalesce(btrim(p.area), '') = '') or exists (
         select 1
         from unnest(string_to_array(coalesce(p.areas, '') || ',' || coalesce(p.area, ''), ',')) a
         cross join lateral (select public.norm_ar(a) as n) x
@@ -163,7 +163,7 @@ begin
                or (length(x.n) >= 3 and v_area like '%' || x.n || '%')
                or (length(v_area) >= 3 and x.n like '%' || v_area || '%')
                or (v_gov is not null and x.n = v_gov))
-      )
+      ))
       and not exists (select 1 from public.booking_offers bo where bo.booking_id = p_booking_id and bo.provider_id = p.id)
     order by case when p.is_available then 0 else 1 end asc,
       case when v_booking.lat is not null and v_booking.lng is not null and p.lat is not null and p.lng is not null
@@ -225,17 +225,11 @@ insert into public.sub_services (service_name, name, group_name, duration, price
 select 'تمريض منزلي', 'إقامة 24 ساعة', null, '24 ساعة', 700, 1800, true
 where not exists (select 1 from public.sub_services where service_name = 'تمريض منزلي' and name = 'إقامة 24 ساعة');
 
--- ======== from 19 (nursing quick service + x-ray rows) ========
+-- ======== from 19 (nursing quick service only; the test x-ray rows are skipped on the original) ========
 -- nursing: quick service
 insert into public.sub_services (service_name, name, group_name, duration, price_min, price_max, is_active)
 select 'تمريض منزلي', 'خدمة سريعة', null, '30 دقيقة', 200, 700, true
 where not exists (select 1 from public.sub_services where service_name = 'تمريض منزلي' and name = 'خدمة سريعة');
-
--- x-ray
-insert into public.sub_services (service_name, name, group_name, duration, price_min, price_max, is_active)
-select 'أشعة منزلية', v.n, null, null, v.mn, v.mx, true
-from (values ('أشعة سينية', 200, 350), ('موجات صوتية', 350, 600), ('تخطيط قلب', 150, 300)) as v(n, mn, mx)
-where not exists (select 1 from public.sub_services s where s.service_name = 'أشعة منزلية' and s.name = v.n);
 
 -- ======== from ask-a-doctor v2: remove the OLD policies so only the new rules apply ========
 drop policy if exists doctor_see_new_cases on public.ask_doctor_cases;

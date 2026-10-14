@@ -73,10 +73,19 @@ s9 = rd("09_quick_request_routing.sql"); s10 = rd("10_area_match_normalized.sql"
 # order matters: 09 defines the wave-1/wave-2 routing, 10 replaces create_booking_offers with the normalized-area version
 add2("09 (create_booking_offers v1 is skipped: superseded by 10) accept_booking_offer + get_offer_details + escalation radius",
      s9[s9.index("-- escalation after 10 minutes"):])
-add2("10 create_booking_offers (normalized Arabic area matching)", s10[s10.index("create or replace function public.create_booking_offers"):])
+_cbo = s10[s10.index("create or replace function public.create_booking_offers"):]
+# SAFETY NET (original only): a provider who has NOT set any coverage area yet keeps receiving open requests
+# (exactly like today) instead of silently receiving none; providers with areas are matched by area.
+_a = "      and exists (\n        select 1\n        from unnest(string_to_array(coalesce(p.areas, '') || ',' || coalesce(p.area, ''), ',')) a"
+_b = "               or (v_gov is not null and x.n = v_gov))\n      )"
+assert _a in _cbo and _b in _cbo, "create_booking_offers text changed: update the safety-net patch"
+_cbo = _cbo.replace(_a, "      and ((coalesce(btrim(p.areas), '') = '' and coalesce(btrim(p.area), '') = '') or exists (\n        select 1\n        from unnest(string_to_array(coalesce(p.areas, '') || ',' || coalesce(p.area, ''), ',')) a", 1)
+_cbo = _cbo.replace(_b, "               or (v_gov is not null and x.n = v_gov))\n      ))", 1)
+add2("10 create_booking_offers (normalized Arabic area matching + providers without areas still receive requests)", _cbo)
 add2("12_online_consultation.sql (online consultation service row)", rd("12_online_consultation.sql"))
 s = rd("18_step4.sql"); add2("18 (nursing stay options)", s[s.index("insert into public.sub_services"):] if "insert into public.sub_services" in s else "")
-s = rd("19_missing_pieces.sql"); add2("19 (nursing quick service + x-ray rows)", s[s.index("-- nursing: quick service"):])
+# the x-ray rows of 19 are TEST seed data; the original already has its own real x-ray catalogue (9 radiology services), so they are NOT added
+s = rd("19_missing_pieces.sql"); add2("19 (nursing quick service only; the test x-ray rows are skipped on the original)", s[s.index("-- nursing: quick service"):s.index("-- x-ray")])
 s = rd("14_ask_doctor_v2.sql")
 add2("ask-a-doctor v2: remove the OLD policies so only the new rules apply", """drop policy if exists doctor_see_new_cases on public.ask_doctor_cases;
 drop policy if exists doctor_update_case on public.ask_doctor_cases;
