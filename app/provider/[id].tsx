@@ -273,7 +273,7 @@ export default function ProviderScreen() {
         {/* ─── Stats card (overlaps the hero) ─── */}
         <View style={{ marginTop: -22, marginHorizontal: 16, flexDirection: "row-reverse", backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 22, paddingVertical: 14 }}>
           {[
-            { k: "التقييم", v: `${provider.rating.toFixed(1)} ★`, sub: provider.reviewsCount > 0 ? `${provider.reviewsCount} تقييم` : "" },
+            { k: "التقييم", v: provider.reviewsCount > 0 ? `${provider.rating.toFixed(1)} ★` : "جديد", sub: provider.reviewsCount > 0 ? `${provider.reviewsCount} تقييم` : "" },
             { k: "الخبرة", v: `${provider.yearsExperience}`, sub: "سنة" },
             { k: "المنطقة", v: govName, sub: "" },
           ].map((c, i) => (

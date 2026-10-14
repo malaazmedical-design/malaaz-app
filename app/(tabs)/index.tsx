@@ -779,8 +779,14 @@ const CarouselCard = React.memo(function CarouselCard({ provider, onPress, onlin
       <View style={{ height: 128, borderRadius: 16, overflow: "hidden", backgroundColor: t.ic }}>
         <ProviderAvatar provider={provider} style={{ width: "100%", height: "100%" }} letterSize={56} />
         <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.card, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
-          <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>{provider.rating.toFixed(1)}</Text>
-          <MaterialCommunityIcons name="star" size={12} color={t.gold} />
+          {provider.reviewsCount > 0 ? (
+            <>
+              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>{provider.rating.toFixed(1)}</Text>
+              <MaterialCommunityIcons name="star" size={12} color={t.gold} />
+            </>
+          ) : (
+            <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>جديد</Text>
+          )}
         </View>
         <View style={{ position: "absolute", bottom: 8, left: 8, width: 14, height: 14, borderRadius: 7, backgroundColor: provider.available ? t.online : t.offline, borderWidth: 2, borderColor: t.card }} />
       </View>
@@ -814,9 +820,15 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress, online 
           {provider.title} · {govName}
         </Text>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 }}>
-          <MaterialCommunityIcons name="star" size={13} color={t.gold} />
-          <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
-          {provider.reviewsCount > 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text> : null}
+          {provider.reviewsCount > 0 ? (
+            <>
+              <MaterialCommunityIcons name="star" size={13} color={t.gold} />
+              <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text>
+            </>
+          ) : (
+            <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 12.5 }}>جديد</Text>
+          )}
         </View>
         <ServiceLines provider={provider} online={online} />
       </View>
