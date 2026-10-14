@@ -667,19 +667,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (profile.phone || client) {
       refreshBookings();
-      if (profile.phone) registerClientPushToken(profile.phone).catch(() => {});
+      // notifications only for a signed-in account — a guest's saved phone number never registers the device
+      if (client && profile.phone) registerClientPushToken(profile.phone).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.phone, client?.id]);
 
   // إعادة تسجيل push token عند كل عودة للتطبيق (foreground) لضمان التوكن محدّث دايماً
   useEffect(() => {
-    if (!profile.phone || Platform.OS === "web") return;
+    if (!client || !profile.phone || Platform.OS === "web") return;
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") registerClientPushToken(profile.phone).catch(() => {});
     });
     return () => sub.remove();
-  }, [profile.phone]);
+  }, [profile.phone, client?.id]);
 
   // ref يضمن أن Realtime دايماً بيستدعي آخر نسخة من refreshBookings (تجنب stale closure)
   const refreshBookingsRef = useRef(refreshBookings);
