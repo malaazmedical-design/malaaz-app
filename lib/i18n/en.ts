@@ -1394,6 +1394,8 @@ export const EN: Record<string, string> = {
   "حدد المسمى الوظيفي": "Set your job title",
   "حدد المسمى الوظيفي ومناطق التغطية": "Set your job title and coverage areas",
   "حدد نوع الجهة ومناطق التغطية": "Set your facility type and coverage areas",
+  "هذا الحساب لمقدم خدمة": "This is a provider account",
+  "هذا البريد مسجّل كمقدم خدمة. للدخول بيه استخدم بوابة مقدم الخدمة، أو سجّل حساب عميل ببريد آخر.": "This email is registered as a service provider. To use it, sign in from the provider portal, or create a client account with another email.",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;

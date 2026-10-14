@@ -1,6 +1,6 @@
 import { trackRegistration, trackSchedule } from "@/lib/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
+import { CLIENT_GOOGLE_INTENT, GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
 import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import React, {
@@ -13,7 +13,7 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { AppState, Platform } from "react-native";
+import { Alert, AppState, Platform } from "react-native";
 
 import { registerClientPushToken, unregisterPushToken, notifyProviderCancellation } from "@/lib/push";
 import { sendMalaazEmail } from "@/lib/emailjs";
@@ -275,7 +275,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ]);
       if (intent || signup) { setNeedsPhone(false); return; }
       const { data: prov } = await supabase.from("providers").select("id").eq("user_id", session.user.id).maybeSingle();
-      if (prov) { setNeedsPhone(false); return; }
+      if (prov) {
+        setNeedsPhone(false);
+        // the person pressed "continue with Google" on the CLIENT screen, but this Google email is a provider account:
+        // say so (instead of silently returning to the login screen) and leave the session so it does not linger
+        const clientIntent = await AsyncStorage.getItem(CLIENT_GOOGLE_INTENT).catch(() => null);
+        // only a fresh tap counts (a cancelled browser trip must not affect a later provider password login)
+        if (clientIntent && Date.now() - Number(clientIntent) < 5 * 60 * 1000) {
+          await AsyncStorage.removeItem(CLIENT_GOOGLE_INTENT).catch(() => {});
+          await supabase.auth.signOut();
+          Alert.alert("هذا الحساب لمقدم خدمة", "هذا البريد مسجّل كمقدم خدمة. للدخول بيه استخدم بوابة مقدم الخدمة، أو سجّل حساب عميل ببريد آخر.");
+        }
+        return;
+      }
+      AsyncStorage.removeItem(CLIENT_GOOGLE_INTENT).catch(() => {});
 
       const { data } = await supabase
         .from("clients")
@@ -417,12 +430,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Google sign-in through the system browser; the app comes back via the auth-callback deep link
   // handled in app/_layout.tsx (no extra native module needed).
   const clientSignInWithGoogle = async () => {
+    await AsyncStorage.setItem(CLIENT_GOOGLE_INTENT, String(Date.now())).catch(() => {});
     const redirectTo = Linking.createURL("auth-callback");
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo, skipBrowserRedirect: true },
     });
-    if (error || !data?.url) throw new Error(error?.message ?? "تعذّر بدء الدخول بجوجل");
+    if (error || !data?.url) {
+      await AsyncStorage.removeItem(CLIENT_GOOGLE_INTENT).catch(() => {});
+      throw new Error(error?.message ?? "تعذّر بدء الدخول بجوجل");
+    }
     await Linking.openURL(data.url);
   };
 
