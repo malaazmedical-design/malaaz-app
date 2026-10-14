@@ -76,7 +76,8 @@ add2("09 (create_booking_offers v1 is skipped: superseded by 10) accept_booking_
 add2("10 create_booking_offers (normalized Arabic area matching)", s10[s10.index("create or replace function public.create_booking_offers"):])
 add2("12_online_consultation.sql (online consultation service row)", rd("12_online_consultation.sql"))
 s = rd("18_step4.sql"); add2("18 (nursing stay options)", s[s.index("insert into public.sub_services"):] if "insert into public.sub_services" in s else "")
-s = rd("19_missing_pieces.sql"); add2("19 (nursing quick service + x-ray rows)", s[s.index("-- nursing: quick service"):])
+# the x-ray rows of 19 are TEST seed data; the original already has its own real x-ray catalogue (9 radiology services), so they are NOT added
+s = rd("19_missing_pieces.sql"); add2("19 (nursing quick service only; the test x-ray rows are skipped on the original)", s[s.index("-- nursing: quick service"):s.index("-- x-ray")])
 s = rd("14_ask_doctor_v2.sql")
 add2("ask-a-doctor v2: remove the OLD policies so only the new rules apply", """drop policy if exists doctor_see_new_cases on public.ask_doctor_cases;
 drop policy if exists doctor_update_case on public.ask_doctor_cases;

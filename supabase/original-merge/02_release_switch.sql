@@ -225,17 +225,11 @@ insert into public.sub_services (service_name, name, group_name, duration, price
 select 'تمريض منزلي', 'إقامة 24 ساعة', null, '24 ساعة', 700, 1800, true
 where not exists (select 1 from public.sub_services where service_name = 'تمريض منزلي' and name = 'إقامة 24 ساعة');
 
--- ======== from 19 (nursing quick service + x-ray rows) ========
+-- ======== from 19 (nursing quick service only; the test x-ray rows are skipped on the original) ========
 -- nursing: quick service
 insert into public.sub_services (service_name, name, group_name, duration, price_min, price_max, is_active)
 select 'تمريض منزلي', 'خدمة سريعة', null, '30 دقيقة', 200, 700, true
 where not exists (select 1 from public.sub_services where service_name = 'تمريض منزلي' and name = 'خدمة سريعة');
-
--- x-ray
-insert into public.sub_services (service_name, name, group_name, duration, price_min, price_max, is_active)
-select 'أشعة منزلية', v.n, null, null, v.mn, v.mx, true
-from (values ('أشعة سينية', 200, 350), ('موجات صوتية', 350, 600), ('تخطيط قلب', 150, 300)) as v(n, mn, mx)
-where not exists (select 1 from public.sub_services s where s.service_name = 'أشعة منزلية' and s.name = v.n);
 
 -- ======== from ask-a-doctor v2: remove the OLD policies so only the new rules apply ========
 drop policy if exists doctor_see_new_cases on public.ask_doctor_cases;
