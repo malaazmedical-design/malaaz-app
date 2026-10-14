@@ -1394,6 +1394,13 @@ export const EN: Record<string, string> = {
   "حدد المسمى الوظيفي": "Set your job title",
   "حدد المسمى الوظيفي ومناطق التغطية": "Set your job title and coverage areas",
   "حدد نوع الجهة ومناطق التغطية": "Set your facility type and coverage areas",
+  "هذا الحساب لمقدم خدمة": "This is a provider account",
+  "هذا البريد مسجّل كمقدم خدمة. للدخول بيه استخدم بوابة مقدم الخدمة، أو سجّل حساب عميل ببريد آخر.": "This email is registered as a service provider. To use it, sign in from the provider portal, or create a client account with another email.",
+  "أكمل إنشاء حسابك": "Complete your account",
+  "سجّلت الدخول بجوجل. ضيف رقم موبايلك عشان نكمّل الحساب. ولو عندك حساب قديم بنفس الرقم هنفتحه لك بدل ما نعمل حساب جديد.": "You signed in with Google. Add your mobile number to finish your account. If you already have an account with the same number, we'll open it instead of creating a new one.",
+  "كلمة مرور (اختياري، لو عايز تدخل بالبريد كمان)": "Password (optional, if you also want to sign in by email)",
+  "كلمة المرور 6 أحرف على الأقل (أو اتركها فاضية)": "Password must be at least 6 characters (or leave it empty)",
+  "إكمال التسجيل": "Complete sign-up",
 };
 
 type Fn = (m: RegExpMatchArray, tr: (s: string) => string) => string;
