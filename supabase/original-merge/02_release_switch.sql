@@ -105,7 +105,7 @@ begin
 end;
 $function$;
 
--- ======== from 10 create_booking_offers (normalized Arabic area matching) ========
+-- ======== from 10 create_booking_offers (normalized Arabic area matching + providers without areas still receive requests) ========
 create or replace function public.create_booking_offers(p_booking_id uuid, p_radius_km double precision default 999, p_max_offers integer default 100)
  returns setof booking_offers
  language plpgsql
@@ -154,7 +154,7 @@ begin
             and (ss.name = v_booking.sub_option or v_booking.sub_option like '% ' || ss.name)
         )
       )
-      and exists (
+      and ((coalesce(btrim(p.areas), '') = '' and coalesce(btrim(p.area), '') = '') or exists (
         select 1
         from unnest(string_to_array(coalesce(p.areas, '') || ',' || coalesce(p.area, ''), ',')) a
         cross join lateral (select public.norm_ar(a) as n) x
@@ -163,7 +163,7 @@ begin
                or (length(x.n) >= 3 and v_area like '%' || x.n || '%')
                or (length(v_area) >= 3 and x.n like '%' || v_area || '%')
                or (v_gov is not null and x.n = v_gov))
-      )
+      ))
       and not exists (select 1 from public.booking_offers bo where bo.booking_id = p_booking_id and bo.provider_id = p.id)
     order by case when p.is_available then 0 else 1 end asc,
       case when v_booking.lat is not null and v_booking.lng is not null and p.lat is not null and p.lng is not null
