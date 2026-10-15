@@ -22,15 +22,15 @@ function googleServicesFor(pkg, file) {
 // Voice/video consultations (LiveKit) ship in every variant, including the store build of the original app after the merge.
 const withCalls = true;
 
-// Firebase Analytics (Android) is switched on automatically once google-services.json contains the analytics service
-// (i.e. Google Analytics was enabled in the Firebase project and the file re-downloaded). iOS builds skip it.
+// Firebase Analytics (Android) for the store app (com.malaaz.app, registered in google-services.json and in a Google Analytics
+// stream). Current google-services.json files carry no analytics_service entry, so the package alone is the switch. iOS builds skip it.
 function firebaseAnalyticsEnabled(file) {
   if (isProviderApp || isMizoTest) return false;
   if (process.env.EAS_BUILD_PLATFORM === "ios") return false;
   try {
     const d = JSON.parse(fs.readFileSync(file, "utf8"));
     return (d.client ?? []).some(
-      (c) => c.client_info?.android_client_info?.package_name === "com.malaaz.app" && c.services?.analytics_service
+      (c) => c.client_info?.android_client_info?.package_name === "com.malaaz.app"
     );
   } catch {
     return false;
