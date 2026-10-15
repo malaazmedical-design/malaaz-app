@@ -22,7 +22,23 @@ function googleServicesFor(pkg, file) {
 // Voice/video consultations (LiveKit) ship in every variant, including the store build of the original app after the merge.
 const withCalls = true;
 
+// Firebase Analytics (Android) is switched on automatically once google-services.json contains the analytics service
+// (i.e. Google Analytics was enabled in the Firebase project and the file re-downloaded). iOS builds skip it.
+function firebaseAnalyticsEnabled(file) {
+  if (isProviderApp || isMizoTest) return false;
+  if (process.env.EAS_BUILD_PLATFORM === "ios") return false;
+  try {
+    const d = JSON.parse(fs.readFileSync(file, "utf8"));
+    return (d.client ?? []).some(
+      (c) => c.client_info?.android_client_info?.package_name === "com.malaaz.app" && c.services?.analytics_service
+    );
+  } catch {
+    return false;
+  }
+}
+
 module.exports = ({ config }) => {
+  const withFirebaseAnalytics = firebaseAnalyticsEnabled(config.android?.googleServicesFile ?? "./google-services.json");
   const androidPackage = isProviderApp
     ? PROVIDER_PACKAGE
     : isMizoTest
@@ -93,6 +109,7 @@ module.exports = ({ config }) => {
         return p;
       }),
       ...(withCalls ? ["@livekit/react-native-expo-plugin"] : []),
+      ...(withFirebaseAnalytics ? ["@react-native-firebase/app", "@react-native-firebase/analytics"] : []),
       ...(process.env.FACEBOOK_APP_ID
         ? [[
             "react-native-fbsdk-next",
