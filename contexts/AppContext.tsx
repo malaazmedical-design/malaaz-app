@@ -17,6 +17,7 @@ import { Alert, AppState, Platform } from "react-native";
 
 import { registerClientPushToken, unregisterPushToken, notifyProviderCancellation } from "@/lib/push";
 import { sendMalaazEmail } from "@/lib/emailjs";
+import type { FeaturedPin } from "@/lib/featuredRank";
 import {
   supabase,
   DbBooking,
@@ -176,6 +177,7 @@ type AppContextValue = {
   coverageAreas: DbCoverageArea[];
   // آراء العملاء المعتمدة لكل مقدم (لعرضها في بروفايله زي الموقع)
   providerReviews: Record<string, ProviderReview[]>;
+  featuredPins: FeaturedPin[];   // providers the admin pinned to the top of the home screen (per area or all areas)
 
   // Bookings
   bookings: Booking[];
@@ -222,6 +224,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [subServices, setSubServices] = useState<DbSubService[]>([]);
   const [coverageAreas, setCoverageAreas] = useState<DbCoverageArea[]>([]);
   const [providerReviews, setProviderReviews] = useState<Record<string, ProviderReview[]>>({});
+  const [featuredPins, setFeaturedPins] = useState<FeaturedPin[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [client, setClient] = useState<DbClient | null>(null);
@@ -521,7 +524,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshProviders = useCallback(async () => {
     setLoadingProviders(true);
     try {
-      const [provRes, reviewsRes, subsRes, areasRes, provSvcRes] = await Promise.all([
+      const [provRes, reviewsRes, subsRes, areasRes, provSvcRes, pinsRes] = await Promise.all([
         supabase
           .from("providers")
           .select("*")
@@ -536,9 +539,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from("sub_services").select("*").eq("is_active", true).order("name"),
         supabase.from("coverage_areas").select("*").eq("is_active", true).order("name"),
         supabase.from("provider_services").select("*").eq("is_active", true),
+        // the original project may not have the featured table yet: an error here just means "no pins"
+        supabase.from("featured_providers").select("area,provider_id,position"),
       ]);
 
       if (provRes.error) throw provRes.error;
+      setFeaturedPins(pinsRes.error ? [] : ((pinsRes.data ?? []) as FeaturedPin[]));
 
       // متوسط التقييم + العدد + آخر 5 آراء لكل مقدم
       const stats: Record<string, { sum: number; count: number }> = {};
@@ -916,6 +922,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       subServices,
       coverageAreas,
       providerReviews,
+      featuredPins,
       bookings: visibleBookings,
       loadingBookings,
       createBooking,
@@ -940,7 +947,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateFamilyMember,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, visibleBookings, loadingBookings, client, addresses, familyMembers, needsPhone]
+    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, featuredPins, visibleBookings, loadingBookings, client, addresses, familyMembers, needsPhone]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -179,7 +179,8 @@ function getProviderTitle(
   grade: string | null,
   specialty: string | null
 ): string {
-  const parts = [grade, specialty].filter(Boolean);
+  // nursing has no specialty choice: the title is the job title only (older free-text specialties are ignored)
+  const parts = (type === "nurse" ? [grade] : [grade, specialty]).filter(Boolean);
   if (parts.length) return parts.join(" ");
   switch (type) {
     case "doctor": return "طبيب منزلي";
