@@ -1,5 +1,6 @@
 import { Dimensions, Platform } from "react-native";
 import Constants from "expo-constants";
+import { requireOptionalNativeModule } from "expo-modules-core";
 
 // The app allows rotation (required for large screens on Android 16+ and by Google Play).
 // Phones stay portrait (the layouts are built for it); tablets rotate freely.
@@ -7,6 +8,8 @@ import Constants from "expo-constants";
 export function applyOrientationPolicy() {
   if (Platform.OS === "web") return;
   try {
+    // builds made before this module was added do not contain it: never load its JS there
+    if (!requireOptionalNativeModule("ExpoScreenOrientation")) return;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const SO = require("expo-screen-orientation");
     const { width, height } = Dimensions.get("screen");

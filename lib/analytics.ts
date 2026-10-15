@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import { Platform, TurboModuleRegistry } from "react-native";
 
 // أحداث فيسبوك/إنستجرام (Meta App Events). لو الـ SDK مش موجود في النسخة المثبّتة بنتجاهل من غير أي خطأ.
 let logger: { logEvent: (name: string, params?: Record<string, string | number>) => void } | null = null;
@@ -12,7 +12,8 @@ try {
 // Works only in builds that include the native module; elsewhere the calls are ignored.
 let firebase: { logEvent: (name: string, params?: Record<string, string | number>) => Promise<void> } | null = null;
 try {
-  if (Platform.OS === "android") {
+  // only load the JS when this build really contains the native Firebase module (older store/test builds do not)
+  if (Platform.OS === "android" && TurboModuleRegistry.get("NativeRNFBTurboApp")) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     firebase = require("@react-native-firebase/analytics").default();
   }
