@@ -4,7 +4,7 @@
     "slug": "malaaz",
     "owner": "malaazapp",
     "version": "2.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "malaaz",
     "userInterfaceStyle": "automatic",
