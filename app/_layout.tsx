@@ -50,6 +50,7 @@ import { IS_PROVIDER_APP } from "@/lib/appVariant";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { AppProvider } from "@/contexts/AppContext";
 import { supabase } from "@/lib/supabase";
+import { trackAppOpen } from "@/lib/analytics";
 
 SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
@@ -159,6 +160,7 @@ export default function RootLayout() {
     if (Platform.OS === "web") return;
     Settings?.initializeSDK();
     AppEventsLogger?.logEvent("fb_mobile_activate_app");
+    trackAppOpen();
   }, []);
 
   useEffect(() => {
