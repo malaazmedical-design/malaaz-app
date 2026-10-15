@@ -1,4 +1,5 @@
 import { matchCoverageArea } from "@/lib/areaMatch";
+import { pickTopProviders } from "@/lib/featuredRank";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -91,12 +92,13 @@ type CarouselItem = Provider | { id: "__all__" };
 export default function HomeScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { profile, providers, loadingProviders, coverageAreas, subServices, refreshProviders } = useApp();
+  const { profile, providers, loadingProviders, coverageAreas, subServices, refreshProviders, featuredPins } = useApp();
   const offers = useOnlineOffers();
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
   const [subServiceFilter, setSubServiceFilter] = useState<string | null>(null);
   const [cityFilter, setCityFilter] = useState("الكل");
+  const [userArea, setUserArea] = useState<{ name: string; city: string } | null>(null);   // the coverage area matched from the device location
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -176,6 +178,7 @@ export default function HomeScreen() {
         const [geo] = await Location.reverseGeocodeAsync(loc.coords);
         const match = matchCoverageArea([geo.district, geo.subregion, geo.name, geo.street, geo.city, geo.region], coverageAreas);
         const matchCity = match?.city;
+        if (match && matchCity) setUserArea({ name: match.name, city: matchCity });
         if (matchCity) {
           // ما نغيّرش الفلتر لو العميل غيّره يدوي وهو منتظر نتيجة تحديد الموقع
           setCityFilter((prev) => (prev === "الكل" ? matchCity : prev));
@@ -283,15 +286,24 @@ export default function HomeScreen() {
     return chips;
   }, [serviceFilter, gradeFilter, subServiceFilter, filters, cityFilter, search, maxPriceLimit]);
   // ─── Carousel (top 10) ───
-  const topCount = Math.min(filtered.length, TOP_N);
+  // the plain home screen (no search / type / grade / specialty filter, "highest rated" sort) shows the admin's pinned providers
+  // first and then an automatic ranking for the client's area; any explicit filter or sort keeps the filtered list as is
+  const plainHome = filters.sortBy === "rating" && !search.trim() && serviceFilter === "all" && !gradeFilter && !subServiceFilter && filters.specialties.length === 0;
+  const areaForRank = userArea && userArea.city === cityFilter ? userArea.name : null;
+  const day = new Date().toISOString().slice(0, 10);
+  const topList = useMemo(
+    () => (plainHome ? pickTopProviders({ list: filtered, everyone: providers, pins: featuredPins, area: areaForRank, day, limit: TOP_N }) : filtered.slice(0, TOP_N)),
+    [plainHome, filtered, providers, featuredPins, areaForRank, day],
+  );
+  const topCount = topList.length;
   const carouselData: CarouselItem[] = useMemo(
-    () => (filtered.length > TOP_N ? [...filtered.slice(0, TOP_N), { id: "__all__" as const }] : filtered),
-    [filtered],
+    () => (filtered.length > topList.length ? [...topList, { id: "__all__" as const }] : topList),
+    [filtered, topList],
   );
 
   // نرجّع للكارت الأول فقط لو ترتيب/محتوى النتائج اتغيّر فعلاً — مش مع كل تحديث
   // خلفي للبيانات (العروض/المقدمين) اللي بيغيّر هوية المصفوفة بس
-  const filteredKey = useMemo(() => filtered.map((p) => p.id).join("|"), [filtered]);
+  const filteredKey = useMemo(() => filtered.map((p) => p.id).join("|") + "#" + topList.map((p) => p.id).join("|"), [filtered, topList]);
   useEffect(() => {
     setRowIdx(0);
     rowRef.current?.scrollToOffset({ offset: 0, animated: false });

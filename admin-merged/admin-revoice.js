@@ -70,7 +70,7 @@
       if (!(await ensureAdmin())) return root.replaceChildren(h("div", { class: "rv-empty rv-bad" }, "هذا الحساب ليس أدمن (جدول admin_users)."));
       const body = h("div");
       root.replaceChildren(body);
-      await { consults: renderConsults, asks: renderAsks, sources: renderSources, names: renderNames, late: renderLate }[name](body);
+      await { consults: renderConsults, asks: renderAsks, sources: renderSources, names: renderNames, late: renderLate, featured: renderFeatured }[name](body);
     } catch (e) {
       root.replaceChildren(h("div", { class: "rv-empty rv-bad" }, "حدث خطأ: " + (e?.message || e)));
     }
@@ -462,6 +462,81 @@
     root.replaceChildren(
       h("div", { class: "rv-row", style: "margin-bottom:12px" }, h("b", { style: "font-size:17px" }, "العملاء"), count, h("span", { class: "rv-sp" }), search),
       chips, list);
+    draw();
+  }
+
+
+  // ───────── مقدمو الصفحة الرئيسية (اختيار الأدمن) ─────────
+  // الأدمن يختار حتى 10 مقدمين لكل منطقة (أو لكل المناطق) بالترتيب اللي يعجبه؛ التطبيق بيعرضهم الأول وبيكمّل الباقي تلقائي.
+  async function renderFeatured(root) {
+    const TYPE = { "كشف منزلي": "طبيب", "تمريض منزلي": "تمريض", "أشعة منزلية": "أشعة" };
+    const [{ data: provs, error: pe }, { data: areasData }, { data: pinsData, error: ke }] = await Promise.all([
+      sb.from("providers").select("id,name,service_type,grade,specialty,areas,area,status").eq("status", "active").order("name"),
+      sb.from("coverage_areas").select("name,city").eq("is_active", true).order("name"),
+      sb.from("featured_providers").select("area,provider_id,position").order("position"),
+    ]);
+    if (pe) return root.replaceChildren(h("div", { class: "rv-empty" }, "خطأ: " + pe.message));
+    if (ke) return root.replaceChildren(h("div", { class: "rv-empty" }, "خطأ: " + ke.message + " (شغّل ملف 41_featured_providers.sql على قاعدة البيانات)"));
+    const byId = new Map((provs || []).map((p) => [p.id, p]));
+    const pins = {};   // area -> [provider ids]
+    for (const r of pinsData || []) (pins[r.area] ||= []).push(r.provider_id);
+    const areaNames = [...new Set((areasData || []).map((a) => a.name))];
+    let cur = state.featArea || "*";
+    let ids = [...(pins[cur] || [])];
+
+    const sel = h("select", { class: "rv-in", style: "min-width:220px" },
+      h("option", { value: "*" }, "كل المناطق"),
+      ...areaNames.map((n) => h("option", { value: n }, n + ((pins[n] || []).length ? " (" + pins[n].length + ")" : ""))));
+    sel.value = cur;
+    sel.addEventListener("change", () => { cur = sel.value; state.featArea = cur; ids = [...(pins[cur] || [])]; draw(); });
+    const info = h("div", { class: "rv-mu", style: "margin:6px 0 14px;line-height:1.8" },
+      "المقدمون هنا بيظهروا الأول في الصفحة الرئيسية لعملاء المنطقة المختارة بالترتيب اللي تحدده (الأعلى ثم اللي بعده). لو اخترت أقل من 10، التطبيق بيكمّل الباقي تلقائي (المتاحين، الأعلى تقييماً، الملف الكامل، وتوزيع على الأنواع). «كل المناطق» بتظهر لأي عميل بعد مقدمي منطقته.");
+    const listBox = h("div");
+    const addBox = h("div", { class: "rv-card" });
+    const msg = h("div", { class: "rv-mu", style: "margin-top:8px" });
+
+    function label(p) {
+      return [TYPE[p.service_type] || p.service_type, [p.grade, p.specialty].filter(Boolean).join(" "), (p.areas || p.area || "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3).join("، ")].filter(Boolean).join(" · ");
+    }
+    function move(i, d) { const j = i + d; if (j < 0 || j >= ids.length) return; [ids[i], ids[j]] = [ids[j], ids[i]]; draw(); }
+
+    function draw() {
+      listBox.replaceChildren(...(ids.length ? ids.map((id, i) => {
+        const p = byId.get(id);
+        return h("div", { class: "rv-row", style: "padding:8px 0;border-top:1px solid var(--border)" },
+          h("b", { style: "min-width:24px" }, String(i + 1)),
+          h("div", {}, h("b", {}, p ? p.name : "(مقدم غير نشط)"), h("div", { class: "rv-mu" }, p ? label(p) : "")),
+          h("span", { class: "rv-sp" }),
+          h("button", { class: "rv-btn ghost", onclick: () => move(i, -1), title: "لأعلى" }, "↑"),
+          h("button", { class: "rv-btn ghost", onclick: () => move(i, 1), title: "لأسفل" }, "↓"),
+          h("button", { class: "rv-btn bad", onclick: () => { ids.splice(i, 1); draw(); } }, "إزالة"));
+      }) : [h("div", { class: "rv-empty" }, "لا يوجد مقدمون مختارون لهذه المنطقة — الترتيب تلقائي بالكامل")]));
+      // add box: search + matching providers not yet chosen
+      const q = h("input", { class: "rv-in", placeholder: "ابحث باسم المقدم لإضافته…", style: "width:260px" });
+      const res = h("div", { style: "margin-top:8px;max-height:260px;overflow:auto" });
+      const run = () => {
+        const t = q.value.trim().toLowerCase();
+        const hits = (provs || []).filter((p) => !ids.includes(p.id) && (!t || (p.name || "").toLowerCase().includes(t))).slice(0, 30);
+        res.replaceChildren(...(hits.length ? hits.map((p) => h("div", { class: "rv-row", style: "padding:6px 0;border-top:1px solid var(--border)" },
+          h("div", {}, h("b", {}, p.name), h("div", { class: "rv-mu" }, label(p))), h("span", { class: "rv-sp" }),
+          h("button", { class: "rv-btn", onclick: () => { if (ids.length >= 10) { msg.textContent = "الحد الأقصى 10 مقدمين."; return; } ids.push(p.id); msg.textContent = ""; draw(); } }, "إضافة"))) : [h("div", { class: "rv-mu" }, "لا نتائج")]));
+      };
+      q.addEventListener("input", run); run();
+      addBox.replaceChildren(h("b", {}, "إضافة مقدم (" + ids.length + "/10)"), h("div", { style: "margin-top:8px" }, q), res);
+    }
+
+    const save = h("button", { class: "rv-btn ok", onclick: async () => {
+      save.disabled = true; msg.textContent = "جاري الحفظ…";
+      const { data, error } = await sb.rpc("admin_set_featured", { p_area: cur, p_ids: ids });
+      save.disabled = false;
+      if (error) { msg.textContent = "خطأ: " + error.message; return; }
+      if (data !== "ok") { msg.textContent = data === "forbidden" ? "هذا الحساب ليس أدمن." : data === "max_10" ? "الحد الأقصى 10 مقدمين." : "تعذّر الحفظ: " + data; return; }
+      pins[cur] = [...ids]; msg.textContent = "✓ تم الحفظ. التحديث بيظهر للعملاء خلال دقائق (عند فتح التطبيق).";
+    } }, "حفظ الترتيب");
+    const clear = h("button", { class: "rv-btn ghost", onclick: () => { ids = []; draw(); } }, "مسح القايمة (ترتيب تلقائي)");
+
+    root.append(h("div", { class: "rv-row", style: "margin-bottom:6px" }, h("b", { style: "font-size:17px" }, "مقدمو الصفحة الرئيسية"), h("span", { class: "rv-sp" })),
+      h("div", { class: "rv-row" }, h("span", {}, "المنطقة:"), sel), info, h("div", { class: "rv-card" }, listBox, h("div", { class: "rv-row", style: "margin-top:12px" }, save, clear), msg), addBox);
     draw();
   }
 
