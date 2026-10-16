@@ -33,6 +33,26 @@ const ALIASES: [RegExp, string[]][] = [
 
 type Area = { id: string; name: string; city: string | null };
 
+// A governorate/city name (not a neighbourhood). It must only match an area with exactly that name: otherwise "Cairo" would
+// match "جامعة القاهرة" (an area in Giza) and a client in Cairo would be taken for a Giza client.
+const CITY_WORDS = new Set(["قاهره", "جيزه", "اسكندريه"].map(normalizeArabic));
+const CITY_ALIASES: [RegExp, string][] = [
+  [/giza|الجيزة|الجيزه/i, "الجيزة"],
+  [/cairo|القاهرة|القاهره/i, "القاهرة"],
+  [/alexandria|الإسكندرية|الاسكندرية|الاسكندريه/i, "الإسكندرية"],
+];
+
+// City from governorate-level text when no neighbourhood matched. Only returns a city that exists in `cities`.
+export function matchCity(candidates: (string | null | undefined)[], cities: string[]): string | null {
+  for (const c of candidates) {
+    if (!c) continue;
+    for (const [re, name] of CITY_ALIASES) {
+      if (re.test(c) && cities.includes(name)) return name;
+    }
+  }
+  return null;
+}
+
 // Returns the best matching coverage area for a set of geocoder strings, or null.
 export function matchCoverageArea(candidates: (string | null | undefined)[], areas: Area[]): Area | null {
   const texts = candidates.filter((c): c is string => !!c && c.trim().length > 0);
@@ -50,9 +70,10 @@ export function matchCoverageArea(candidates: (string | null | undefined)[], are
 
   // most specific first: candidate order (district before city), longer area names first
   for (const w of wanted) {
+    const exactOnly = CITY_WORDS.has(w);
     const hit = [...normalized]
       .sort((x, y) => y.n.length - x.n.length)
-      .find(({ n }) => n && (n === w || n.includes(w) || w.includes(n)));
+      .find(({ n }) => n && (n === w || (!exactOnly && (n.includes(w) || w.includes(n)))));
     if (hit) return hit.a;
   }
   return null;
