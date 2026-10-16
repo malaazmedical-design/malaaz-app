@@ -24,6 +24,12 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # mizo-test must have its own branch; if it points at main its (test-data) updates reach the production app
+      - name: Link mizo-test channel to its own branch
+        run: |
+          eas branch:create mizo-test --non-interactive || true
+          eas channel:edit mizo-test --branch mizo-test --non-interactive
+
       - name: Push OTA update to mizo-test channel
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
