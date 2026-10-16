@@ -21,12 +21,14 @@ export function gradesFor(serviceType: string | null | undefined): string[] {
   return DOCTOR_GRADES;
 }
 
-// A doctor needs grade + specialty; a nurse needs the grade; X-ray needs nothing extra.
-export function missingProfessionalInfo(p: Pick<DbProvider, "service_type" | "grade" | "specialty">): string[] {
+// A doctor needs grade + specialty; a nurse needs the grade; X-ray needs nothing extra; everyone needs coverage areas
+// (without them the provider shows up in every city, which sends requests from far away).
+export function missingProfessionalInfo(p: Pick<DbProvider, "service_type" | "grade" | "specialty"> & { areas?: string | null; area?: string | null }): string[] {
   const grades = gradesFor(p.service_type);
   const missing: string[] = [];
   if (grades.length && !(p.service_type ?? "").includes("أشعة") && !(p.grade && grades.includes(p.grade))) missing.push(gradeLabelFor(p.service_type));
   if ((p.service_type ?? "").includes("كشف") && !p.specialty) missing.push("التخصص");
+  if (!(p.areas ?? p.area ?? "").trim()) missing.push("مناطق التغطية");
   return missing;
 }
 

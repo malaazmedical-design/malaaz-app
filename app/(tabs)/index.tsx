@@ -1,8 +1,10 @@
+import { matchCity, matchCoverageArea } from "@/lib/areaMatch";
+import { pickTopProviders } from "@/lib/featuredRank";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, BackHandler, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { Text, TextInput } from "@/components/i18n";
@@ -67,7 +69,6 @@ const CARD_W = 168;
 const CARD_GAP = 12;
 const CARD_STEP = CARD_W + CARD_GAP;
 const TOP_N = 10;
-const PAGE = 10;
 
 import { IntroAnchor } from "@/components/IntroAnchor";
 const LOGO_LIGHT = require("../../assets/images/malaz/logo-light.png");
@@ -91,12 +92,13 @@ type CarouselItem = Provider | { id: "__all__" };
 export default function HomeScreen() {
   const t = useMalaz();
   const insets = useSafeAreaInsets();
-  const { profile, providers, loadingProviders, coverageAreas, subServices, refreshProviders } = useApp();
+  const { profile, providers, loadingProviders, coverageAreas, subServices, refreshProviders, featuredPins } = useApp();
   const offers = useOnlineOffers();
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
   const [subServiceFilter, setSubServiceFilter] = useState<string | null>(null);
   const [cityFilter, setCityFilter] = useState("الكل");
+  const [userArea, setUserArea] = useState<{ name: string; city: string } | null>(null);   // the coverage area matched from the device location
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -107,7 +109,6 @@ export default function HomeScreen() {
   const [spType, setSpType] = useState<ServiceType | "all">("all");
   const [spGrade, setSpGrade] = useState<string | null>(null);
   const [spSel, setSpSel] = useState<string[]>([]);
-  const [shown, setShown] = useState(PAGE);
   const [rowIdx, setRowIdx] = useState(0);
   const rowRef = useRef<FlatList<CarouselItem>>(null);
   const rowIdxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -173,23 +174,36 @@ export default function HomeScreen() {
           (await Location.requestForegroundPermissionsAsync()).status === "granted";
         if (!granted) return;
 
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        // آخر موقع معروف للجهاز بيرجع فوراً؛ لو مفيش بنستنى موقع جديد بحد أقصى 8 ثواني
+        const loc =
+          (await Location.getLastKnownPositionAsync().catch(() => null)) ??
+          (await Promise.race([
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]));
+        if (!loc) return;
         const [geo] = await Location.reverseGeocodeAsync(loc.coords);
-        const district = geo.district || geo.subregion || geo.city;
-        if (!district) return;
-
-        const match = coverageAreas.find(
-          (a) => district.includes(a.name) || a.name.includes(district)
-        );
-        if (match && match.city) {
+        const texts = [geo.district, geo.subregion, geo.name, geo.street, geo.city, geo.region];
+        const match = matchCoverageArea(texts, coverageAreas);
+        // لو المنطقة مش معروفة (حي مش في القايمة) بنكتفي بالمحافظة بدل ما نسيب الفلتر على "الكل"
+        const matchedCity = match?.city ?? matchCity(texts, Array.from(new Set(coverageAreas.map((a) => a.city).filter((c): c is string => !!c))));
+        if (match && match.city) setUserArea({ name: match.name, city: match.city });
+        if (matchedCity) {
           // ما نغيّرش الفلتر لو العميل غيّره يدوي وهو منتظر نتيجة تحديد الموقع
-          setCityFilter((prev) => (prev === "الكل" ? match.city : prev));
+          setCityFilter((prev) => (prev === "الكل" ? matchedCity : prev));
         }
       } catch {
         // تعذّر تحديد الموقع — القائمة تفضل بدون فلتر مدينة (السلوك الافتراضي)
       }
     })();
   }, [loadingProviders, coverageAreas]);
+
+  // مدن كل مقدم بتتحسب مرة واحدة لما البيانات تتغير، مش مع كل تغيير فلتر (كانت أهم سبب لبطء تغيير المدينة)
+  const providerCityMap = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const p of providers) m.set(p.id, providerCities(p.areas.length ? p.areas : [p.city], coverageAreas));
+    return m;
+  }, [providers, coverageAreas]);
 
   const runFilter = useCallback((filters: Filters, skipSpecialties = false, ov?: { service?: ServiceType | "all"; grade?: string | null }): Provider[] => {
     const svc = ov?.service ?? serviceFilter;
@@ -205,7 +219,7 @@ export default function HomeScreen() {
       // مطابقة ذكية: مناطق المقدم بتتترجم لمدينتها مهما كانت طريقة كتابتها،
       // واللي مدينته مش معروفة بيظهر في الحالتين بدل ما يختفي
       list = list.filter((p) => {
-        const cities = providerCities(p.areas.length ? p.areas : [p.city], coverageAreas);
+        const cities = providerCityMap.get(p.id) ?? providerCities(p.areas.length ? p.areas : [p.city], coverageAreas);
         return cities.size === 0 || cities.has(cityFilter);
       });
     }
@@ -251,10 +265,11 @@ export default function HomeScreen() {
         case "experience": return b.yearsExperience - a.yearsExperience;
       }
     });
-  }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, providers, maxPriceLimit, coverageAreas, offers]);
+  }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, providers, maxPriceLimit, coverageAreas, offers, providerCityMap]);
   const filtered = useMemo(() => runFilter(filters), [runFilter, filters]);
 
   const spOptions = useMemo(() => {
+    if (!spOpen) return [];   // محسوبة بس وقت فتح نافذة التخصص (كانت بتتحسب مع كل تغيير فلتر)
     const names =
       spType === "doctor" ? doctorSpecialties : spType === "nurse" ? nurseSubServices : spType === "xray" ? xraySubServices : [];
     const base = runFilter({ ...filters, specialties: [] }, true, { service: spType, grade: spType === "doctor" ? spGrade : null });
@@ -262,11 +277,12 @@ export default function HomeScreen() {
       name,
       count: base.filter((p) => matchesSpecialty(p, name)).length,
     }));
-  }, [spType, spGrade, filters, runFilter, doctorSpecialties, nurseSubServices, xraySubServices]);
+  }, [spOpen, spType, spGrade, filters, runFilter, doctorSpecialties, nurseSubServices, xraySubServices]);
   const spResultCount = useMemo(() => {
+    if (!spOpen) return 0;
     const base = runFilter({ ...filters, specialties: spSel }, false, { service: spType, grade: spType === "doctor" ? spGrade : null });
     return base.length;
-  }, [filters, spSel, spType, spGrade, runFilter]);
+  }, [spOpen, filters, spSel, spType, spGrade, runFilter]);
 
   // ملخص الفلاتر المطبّقة (يظهر فوق قائمة "كل المقدمين" وكل واحد ينفع يتشال لوحده)
   const appliedChips = useMemo(() => {
@@ -288,26 +304,41 @@ export default function HomeScreen() {
     return chips;
   }, [serviceFilter, gradeFilter, subServiceFilter, filters, cityFilter, search, maxPriceLimit]);
   // ─── Carousel (top 10) ───
-  const topCount = Math.min(filtered.length, TOP_N);
+  // the plain home screen (no search / type / grade / specialty filter, "highest rated" sort) shows the admin's pinned providers
+  // first and then an automatic ranking for the client's area; any explicit filter or sort keeps the filtered list as is
+  const plainHome = filters.sortBy === "rating" && !search.trim() && serviceFilter === "all" && !gradeFilter && !subServiceFilter && filters.specialties.length === 0;
+  const areaForRank = userArea && userArea.city === cityFilter ? userArea.name : null;
+  const day = new Date().toISOString().slice(0, 10);
+  const topList = useMemo(
+    () => (plainHome ? pickTopProviders({ list: filtered, everyone: providers, pins: featuredPins, area: areaForRank, day, limit: TOP_N }) : filtered.slice(0, TOP_N)),
+    [plainHome, filtered, providers, featuredPins, areaForRank, day],
+  );
+  const topCount = topList.length;
   const carouselData: CarouselItem[] = useMemo(
-    () => (filtered.length > TOP_N ? [...filtered.slice(0, TOP_N), { id: "__all__" as const }] : filtered),
-    [filtered],
+    () => (filtered.length > topList.length ? [...topList, { id: "__all__" as const }] : topList),
+    [filtered, topList],
   );
 
+  // نرجّع للكارت الأول فقط لو ترتيب/محتوى النتائج اتغيّر فعلاً — مش مع كل تحديث
+  // خلفي للبيانات (العروض/المقدمين) اللي بيغيّر هوية المصفوفة بس
+  const filteredKey = useMemo(() => filtered.map((p) => p.id).join("|") + "#" + topList.map((p) => p.id).join("|"), [filtered, topList]);
   useEffect(() => {
     setRowIdx(0);
-    setShown(PAGE);
     rowRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [filtered]);
+  }, [filteredKey]);
 
-  useEffect(() => {
-    if (!viewAll) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setViewAll(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [viewAll]);
+  // زر الرجوع بيقفل قايمة "كل المقدمين" — بس وهي الشاشة الظاهرة. لو فتحنا صفحة مقدم من القايمة، الرجوع لازم يقفل صفحة المقدم
+  // ويرجّعنا للقايمة (قبل كده الحدث كان بيتاخد هنا والشاشة تفضل مفتوحة)
+  useFocusEffect(
+    useCallback(() => {
+      if (!viewAll) return;
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        setViewAll(false);
+        return true;
+      });
+      return () => sub.remove();
+    }, [viewAll]),
+  );
 
   useEffect(() => () => { if (rowIdxTimer.current) clearTimeout(rowIdxTimer.current); }, []);
 
@@ -660,18 +691,14 @@ export default function HomeScreen() {
           </View>
           <FlatList
             extraData={offers}
-            data={filtered.slice(0, shown)}
+            data={filtered}
             keyExtractor={(p) => p.id}
+            style={{ flex: 1 }}
+            initialNumToRender={12}
+            windowSize={7}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 110, gap: 12 }}
-            onEndReachedThreshold={0.3}
-            onEndReached={() => setShown((s) => (s < filtered.length ? s + PAGE : s))}
             ListEmptyComponent={
               <Text style={{ color: t.muted, fontFamily: TJ.bold, textAlign: "center", marginTop: 40 }}>لا توجد نتائج</Text>
-            }
-            ListFooterComponent={
-              shown < filtered.length ? (
-                <Text style={{ color: t.muted, fontFamily: TJ.medium, textAlign: "center", paddingVertical: 12 }}>جاري تحميل المزيد...</Text>
-              ) : null
             }
             renderItem={({ item }) => <ProviderRow provider={item} onPress={openProvider} online={offers[item.id]} />}
           />
@@ -779,8 +806,14 @@ const CarouselCard = React.memo(function CarouselCard({ provider, onPress, onlin
       <View style={{ height: 128, borderRadius: 16, overflow: "hidden", backgroundColor: t.ic }}>
         <ProviderAvatar provider={provider} style={{ width: "100%", height: "100%" }} letterSize={56} />
         <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.card, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
-          <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>{provider.rating.toFixed(1)}</Text>
-          <MaterialCommunityIcons name="star" size={12} color={t.gold} />
+          {provider.reviewsCount > 0 ? (
+            <>
+              <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>{provider.rating.toFixed(1)}</Text>
+              <MaterialCommunityIcons name="star" size={12} color={t.gold} />
+            </>
+          ) : (
+            <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 12 }}>جديد</Text>
+          )}
         </View>
         <View style={{ position: "absolute", bottom: 8, left: 8, width: 14, height: 14, borderRadius: 7, backgroundColor: provider.available ? t.online : t.offline, borderWidth: 2, borderColor: t.card }} />
       </View>
@@ -814,9 +847,15 @@ const ProviderRow = React.memo(function ProviderRow({ provider, onPress, online 
           {provider.title} · {govName}
         </Text>
         <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4, marginTop: 4 }}>
-          <MaterialCommunityIcons name="star" size={13} color={t.gold} />
-          <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
-          {provider.reviewsCount > 0 ? <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text> : null}
+          {provider.reviewsCount > 0 ? (
+            <>
+              <MaterialCommunityIcons name="star" size={13} color={t.gold} />
+              <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 12.5 }}>{provider.rating.toFixed(1)}</Text>
+              <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12 }}>({provider.reviewsCount})</Text>
+            </>
+          ) : (
+            <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 12.5 }}>جديد</Text>
+          )}
         </View>
         <ServiceLines provider={provider} online={online} />
       </View>

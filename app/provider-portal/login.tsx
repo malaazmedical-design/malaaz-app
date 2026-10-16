@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, View } from "react-native";
 import { TextInput } from "@/components/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -48,7 +48,11 @@ export default function ProviderLoginScreen() {
 
   useEffect(() => {
     if (googleNotice === "pending") setMode("pending");
-    if (googleNotice === "suspended") { setMode("login"); setError("تم إيقاف حسابك — تواصل مع الإدارة."); }
+    if (googleNotice === "suspended") {
+      setMode("login");
+      setError("تم إيقاف حسابك — تواصل مع الإدارة.");
+      Alert.alert("الحساب موقوف", "تم إيقاف حساب مقدم الخدمة المرتبط بهذا البريد. تواصل مع الإدارة لإعادة تفعيله.");
+    }
   }, [googleNotice]);
 
   useEffect(() => {

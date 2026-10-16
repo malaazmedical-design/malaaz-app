@@ -163,8 +163,14 @@ export default function AskDoctorScreen() {
                       <Text numberOfLines={1} style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 16, textAlign: "right" }}>{p.name}</Text>
                       <Text numberOfLines={1} style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5, textAlign: "right", marginTop: 2 }}>{p.title} · {p.city}</Text>
                       <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 5, marginTop: 4 }}>
-                        <MaterialCommunityIcons name="star" size={14} color={t.gold} />
-                        <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13 }}>{p.rating.toFixed(1)}</Text>
+                        {p.reviewsCount > 0 ? (
+                          <>
+                            <MaterialCommunityIcons name="star" size={14} color={t.gold} />
+                            <Text style={{ color: t.text, fontFamily: TJ.bold, fontSize: 13 }}>{p.rating.toFixed(1)}</Text>
+                          </>
+                        ) : (
+                          <Text style={{ color: t.muted, fontFamily: TJ.bold, fontSize: 13 }}>جديد</Text>
+                        )}
                         <Text style={{ color: t.muted, fontFamily: TJ.medium, fontSize: 12.5 }}>· {p.yearsExperience} سنة خبرة</Text>
                       </View>
                     </View>

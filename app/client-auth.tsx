@@ -39,6 +39,8 @@ export default function ClientAuthScreen() {
   // phone step (shown after any sign-in that has no mobile number yet)
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
+  const [gEmail, setGEmail] = useState("");   // email of the Google account (shown read-only)
+  const [gPass, setGPass] = useState("");     // optional password, so the same account can also sign in by email later
 
   // signed in successfully (and has a client record) -> leave the screen
   useEffect(() => {
@@ -51,6 +53,7 @@ export default function ClientAuthScreen() {
     supabase.auth.getUser().then(({ data }) => {
       const meta: any = data.user?.user_metadata ?? {};
       setName((cur) => cur || meta.full_name || meta.name || profile.name || "");
+      setGEmail(data.user?.email ?? "");
     }).catch(() => {});
   }, [needsPhone, profile.name]);
 
@@ -92,9 +95,14 @@ export default function ClientAuthScreen() {
   };
 
   const savePhone = () => {
-    if (phone.length < 10) { setError("اكتب رقم موبايل صحيح"); return; }
+    if (!/^01[0125]\d{8}$/.test(phone.trim())) { setError("رقم الموبايل غير صحيح (مثال: 01012345678)"); return; }
+    if (gPass && gPass.length < 6) { setError("كلمة المرور 6 أحرف على الأقل (أو اتركها فاضية)"); return; }
     if (!agreed) { setError(CONSENT_ERROR); return; }
-    run(async () => { await clientCompleteProfile(phone, name.trim() || undefined); recordConsent(); });
+    run(async () => {
+      await clientCompleteProfile(phone.trim(), name.trim() || undefined);
+      if (gPass) await supabase.auth.updateUser({ password: gPass });
+      recordConsent();
+    });
   };
 
   const input = {
@@ -161,25 +169,35 @@ export default function ClientAuthScreen() {
 
         {needsPhone ? (
           <>
-            <Heading title="أضف رقم موبايلك" sub="الرقم ده هو اللي هيتواصل بيه معاك مقدم الخدمة. ولو عندك حساب قديم بنفس الرقم هنفتحه لك بدل ما نعمل حساب جديد." />
-            <TextInput style={input} placeholder="الاسم" placeholderTextColor={t.muted} value={name} onChangeText={setName} />
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
-              <View style={{ height: 54, paddingHorizontal: 14, borderRadius: 16, backgroundColor: t.ic, borderWidth: 1, borderColor: t.border, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ color: t.text, fontFamily: TJ.heavy, fontSize: 15 }}>+20</Text>
-              </View>
-              <TextInput
-                value={phone}
-                onChangeText={(v) => setPhone(digitsOnly(v, 11))}
-                placeholder="01X XXXX XXXX"
-                placeholderTextColor={t.muted}
-                keyboardType="number-pad"
-                autoComplete="tel"
-                style={[input, { flex: 1, marginBottom: 0, textAlign: "left", writingDirection: "ltr", fontSize: 17, letterSpacing: 1 }]}
-              />
-            </View>
+            <Heading title="أكمل إنشاء حسابك" sub="سجّلت الدخول بجوجل. ضيف رقم موبايلك عشان نكمّل الحساب. ولو عندك حساب قديم بنفس الرقم هنفتحه لك بدل ما نعمل حساب جديد." />
+            <TextInput style={input} placeholder="الاسم الكامل" placeholderTextColor={t.muted} value={name} onChangeText={setName} />
+            <TextInput
+              style={[input, { opacity: 0.7, textAlign: "left", writingDirection: "ltr" }]}
+              value={gEmail}
+              editable={false}
+              placeholder="البريد الإلكتروني"
+              placeholderTextColor={t.muted}
+            />
+            <TextInput
+              value={phone}
+              onChangeText={(v) => setPhone(digitsOnly(v, 11))}
+              placeholder="رقم الموبايل (01xxxxxxxxx)"
+              placeholderTextColor={t.muted}
+              keyboardType="number-pad"
+              autoComplete="tel"
+              style={input}
+            />
+            <TextInput
+              style={input}
+              placeholder="كلمة مرور (اختياري، لو عايز تدخل بالبريد كمان)"
+              placeholderTextColor={t.muted}
+              value={gPass}
+              onChangeText={setGPass}
+              secureTextEntry
+            />
             <Consent />
             <Err />
-            <GoldButton label="حفظ ومتابعة" onPress={savePhone} disabled={phone.length < 10 || !agreed} />
+            <GoldButton label="إكمال التسجيل" onPress={savePhone} disabled={phone.length < 10 || !agreed} />
             <Pressable onPress={() => clientLogout()} style={{ marginTop: 22 }}>
               <Text style={[linkStyle, { textDecorationLine: "underline" }]}>تسجيل الخروج</Text>
             </Pressable>

@@ -1,6 +1,6 @@
 import { trackRegistration, trackSchedule } from "@/lib/analytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
+import { CLIENT_GOOGLE_INTENT, GOOGLE_INTENT, PROVIDER_SIGNUP } from "@/lib/providerAuthFlags";
 import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import React, {
@@ -13,10 +13,12 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { AppState, Platform } from "react-native";
+import { Alert, AppState, Platform } from "react-native";
 
 import { registerClientPushToken, unregisterPushToken, notifyProviderCancellation } from "@/lib/push";
 import { sendMalaazEmail } from "@/lib/emailjs";
+import type { FeaturedPin } from "@/lib/featuredRank";
+import { fetchPublicSnapshot } from "@/lib/publicSnapshot";
 import {
   supabase,
   DbBooking,
@@ -24,6 +26,7 @@ import {
   DbClientAddress,
   DbCoverageArea,
   DbFamilyMember,
+  DbProvider,
   DbProviderService,
   DbSubService,
 } from "@/lib/supabase";
@@ -103,6 +106,18 @@ export type ClientRegisterInput = {
 
 const PROFILE_KEY = "malaaz.profile.v1";
 const BOOKINGS_KEY = "malaaz.bookings.v1";
+const PROVIDERS_CACHE_KEY = "malaaz.providers.cache.v1";
+
+// last successful provider lists as received from the server (kept on the device, see loadProviders)
+type ProviderReviewRow = { provider_id: string | null; client_name: string | null; rating: number | null; text: string | null };
+type ProvidersRaw = {
+  providers: DbProvider[];
+  reviews: ProviderReviewRow[];
+  subs: unknown[];
+  areas: unknown[];
+  providerServices: unknown[];
+  pins: FeaturedPin[];
+};
 
 // RLS بيمنع الزائر (anon) من قراءة الحجوزات من السيرفر، فبنحتفظ بنسخة محلية
 // من الحجوزات اللي اتعملت من الجهاز ده لحد ما نضيف تسجيل دخول.
@@ -176,6 +191,7 @@ type AppContextValue = {
   coverageAreas: DbCoverageArea[];
   // آراء العملاء المعتمدة لكل مقدم (لعرضها في بروفايله زي الموقع)
   providerReviews: Record<string, ProviderReview[]>;
+  featuredPins: FeaturedPin[];   // providers the admin pinned to the top of the home screen (per area or all areas)
 
   // Bookings
   bookings: Booking[];
@@ -222,6 +238,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [subServices, setSubServices] = useState<DbSubService[]>([]);
   const [coverageAreas, setCoverageAreas] = useState<DbCoverageArea[]>([]);
   const [providerReviews, setProviderReviews] = useState<Record<string, ProviderReview[]>>({});
+  const [featuredPins, setFeaturedPins] = useState<FeaturedPin[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [client, setClient] = useState<DbClient | null>(null);
@@ -275,7 +292,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ]);
       if (intent || signup) { setNeedsPhone(false); return; }
       const { data: prov } = await supabase.from("providers").select("id").eq("user_id", session.user.id).maybeSingle();
-      if (prov) { setNeedsPhone(false); return; }
+      if (prov) {
+        setNeedsPhone(false);
+        // the person pressed "continue with Google" on the CLIENT screen, but this Google email is a provider account:
+        // say so (instead of silently returning to the login screen) and leave the session so it does not linger
+        const clientIntent = await AsyncStorage.getItem(CLIENT_GOOGLE_INTENT).catch(() => null);
+        // only a fresh tap counts (a cancelled browser trip must not affect a later provider password login)
+        if (clientIntent && Date.now() - Number(clientIntent) < 5 * 60 * 1000) {
+          await AsyncStorage.removeItem(CLIENT_GOOGLE_INTENT).catch(() => {});
+          await supabase.auth.signOut();
+          Alert.alert("هذا الحساب لمقدم خدمة", "هذا البريد مسجّل كمقدم خدمة. للدخول بيه استخدم بوابة مقدم الخدمة، أو سجّل حساب عميل ببريد آخر.");
+        }
+        return;
+      }
+      AsyncStorage.removeItem(CLIENT_GOOGLE_INTENT).catch(() => {});
 
       const { data } = await supabase
         .from("clients")
@@ -417,12 +447,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Google sign-in through the system browser; the app comes back via the auth-callback deep link
   // handled in app/_layout.tsx (no extra native module needed).
   const clientSignInWithGoogle = async () => {
+    await AsyncStorage.setItem(CLIENT_GOOGLE_INTENT, String(Date.now())).catch(() => {});
     const redirectTo = Linking.createURL("auth-callback");
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo, skipBrowserRedirect: true },
     });
-    if (error || !data?.url) throw new Error(error?.message ?? "تعذّر بدء الدخول بجوجل");
+    if (error || !data?.url) {
+      await AsyncStorage.removeItem(CLIENT_GOOGLE_INTENT).catch(() => {});
+      throw new Error(error?.message ?? "تعذّر بدء الدخول بجوجل");
+    }
     await Linking.openURL(data.url);
   };
 
@@ -501,10 +535,97 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // ─── Load providers from Supabase ───────────────────────────────────────
-  const refreshProviders = useCallback(async () => {
-    setLoadingProviders(true);
+  // The lists are public data: the last successful response is kept on the device and shown immediately on the next
+  // start while the fresh copy loads in the background (the screen no longer waits for the network).
+  const hasProviderDataRef = useRef(false);
+
+  const applyProviderData = useCallback((raw: ProvidersRaw) => {
+    setFeaturedPins(raw.pins);
+
+    // متوسط التقييم + العدد + آخر 5 آراء لكل مقدم
+    const stats: Record<string, { sum: number; count: number }> = {};
+    const reviewsMap: Record<string, ProviderReview[]> = {};
+    for (const r of raw.reviews) {
+      if (!r.provider_id) continue;
+      (stats[r.provider_id] ??= { sum: 0, count: 0 });
+      stats[r.provider_id].sum += r.rating ?? 5;
+      stats[r.provider_id].count += 1;
+      (reviewsMap[r.provider_id] ??= []);
+      if (reviewsMap[r.provider_id].length < 5) {
+        reviewsMap[r.provider_id].push({
+          clientName: r.client_name || "عميل",
+          rating: r.rating ?? 5,
+          text: r.text ?? null,
+        });
+      }
+    }
+    setProviderReviews(reviewsMap);
+
+    const subs = raw.subs as DbSubService[];
+    const subsById = new Map(subs.map((s) => [s.id, s]));
+    setSubServices(subs);
+    setCoverageAreas(raw.areas as DbCoverageArea[]);
+
+    // الخدمات والأسعار الحقيقية اللي كل مقدم حددها من بوابته
+    const servicesByProvider: Record<string, DbProviderService[]> = {};
+    for (const ps of raw.providerServices as DbProviderService[]) {
+      (servicesByProvider[ps.provider_id] ??= []).push(ps);
+    }
+
+    const mapped = raw.providers.map((db) => {
+      const p = mapDbProviderToProvider(db);
+      const own = servicesByProvider[p.id] ?? [];
+      const consultant = db.grade === "استشاري";
+      const realServices = own
+        .map((ps) => {
+          const sub = subsById.get(ps.sub_service_id);
+          if (!sub || sub.group_name === "online") return null;
+          const fallbackPrice =
+            (consultant ? sub.price_min_consultant : sub.price_min_specialist) ??
+            sub.price_min ?? 0;
+          return {
+            id: ps.id,
+            name: sub.name,
+            description: sub.service_name,
+            price: ps.custom_price ?? fallbackPrice,
+            durationLabel: sub.duration ?? "",
+          };
+        })
+        .filter((s): s is NonNullable<typeof s> => s !== null);
+
+      const st = stats[p.id];
+      return {
+        ...p,
+        // التقييم الحقيقي = متوسط آراء العملاء المعتمدة (زي الموقع)
+        rating: st ? st.sum / st.count : 0,
+        reviewsCount: st?.count ?? 0,
+        services: realServices,
+      };
+    });
+
+    // الترتيب زي الموقع: الأعلى تقييماً ثم الأكثر مراجعات
+    mapped.sort(
+      (a, b) =>
+        (b.reviewsCount ? b.rating : 0) - (a.reviewsCount ? a.rating : 0) ||
+        b.reviewsCount - a.reviewsCount
+    );
+    setProviders(mapped);
+    hasProviderDataRef.current = true;
+  }, []);
+
+  // silent = start-up refresh behind already-shown cached data (no spinner)
+  const loadProviders = useCallback(async (silent: boolean) => {
+    if (!silent || !hasProviderDataRef.current) setLoadingProviders(true);
     try {
-      const [provRes, reviewsRes, subsRes, areasRes, provSvcRes] = await Promise.all([
+      // 1) the CDN snapshot (no load on the database); 2) falls back to reading the database directly
+      const snap = await fetchPublicSnapshot();
+      if (snap) {
+        const raw = snap as unknown as ProvidersRaw;
+        applyProviderData(raw);
+        AsyncStorage.setItem(PROVIDERS_CACHE_KEY, JSON.stringify(raw)).catch(() => {});
+        return;
+      }
+      const [provRes, reviewsRes, subsRes, areasRes, provSvcRes, pinsRes] = await Promise.all([
         supabase
           .from("providers")
           .select("*")
@@ -519,89 +640,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from("sub_services").select("*").eq("is_active", true).order("name"),
         supabase.from("coverage_areas").select("*").eq("is_active", true).order("name"),
         supabase.from("provider_services").select("*").eq("is_active", true),
+        // the original project may not have the featured table yet: an error here just means "no pins"
+        supabase.from("featured_providers").select("area,provider_id,position"),
       ]);
 
       if (provRes.error) throw provRes.error;
-
-      // متوسط التقييم + العدد + آخر 5 آراء لكل مقدم
-      const stats: Record<string, { sum: number; count: number }> = {};
-      const reviewsMap: Record<string, ProviderReview[]> = {};
-      for (const r of reviewsRes.data ?? []) {
-        if (!r.provider_id) continue;
-        (stats[r.provider_id] ??= { sum: 0, count: 0 });
-        stats[r.provider_id].sum += r.rating ?? 5;
-        stats[r.provider_id].count += 1;
-        (reviewsMap[r.provider_id] ??= []);
-        if (reviewsMap[r.provider_id].length < 5) {
-          reviewsMap[r.provider_id].push({
-            clientName: r.client_name || "عميل",
-            rating: r.rating ?? 5,
-            text: r.text ?? null,
-          });
-        }
-      }
-      setProviderReviews(reviewsMap);
-
-      const subs = (subsRes.data ?? []) as DbSubService[];
-      const subsById = new Map(subs.map((s) => [s.id, s]));
-      setSubServices(subs);
-      setCoverageAreas((areasRes.data ?? []) as DbCoverageArea[]);
-
-      // الخدمات والأسعار الحقيقية اللي كل مقدم حددها من بوابته
-      const servicesByProvider: Record<string, DbProviderService[]> = {};
-      for (const ps of (provSvcRes.data ?? []) as DbProviderService[]) {
-        (servicesByProvider[ps.provider_id] ??= []).push(ps);
-      }
-
-      const mapped = (provRes.data ?? []).map((db) => {
-          const p = mapDbProviderToProvider(db);
-          const own = servicesByProvider[p.id] ?? [];
-          const consultant = db.grade === "استشاري";
-          const realServices = own
-            .map((ps) => {
-              const sub = subsById.get(ps.sub_service_id);
-              if (!sub || sub.group_name === "online") return null;
-              const fallbackPrice =
-                (consultant ? sub.price_min_consultant : sub.price_min_specialist) ??
-                sub.price_min ?? 0;
-              return {
-                id: ps.id,
-                name: sub.name,
-                description: sub.service_name,
-                price: ps.custom_price ?? fallbackPrice,
-                durationLabel: sub.duration ?? "",
-              };
-            })
-            .filter((s): s is NonNullable<typeof s> => s !== null);
-
-          const st = stats[p.id];
-          return {
-            ...p,
-            // التقييم الحقيقي = متوسط آراء العملاء المعتمدة (زي الموقع)
-            rating: st ? st.sum / st.count : p.rating,
-            reviewsCount: st?.count ?? 0,
-            services: realServices,
-          };
-        });
-
-      // الترتيب زي الموقع: الأعلى تقييماً ثم الأكثر مراجعات
-      mapped.sort(
-        (a, b) =>
-          (b.reviewsCount ? b.rating : 0) - (a.reviewsCount ? a.rating : 0) ||
-          b.reviewsCount - a.reviewsCount
-      );
-      setProviders(mapped);
+      const raw: ProvidersRaw = {
+        providers: provRes.data ?? [],
+        reviews: (reviewsRes.data ?? []) as ProviderReviewRow[],
+        subs: subsRes.data ?? [],
+        areas: areasRes.data ?? [],
+        providerServices: provSvcRes.data ?? [],
+        pins: pinsRes.error ? [] : ((pinsRes.data ?? []) as FeaturedPin[]),
+      };
+      applyProviderData(raw);
+      AsyncStorage.setItem(PROVIDERS_CACHE_KEY, JSON.stringify(raw)).catch(() => {});
     } catch (err) {
       console.error("Error loading providers:", err);
-      setProviders([]);
+      // keep what is already on screen (cached data) when the network fails; only empty out if there is nothing
+      if (!hasProviderDataRef.current) setProviders([]);
     } finally {
       setLoadingProviders(false);
     }
-  }, []);
+  }, [applyProviderData]);
+
+  const refreshProviders = useCallback(() => loadProviders(false), [loadProviders]);
 
   useEffect(() => {
-    refreshProviders();
-  }, [refreshProviders]);
+    let cancelled = false;
+    (async () => {
+      // show the last saved lists right away, then refresh from the network
+      try {
+        const cached = await AsyncStorage.getItem(PROVIDERS_CACHE_KEY);
+        if (cached && !cancelled) {
+          const raw = JSON.parse(cached) as ProvidersRaw;
+          if (Array.isArray(raw.providers) && raw.providers.length) {
+            applyProviderData(raw);
+            setLoadingProviders(false);
+          }
+        }
+      } catch {
+        // a broken cache is ignored: the normal load below runs anyway
+      }
+      if (!cancelled) loadProviders(true);
+    })();
+    return () => { cancelled = true; };
+  }, [applyProviderData, loadProviders]);
 
   // connection came back: reload the lists without restarting the app
   useOnReconnect(refreshProviders);
@@ -667,19 +751,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (profile.phone || client) {
       refreshBookings();
-      if (profile.phone) registerClientPushToken(profile.phone).catch(() => {});
+      // notifications only for a signed-in account — a guest's saved phone number never registers the device
+      if (client && profile.phone) registerClientPushToken(profile.phone).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.phone, client?.id]);
 
   // إعادة تسجيل push token عند كل عودة للتطبيق (foreground) لضمان التوكن محدّث دايماً
   useEffect(() => {
-    if (!profile.phone || Platform.OS === "web") return;
+    if (!client || !profile.phone || Platform.OS === "web") return;
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") registerClientPushToken(profile.phone).catch(() => {});
     });
     return () => sub.remove();
-  }, [profile.phone]);
+  }, [profile.phone, client?.id]);
 
   // ref يضمن أن Realtime دايماً بيستدعي آخر نسخة من refreshBookings (تجنب stale closure)
   const refreshBookingsRef = useRef(refreshBookings);
@@ -819,7 +904,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (error) throw new Error(error.message);
     } else {
       // الزائر: لا يوجد auth session، نحاول مباشرة (بدون ضمان)
-      await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id).eq("phone", booking.phone);
+      await supabase.from("bookings").update({ status: "cancelled", cancelled_by: "client" }).eq("id", id).eq("phone", booking.phone);
     }
 
     await persistBookings(
@@ -898,6 +983,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       subServices,
       coverageAreas,
       providerReviews,
+      featuredPins,
       bookings: visibleBookings,
       loadingBookings,
       createBooking,
@@ -922,7 +1008,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateFamilyMember,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, visibleBookings, loadingBookings, client, addresses, familyMembers, needsPhone]
+    [profile, isHydrated, providers, loadingProviders, subServices, coverageAreas, providerReviews, featuredPins, visibleBookings, loadingBookings, client, addresses, familyMembers, needsPhone]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

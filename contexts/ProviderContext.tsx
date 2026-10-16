@@ -167,6 +167,7 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
+    setGoogleNotice(null);   // a repeated attempt must be able to show the same notice again
     await AsyncStorage.setItem(GOOGLE_INTENT, "1");
     const redirectTo = ExpoLinking.createURL("provider-auth-callback");
     const { data, error } = await supabase.auth.signInWithOAuth({

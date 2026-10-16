@@ -1,5 +1,7 @@
 import { router } from "expo-router";
 
+import { supabase } from "@/lib/supabase";
+
 // Where a tapped push notification should land. Payloads come from the DB triggers (supabase/test-project/11)
 // and from local medicine reminders.
 export function routeForNotification(data: Record<string, unknown> | undefined | null): void {
@@ -31,8 +33,17 @@ export function routeForNotification(data: Record<string, unknown> | undefined |
   // provider side: a new offer (quick request) or a direct booking
   // (booking_stale: a confirmed booking the provider never closed; the push is sent with direct=true so it opens that booking)
   if (d.kind === "new_booking" || d.type === "OFFER_INSERT" || d.kind === "booking_stale") {
+    const openBooking = (id: string) =>
+      router.push({ pathname: "/provider-portal/(ptabs)/bookings", params: { focus: id, t: String(Date.now()) } });
     if (d.direct === true && bookingId) {
-      router.push({ pathname: "/provider-portal/(ptabs)/bookings", params: { focus: bookingId, t: String(Date.now()) } });
+      openBooking(bookingId);
+    } else if (bookingId && d.direct === undefined) {
+      // older senders don't say whether it is a direct booking: a booking that already has a provider is the
+      // provider's own (opens that booking), one without a provider is an open request (opens the offers list)
+      supabase.from("bookings").select("provider_id").eq("id", bookingId).maybeSingle().then(
+        ({ data }) => { if (data?.provider_id) openBooking(bookingId); else router.push("/provider-portal/(ptabs)/offers"); },
+        () => router.push("/provider-portal/(ptabs)/offers"),
+      );
     } else {
       router.push("/provider-portal/(ptabs)/offers");
     }
