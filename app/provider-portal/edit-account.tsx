@@ -16,6 +16,7 @@ import { PText, PriceSlider, SearchableSelect, useCheckBurst } from "@/component
 import { FALLBACK_SPECIALTIES, gradeLabelFor, gradesFor, priceRangeFor } from "@/lib/providerLists";
 import { TJ, useMalaz } from "@/constants/malazTheme";
 import { useProvider } from "@/contexts/ProviderContext";
+import { compressForUpload } from "@/lib/compressImage";
 import { supabase } from "@/lib/supabase";
 
 import { locale } from "@/lib/i18n";
@@ -195,14 +196,17 @@ export default function ProviderProfileScreen() {
       }
 
       const asset = result.assets[0];
-      const ext = (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
+      // shrink before upload (falls back to the original file if the build has no image manipulator)
+      const small = await compressForUpload(asset.uri, asset.width, asset.height);
+      const uploadUri = small?.uri ?? asset.uri;
+      const ext = small ? "jpg" : (asset.uri.split(".").pop() ?? "jpg").toLowerCase();
       const fileName = `${provider.id}-${Date.now()}.${ext}`;
-      const response = await fetch(asset.uri);
+      const response = await fetch(uploadUri);
       const blob = await response.arrayBuffer();
 
       const { error } = await supabase.storage
         .from("provider-photos")
-        .upload(fileName, blob, { upsert: true, contentType: asset.mimeType ?? "image/jpeg" });
+        .upload(fileName, blob, { upsert: true, contentType: small?.mimeType ?? asset.mimeType ?? "image/jpeg" });
       if (error) throw new Error(error.message);
 
       const { data } = supabase.storage.from("provider-photos").getPublicUrl(fileName);
