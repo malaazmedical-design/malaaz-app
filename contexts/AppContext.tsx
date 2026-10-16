@@ -18,6 +18,7 @@ import { Alert, AppState, Platform } from "react-native";
 import { registerClientPushToken, unregisterPushToken, notifyProviderCancellation } from "@/lib/push";
 import { sendMalaazEmail } from "@/lib/emailjs";
 import type { FeaturedPin } from "@/lib/featuredRank";
+import { fetchPublicSnapshot } from "@/lib/publicSnapshot";
 import {
   supabase,
   DbBooking,
@@ -616,6 +617,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadProviders = useCallback(async (silent: boolean) => {
     if (!silent || !hasProviderDataRef.current) setLoadingProviders(true);
     try {
+      // 1) the CDN snapshot (no load on the database); 2) falls back to reading the database directly
+      const snap = await fetchPublicSnapshot();
+      if (snap) {
+        const raw = snap as unknown as ProvidersRaw;
+        applyProviderData(raw);
+        AsyncStorage.setItem(PROVIDERS_CACHE_KEY, JSON.stringify(raw)).catch(() => {});
+        return;
+      }
       const [provRes, reviewsRes, subsRes, areasRes, provSvcRes, pinsRes] = await Promise.all([
         supabase
           .from("providers")
