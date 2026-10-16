@@ -17,6 +17,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 import { useClientConsultCount } from "@/lib/useClientConsultCount";
 
 import { locale } from "@/lib/i18n";
+import { bookingLabel } from "@/lib/bookingNumber";
 const STATUS_MAP: Record<string, { label: string; color: string; icon: string }> = {
   pending:   { label: "قيد المراجعة", color: "#F59E0B", icon: "clock-outline" },
   confirmed: { label: "مؤكد",         color: "#16A34A", icon: "check-circle" },
@@ -252,7 +253,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
                 {booking.price ? <DetailField label="السعر" value={`${booking.price} ج.م`} /> : null}
                 {booking.providerName ? <DetailField label="مقدم الخدمة" value={booking.providerName} /> : null}
                 {booking.notes ? <DetailField label="ملاحظات" value={booking.notes} wide /> : null}
-                <DetailField label="رقم الحجز" value={`#${booking.id.slice(-6).toUpperCase()}`} />
+                <DetailField label="رقم الحجز" value={bookingLabel(booking)} />
                 <DetailField label="تاريخ الطلب" value={new Date(booking.created_at).toLocaleString(locale(), { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" })} />
               </View>
 
@@ -260,7 +261,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel: (b: Bo
               <Pressable
                 onPress={() =>
                   whatsappCompany(
-                    `مرحباً، عندي استفسار عن حجزي رقم #${booking.id.slice(-6).toUpperCase()}\n` +
+                    `مرحباً، عندي استفسار عن حجزي رقم ${bookingLabel(booking)}\n` +
                       `الخدمة: ${booking.service_type}${booking.sub_option ? ` — ${booking.sub_option}` : ""}\n` +
                       `الموعد: ${booking.appointment_time ?? "أسرع وقت ممكن"}`
                   )

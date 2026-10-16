@@ -14,6 +14,7 @@ const ADMIN_EMAIL = "malaaz.medical@gmail.com";
 const ADMIN_DASHBOARD = "https://malaaz-plum.vercel.app";
 
 type Booking = {
+  booking_number?: string | null;
   id: string;
   patient_name: string | null;
   phone: string | null;
@@ -130,7 +131,7 @@ async function notifyAdminNewBooking(booking: Booking) {
           `⚕️ الخدمة: ${svc}<br>` +
           `📍 المنطقة: ${booking.area ?? "—"}<br>` +
           `🕐 الموعد: ${booking.appointment_time ?? "—"}<br>` +
-          `🔖 رقم الحجز: ${booking.id}`,
+          `🔖 رقم الحجز: ${booking.booking_number ?? booking.id}`,
         button_text: "عرض لوحة التحكم",
         button_link: ADMIN_DASHBOARD,
         button_color: isDirect ? "#1C2B2A" : "#C9A84C",

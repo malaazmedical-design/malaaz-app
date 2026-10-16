@@ -76,6 +76,7 @@ export type DbProvider = {
 
 export type DbBooking = {
   id: string;
+  booking_number?: string | null;
   patient_name: string;
   phone: string;
   area: string | null;
