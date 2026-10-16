@@ -248,12 +248,28 @@ export function normalizeArabic(s: string): string {
     .replace(/^ال/, "");
 }
 
+// تجهيز مناطق التغطية مرة واحدة (التطبيع وتقسيم الكلمات) بدل ما يتعاد لكل منطقة لكل مقدم
+type PreparedCoverage = { city: string; nc: string; ncWords: string[] }[];
+const preparedCache = new WeakMap<object, PreparedCoverage>();
+function prepareCoverage(coverage: { name: string; city: string }[]): PreparedCoverage {
+  let prepared = preparedCache.get(coverage);
+  if (!prepared) {
+    prepared = coverage.map((c) => {
+      const nc = normalizeArabic(c.name);
+      return { city: c.city, nc, ncWords: nc.split(" ").filter((w) => w.length >= 3) };
+    });
+    preparedCache.set(coverage, prepared);
+  }
+  return prepared;
+}
+
 // بيرجع مجموعة المدن اللي المقدم بيخدم فيها — فاضية لو مش معروفة
 export function providerCities(
   areas: string[],
   coverage: { name: string; city: string }[]
 ): Set<string> {
   const cities = new Set<string>();
+  const prepared = prepareCoverage(coverage);
 
   for (const raw of areas) {
     const na = normalizeArabic(raw);
@@ -261,14 +277,12 @@ export function providerCities(
 
     // مطابقة مع مناطق التغطية المعروفة (بالاحتواء أو تقاطع الكلمات)
     const words = na.split(" ").filter((w) => w.length >= 3);
-    for (const c of coverage) {
-      const nc = normalizeArabic(c.name);
-      const ncWords = nc.split(" ").filter((w) => w.length >= 3);
+    for (const c of prepared) {
       const hit =
-        nc === na ||
-        na.includes(nc) ||
-        nc.includes(na) ||
-        words.some((w) => ncWords.includes(w));
+        c.nc === na ||
+        na.includes(c.nc) ||
+        c.nc.includes(na) ||
+        words.some((w) => c.ncWords.includes(w));
       if (hit) cities.add(c.city);
     }
   }

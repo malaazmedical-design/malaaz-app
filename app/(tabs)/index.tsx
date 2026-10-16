@@ -1,10 +1,10 @@
-import { matchCoverageArea } from "@/lib/areaMatch";
+import { matchCity, matchCoverageArea } from "@/lib/areaMatch";
 import { pickTopProviders } from "@/lib/featuredRank";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, BackHandler, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { Text, TextInput } from "@/components/i18n";
@@ -174,20 +174,36 @@ export default function HomeScreen() {
           (await Location.requestForegroundPermissionsAsync()).status === "granted";
         if (!granted) return;
 
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        // آخر موقع معروف للجهاز بيرجع فوراً؛ لو مفيش بنستنى موقع جديد بحد أقصى 8 ثواني
+        const loc =
+          (await Location.getLastKnownPositionAsync().catch(() => null)) ??
+          (await Promise.race([
+            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]));
+        if (!loc) return;
         const [geo] = await Location.reverseGeocodeAsync(loc.coords);
-        const match = matchCoverageArea([geo.district, geo.subregion, geo.name, geo.street, geo.city, geo.region], coverageAreas);
-        const matchCity = match?.city;
-        if (match && matchCity) setUserArea({ name: match.name, city: matchCity });
-        if (matchCity) {
+        const texts = [geo.district, geo.subregion, geo.name, geo.street, geo.city, geo.region];
+        const match = matchCoverageArea(texts, coverageAreas);
+        // لو المنطقة مش معروفة (حي مش في القايمة) بنكتفي بالمحافظة بدل ما نسيب الفلتر على "الكل"
+        const matchedCity = match?.city ?? matchCity(texts, Array.from(new Set(coverageAreas.map((a) => a.city).filter((c): c is string => !!c))));
+        if (match && match.city) setUserArea({ name: match.name, city: match.city });
+        if (matchedCity) {
           // ما نغيّرش الفلتر لو العميل غيّره يدوي وهو منتظر نتيجة تحديد الموقع
-          setCityFilter((prev) => (prev === "الكل" ? matchCity : prev));
+          setCityFilter((prev) => (prev === "الكل" ? matchedCity : prev));
         }
       } catch {
         // تعذّر تحديد الموقع — القائمة تفضل بدون فلتر مدينة (السلوك الافتراضي)
       }
     })();
   }, [loadingProviders, coverageAreas]);
+
+  // مدن كل مقدم بتتحسب مرة واحدة لما البيانات تتغير، مش مع كل تغيير فلتر (كانت أهم سبب لبطء تغيير المدينة)
+  const providerCityMap = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const p of providers) m.set(p.id, providerCities(p.areas.length ? p.areas : [p.city], coverageAreas));
+    return m;
+  }, [providers, coverageAreas]);
 
   const runFilter = useCallback((filters: Filters, skipSpecialties = false, ov?: { service?: ServiceType | "all"; grade?: string | null }): Provider[] => {
     const svc = ov?.service ?? serviceFilter;
@@ -203,7 +219,7 @@ export default function HomeScreen() {
       // مطابقة ذكية: مناطق المقدم بتتترجم لمدينتها مهما كانت طريقة كتابتها،
       // واللي مدينته مش معروفة بيظهر في الحالتين بدل ما يختفي
       list = list.filter((p) => {
-        const cities = providerCities(p.areas.length ? p.areas : [p.city], coverageAreas);
+        const cities = providerCityMap.get(p.id) ?? providerCities(p.areas.length ? p.areas : [p.city], coverageAreas);
         return cities.size === 0 || cities.has(cityFilter);
       });
     }
@@ -249,10 +265,11 @@ export default function HomeScreen() {
         case "experience": return b.yearsExperience - a.yearsExperience;
       }
     });
-  }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, providers, maxPriceLimit, coverageAreas, offers]);
+  }, [serviceFilter, gradeFilter, subServiceFilter, cityFilter, search, providers, maxPriceLimit, coverageAreas, offers, providerCityMap]);
   const filtered = useMemo(() => runFilter(filters), [runFilter, filters]);
 
   const spOptions = useMemo(() => {
+    if (!spOpen) return [];   // محسوبة بس وقت فتح نافذة التخصص (كانت بتتحسب مع كل تغيير فلتر)
     const names =
       spType === "doctor" ? doctorSpecialties : spType === "nurse" ? nurseSubServices : spType === "xray" ? xraySubServices : [];
     const base = runFilter({ ...filters, specialties: [] }, true, { service: spType, grade: spType === "doctor" ? spGrade : null });
@@ -260,11 +277,12 @@ export default function HomeScreen() {
       name,
       count: base.filter((p) => matchesSpecialty(p, name)).length,
     }));
-  }, [spType, spGrade, filters, runFilter, doctorSpecialties, nurseSubServices, xraySubServices]);
+  }, [spOpen, spType, spGrade, filters, runFilter, doctorSpecialties, nurseSubServices, xraySubServices]);
   const spResultCount = useMemo(() => {
+    if (!spOpen) return 0;
     const base = runFilter({ ...filters, specialties: spSel }, false, { service: spType, grade: spType === "doctor" ? spGrade : null });
     return base.length;
-  }, [filters, spSel, spType, spGrade, runFilter]);
+  }, [spOpen, filters, spSel, spType, spGrade, runFilter]);
 
   // ملخص الفلاتر المطبّقة (يظهر فوق قائمة "كل المقدمين" وكل واحد ينفع يتشال لوحده)
   const appliedChips = useMemo(() => {
@@ -309,14 +327,18 @@ export default function HomeScreen() {
     rowRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [filteredKey]);
 
-  useEffect(() => {
-    if (!viewAll) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setViewAll(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [viewAll]);
+  // زر الرجوع بيقفل قايمة "كل المقدمين" — بس وهي الشاشة الظاهرة. لو فتحنا صفحة مقدم من القايمة، الرجوع لازم يقفل صفحة المقدم
+  // ويرجّعنا للقايمة (قبل كده الحدث كان بيتاخد هنا والشاشة تفضل مفتوحة)
+  useFocusEffect(
+    useCallback(() => {
+      if (!viewAll) return;
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        setViewAll(false);
+        return true;
+      });
+      return () => sub.remove();
+    }, [viewAll]),
+  );
 
   useEffect(() => () => { if (rowIdxTimer.current) clearTimeout(rowIdxTimer.current); }, []);
 
