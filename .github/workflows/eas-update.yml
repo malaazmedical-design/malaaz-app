@@ -3,6 +3,7 @@ name: EAS Update (OTA)
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   update:
@@ -23,6 +24,10 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+
+      # the production channel must serve branch main only (a test channel once pointed at main and pushed test data to it)
+      - name: Link the production channel to branch main
+        run: eas channel:edit production --branch main --non-interactive
 
       - name: Push OTA update to production channel
         env:
