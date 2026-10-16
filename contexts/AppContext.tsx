@@ -871,6 +871,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     trackSchedule(bookingData.provider_id ? "home_visit" : "quick_request");
 
+    // الرقم التسلسلي بيتحط من قاعدة البيانات؛ لو القراءة فشلت (زائر) بنعرض الشكل القديم لحد التحديث الجاي
+    let bookingNumber: string | null = null;
+    try {
+      const { data: bn } = await supabase.from("bookings").select("booking_number").eq("id", id).maybeSingle();
+      bookingNumber = (bn as { booking_number?: string | null } | null)?.booking_number ?? null;
+    } catch {}
+
     // لو الحجز من غير مقدم محدد: ابعت عروض لكل مقدمي الخدمة النشطين
     // (fire-and-forget — الحجز نفسه ينجح بغض النظر عن نتيجة ده)
     if (!bookingData.provider_id) {
@@ -882,6 +889,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const booking: Booking = {
       ...bookingData,
+      booking_number: bookingNumber,
       provider_phone: null,
       on_way_at: null,
       created_at: new Date().toISOString(),
@@ -934,7 +942,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         `⚕️ الخدمة: ${booking?.service_type ?? "—"}<br>` +
         `📍 المنطقة: ${booking?.area ?? "—"}<br>` +
         `🕐 الموعد: ${booking?.appointment_time ?? "—"}<br>` +
-        `🔖 رقم الحجز: ${id}`,
+        `🔖 رقم الحجز: ${booking?.booking_number ?? id}`,
       button_text: "عرض لوحة التحكم",
       button_link: "https://malaaz-plum.vercel.app",
       button_color: "#CC2200",

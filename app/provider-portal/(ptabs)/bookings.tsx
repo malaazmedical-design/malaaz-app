@@ -208,7 +208,7 @@ export default function ProviderBookingsScreen() {
                         <PText style={{ color: t.goldText, fontFamily: TJ.heavy, fontSize: 12.5 }}>افتح الخريطة ←</PText>
                       </Pressable>
                     ) : <Line t={t} k="الموقع" v="خدمة عن بُعد" />}
-                    <Line t={t} k="رقم الحجز" v={`MLZ-${b.id.slice(-4).toUpperCase()}`} ltr />
+                    <Line t={t} k="رقم الحجز" v={b.booking_number || `MLZ-${b.id.slice(-4).toUpperCase()}`} ltr />
                     <Line t={t} k="الموعد" v={`${dateLabelOf(b.appointment_time)} · ${PERIOD_LABEL[periodOf(b.appointment_time)]}`} />
                     <Line t={t} k="وقت تسجيل الحجز" v={new Date(b.created_at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })} />
                     <Line t={t} k="الدفع" v={pay} />
