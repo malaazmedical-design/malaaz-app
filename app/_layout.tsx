@@ -14,14 +14,12 @@ import {
   Cairo_700Bold,
 } from "@expo-google-fonts/cairo";
 import {
-  Tajawal_400Regular,
   Tajawal_500Medium,
   Tajawal_700Bold,
   Tajawal_800ExtraBold,
 } from "@expo-google-fonts/tajawal";
 import {
   Inter_400Regular,
-  Inter_500Medium,
   Inter_600SemiBold,
   Inter_700Bold,
   useFonts,
@@ -139,11 +137,13 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  // the first screen waits only for the Arabic fonts (Cairo, Tajawal)
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
     Cairo_400Regular, Cairo_500Medium, Cairo_600SemiBold, Cairo_700Bold,
-    Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold,
+    Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold,
   });
+  // Inter (buttons / fields in components/ui.tsx) loads in the background, it does not hold the first screen
+  useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
   // الافتتاحية المتحركة — على الموبايل بس (الويب بيفتح مباشرة)
   const [introDone, setIntroDone] = useState(Platform.OS === "web");
   useEffect(() => { applyStoredTheme(); patchAlert(); loadLang(); loadEnglishNames(); }, []);
