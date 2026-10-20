@@ -1,0 +1,43 @@
+name: EAS Update — Malaaz Provider (OTA)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  update:
+    name: OTA Update (provider-production channel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # own branch + channel: the provider store app never receives production (client app) updates and vice versa
+      - name: Link provider-production channel to its own branch
+        run: |
+          eas branch:create provider-production --non-interactive || true
+          eas channel:create provider-production --non-interactive || true
+          eas channel:edit provider-production --branch provider-production --non-interactive
+
+      - name: Push OTA update to provider-production channel
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          # same values as the "provider-production" build profile in eas.json (public anon key, original project)
+          APP_VARIANT: mizoprovider
+          EXPO_PUBLIC_SUPABASE_URL: https://omsictbrqlsohrmxeuym.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tc2ljdGJycWxzb2hybXhldXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTc1NzcsImV4cCI6MjA5NTI5MzU3N30.tbFL_7mWZ6qVUtgFkagfSwWdgni5JKRuCR8nbwqIqho
+          EXPO_PUBLIC_VODAFONE_CASH: "01039091989"
+        run: eas update --branch provider-production --message "$(echo "${COMMIT_MSG:-manual run}" | head -1)" --non-interactive
