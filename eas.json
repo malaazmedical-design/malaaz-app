@@ -61,6 +61,19 @@
         "EXPO_PUBLIC_VODAFONE_CASH": "01039091989"
       }
     },
+    "provider-production-apk": {
+      "autoIncrement": true,
+      "channel": "provider-production",
+      "env": {
+        "APP_VARIANT": "mizoprovider",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://omsictbrqlsohrmxeuym.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tc2ljdGJycWxzb2hybXhldXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTc1NzcsImV4cCI6MjA5NTI5MzU3N30.tbFL_7mWZ6qVUtgFkagfSwWdgni5JKRuCR8nbwqIqho",
+        "EXPO_PUBLIC_VODAFONE_CASH": "01039091989"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",

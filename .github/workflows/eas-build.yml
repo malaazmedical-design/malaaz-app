@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       profile:
-        description: "Build profile (preview = test APK, production = Google Play AAB, provider-production = provider app AAB)"
+        description: "Build profile (preview = test APK, production = Google Play AAB, provider-production = provider app AAB, provider-production-apk = provider app installable APK)"
         required: false
         default: "preview"
       ref:
