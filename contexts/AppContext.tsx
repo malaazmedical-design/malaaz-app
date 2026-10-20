@@ -957,18 +957,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ) => {
     const booking = bookings.find((b) => b.id === bookingId);
     // لا يُسمح بالتقييم إلا لو الحجز كان مؤكداً أو مكتملاً بالفعل
+    // (من الإشعار التطبيق بيفتح على نسخة محفوظة قديمة من الحجز، فنتأكد من حالته على السيرفر قبل الرفض)
     if (booking && booking.status !== "confirmed" && booking.status !== "completed") {
-      throw new Error("لا يمكن تقييم هذا الحجز");
+      const { data: fresh } = await supabase.from("bookings").select("status").eq("id", bookingId).maybeSingle();
+      if (fresh?.status !== "confirmed" && fresh?.status !== "completed") {
+        throw new Error("لا يمكن تقييم هذا الحجز");
+      }
     }
 
     // حفظ الريفيو في Supabase (بيظهر للعامة بعد موافقة الأدمن)
-    await supabase.from("reviews").insert({
+    const { error: reviewError } = await supabase.from("reviews").insert({
       provider_id: providerId || null,
+      booking_id: bookingId,
       client_name: profile.name,
       service_type: booking?.service_type ?? null,
       rating: review.rating,
       text: review.comment || null,
     });
+    if (reviewError) throw new Error(reviewError.message);
 
     // تحديث الـ booking محلياً
     await persistBookings(

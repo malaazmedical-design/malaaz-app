@@ -3,8 +3,8 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
-import { ActivityIndicator, Platform, Pressable, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Platform, Pressable, View } from "react-native";
 import { Text, TextInput } from "@/components/i18n";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,9 +26,11 @@ export default function RateScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
-  const { bookings, providers, addReview } = useApp();
+  const { bookings, providers, addReview, refreshBookings } = useApp();
 
   const booking = bookings.find((b) => b.id === bookingId);
+  // opened from a push notification: make sure the booking list is the fresh one from the server
+  useEffect(() => { refreshBookings().catch(() => {}); }, []);
   const provider = booking?.provider_id
     ? providers.find((p) => p.id === booking.provider_id)
     : undefined;
@@ -63,6 +65,8 @@ export default function RateScreen() {
         createdAt: new Date().toISOString(),
       });
       router.back();
+    } catch (e) {
+      Alert.alert("تعذّر إرسال التقييم", e instanceof Error ? e.message : "حاول مرة تانية");
     } finally {
       setSubmitting(false);
     }
